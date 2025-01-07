@@ -123,6 +123,7 @@ def get_clean_message_list(
         if (
             len(final_message_list) > 0
             and message["role"] == final_message_list[-1]["role"]
+            and (isinstance(message["content"], str) and isinstance(final_message_list[-1]["content"], str))
         ):
             final_message_list[-1]["content"] += "\n=======\n" + message["content"]
         else:

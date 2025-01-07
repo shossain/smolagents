@@ -322,6 +322,33 @@ class MultiStepAgent:
                     }
                     memory.append(tool_response_message)
 
+        # Append screenshot from browser!
+        import os
+
+        abs_path = os.path.abspath("screenshot.png")
+        if len(self.logs) > 2 and os.path.isfile(abs_path):
+            import base64
+
+            def encode_image(abs_path):
+                with open(abs_path, "rb") as image_file:
+                    return base64.b64encode(image_file.read()).decode('utf-8')
+
+            base64_image = encode_image(abs_path)
+            memory.append(
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Here's the current browser window:"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                    },
+                ]
+            })
+
         return memory
 
     def get_succinct_logs(self):
