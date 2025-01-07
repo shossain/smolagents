@@ -1,8 +1,10 @@
-from helium import get_driver, start_chrome
+from helium import get_driver
 from smolagents import CodeAgent, HfApiModel, LiteLLMModel
 import os
 
-model_id = "Qwen/Qwen2-VL-7B-Instruct"
+# model = HfApiModel("Qwen/Qwen2-VL-7B-Instruct")
+
+model = LiteLLMModel("gpt-4o")
 
 def save_screenshot(step_log):
     abs_path = os.path.abspath('screenshot.png')
@@ -14,7 +16,7 @@ def save_screenshot(step_log):
 
 agent = CodeAgent(
     tools=[],
-    model=LiteLLMModel("gpt-4o"),
+    model=model,
     additional_authorized_imports=["helium"],
     step_callbacks = [save_screenshot],
     max_steps=3,
