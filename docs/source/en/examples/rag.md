@@ -80,7 +80,7 @@ So let’s build our agentic RAG system!
 
 👉 We only need a RetrieverTool that our agent can leverage to retrieve information from the knowledge base.
 
-Since we need to add a vectordb as an attribute of the tool, we cannot simply use the simple tool constructor with a `@tool` decorator: so we will follow the advanced setup highlighted in the [tools tutorial](../tutorials/tools).
+Since we need to add a Vector DB as an attribute of the tool, we cannot simply use the simple tool constructor with a `@tool` decorator: so we will follow the advanced setup highlighted in the [tools tutorial](../tutorials/tools).
 
 ```py
 from smolagents import Tool
