@@ -22,7 +22,6 @@ from copy import deepcopy
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
-import litellm
 import torch
 from huggingface_hub import InferenceClient
 from transformers import (
@@ -47,6 +46,13 @@ DEFAULT_CODEAGENT_REGEX_GRAMMAR = {
     "type": "regex",
     "value": "Thought: .+?\\nCode:\\n```(?:py|python)?\\n(?:.|\\s)+?\\n```<end_action>",
 }
+
+try:
+    import litellm
+
+    is_litellm_available = True
+except ImportError:
+    is_litellm_available = False
 
 
 class MessageRole(str, Enum):
@@ -428,6 +434,10 @@ class LiteLLMModel(Model):
         api_key=None,
         **kwargs,
     ):
+        if not is_litellm_available:
+            raise ImportError(
+                "litellm not found. Install it with `pip install litellm`"
+            )
         super().__init__()
         self.model_id = model_id
         # IMPORTANT - Set this to TRUE to add the function to the prompt for Non OpenAI LLMs
@@ -510,7 +520,7 @@ class OpenAIServerModel(Model):
         api_base: str,
         api_key: str,
         temperature: float = 0.7,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.model_id = model_id
@@ -539,7 +549,7 @@ class OpenAIServerModel(Model):
             stop=stop_sequences,
             max_tokens=max_tokens,
             temperature=self.temperature,
-            **self.kwargs
+            **self.kwargs,
         )
 
         self.last_input_token_count = response.usage.prompt_tokens
@@ -566,7 +576,7 @@ class OpenAIServerModel(Model):
             stop=stop_sequences,
             max_tokens=max_tokens,
             temperature=self.temperature,
-            **self.kwargs
+            **self.kwargs,
         )
 
         tool_calls = response.choices[0].message.tool_calls[0]
