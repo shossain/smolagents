@@ -23,6 +23,7 @@ from smolagents.default_tools import BASE_PYTHON_TOOLS
 from smolagents.local_python_executor import (
     InterpreterError,
     evaluate_python_code,
+    fix_final_answer_code,
 )
 from smolagents.types import AGENT_TYPE_MAPPING
 
@@ -896,3 +897,40 @@ shift_intervals
 """
         result = evaluate_python_code(code, {"print": print, "map": map}, state={})
         assert result == {"Worker A": "8:00 pm", "Worker B": "11:45 am"}
+
+    def test_fix_final_answer_code(self):
+        test_cases = [
+            (
+                "final_answer = 3.21\nfinal_answer(final_answer)",
+                "final_answer_variable = 3.21\nfinal_answer(final_answer_variable)",
+            ),
+            (
+                "x = final_answer(5)\nfinal_answer = x + 1\nfinal_answer(final_answer)",
+                "x = final_answer(5)\nfinal_answer_variable = x + 1\nfinal_answer(final_answer_variable)",
+            ),
+            (
+                "def func():\n    final_answer = 42\n    return final_answer(final_answer)",
+                "def func():\n    final_answer_variable = 42\n    return final_answer(final_answer_variable)",
+            ),
+            (
+                "final_answer(5)  # Should not change function calls",
+                "final_answer(5)  # Should not change function calls",
+            ),
+            (
+                "obj.final_answer = 5  # Should not change object attributes",
+                "obj.final_answer = 5  # Should not change object attributes",
+            ),
+            (
+                "final_answer=3.21;final_answer(final_answer)",
+                "final_answer_variable=3.21;final_answer(final_answer_variable)",
+            ),
+        ]
+
+        for i, (input_code, expected) in enumerate(test_cases, 1):
+            result = fix_final_answer_code(input_code)
+            assert result == expected, f"""
+    Test case {i} failed:
+    Input:    {input_code}
+    Expected: {expected}
+    Got:      {result}
+    """

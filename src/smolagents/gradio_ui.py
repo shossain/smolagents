@@ -35,9 +35,7 @@ def pull_messages_from_step(step_log: AgentStep, test_mode: bool = True):
                 content=str(content),
             )
         if step_log.observations is not None:
-            yield gr.ChatMessage(
-                role="assistant", content=step_log.observations
-            )
+            yield gr.ChatMessage(role="assistant", content=step_log.observations)
         if step_log.error is not None:
             yield gr.ChatMessage(
                 role="assistant",
