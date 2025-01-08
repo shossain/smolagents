@@ -105,11 +105,11 @@ def parse_json_blob(json_blob: str) -> Dict[str, str]:
         raise ValueError(f"Error in parsing the JSON blob: {e}")
 
 
-def parse_code_blob(code_blob: str) -> str:
+def parse_code_blobs(code_blob: str) -> str:
     """Parses the LLM's output to get any code blob inside. Will retrun the code directly if it's code."""
     pattern = r"```(?:py|python)?\n(.*?)\n```"
-    match = re.search(pattern, code_blob, re.DOTALL)
-    if match is None:
+    matches = re.findall(pattern, code_blob, re.DOTALL)
+    if len(matches) == 0:
         try:  # Maybe the LLM outputted a code blob directly
             ast.parse(code_blob)
             return code_blob
@@ -123,7 +123,7 @@ The code blob is invalid, because the regex pattern {pattern} was not found in {
 Code:
 ```py
 final_answer("YOUR FINAL ANSWER HERE")
-```<end_action>""".strip()
+```<end_code>""".strip()
             )
         raise ValueError(
             f"""
@@ -132,9 +132,9 @@ Thoughts: Your thoughts
 Code:
 ```py
 # Your python code here
-```<end_action>""".strip()
+```<end_code>""".strip()
         )
-    return match.group(1).strip()
+    return "\n\n".join(match.strip() for match in matches)
 
 
 def parse_json_tool_call(json_blob: str) -> Tuple[str, Union[str, None]]:

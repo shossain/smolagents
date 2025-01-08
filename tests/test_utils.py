@@ -15,16 +15,16 @@
 import unittest
 import pytest
 
-from smolagents.utils import parse_code_blob
+from smolagents.utils import parse_code_blobs
 
 
 class AgentTextTests(unittest.TestCase):
-    def test_parse_code_blob(self):
+    def test_parse_code_blobs(self):
         with pytest.raises(ValueError):
-            parse_code_blob("Wrong blob!")
+            parse_code_blobs("Wrong blob!")
 
         # Parsing mardkwon with code blobs should work
-        output = parse_code_blob("""
+        output = parse_code_blobs("""
 Here is how to solve the problem:
 Code:
 ```py
@@ -35,5 +35,25 @@ import numpy as np
 
         # Parsing code blobs should work
         code_blob = "import numpy as np"
-        output = parse_code_blob(code_blob)
+        output = parse_code_blobs(code_blob)
         assert output == code_blob
+
+    def test_multiple_code_blobs(self):
+        test_input = """Here's a function that adds numbers:
+```python
+def add(a, b):
+    return a + b
+```
+And here's a function that multiplies them:
+```py
+def multiply(a, b):
+    return a * b
+```"""
+
+        expected_output = """def add(a, b):
+    return a + b
+
+def multiply(a, b):
+    return a * b"""
+        result = parse_code_blobs(test_input)
+        assert result == expected_output

@@ -60,7 +60,7 @@ from .utils import (
     AgentMaxStepsError,
     AgentParsingError,
     console,
-    parse_code_blob,
+    parse_code_blobs,
     parse_json_tool_call,
     truncate_content,
 )
@@ -894,7 +894,7 @@ class CodeAgent(MultiStepAgent):
             )
             llm_output = self.model(
                 self.input_messages,
-                stop_sequences=["<end_action>", "Observation:"],
+                stop_sequences=["<end_code>", "Observation:"],
                 **additional_args,
             )
             log_entry.llm_output = llm_output
@@ -920,7 +920,7 @@ class CodeAgent(MultiStepAgent):
 
         # Parse
         try:
-            code_action = fix_final_answer_code(parse_code_blob(llm_output))
+            code_action = fix_final_answer_code(parse_code_blobs(llm_output))
         except Exception as e:
             error_msg = (
                 f"Error in code parsing:\n{e}\nMake sure to provide correct code blobs."
