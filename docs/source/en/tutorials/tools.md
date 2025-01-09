@@ -187,7 +187,7 @@ from smolagents import HfApiModel
 model = HfApiModel("Qwen/Qwen2.5-Coder-32B-Instruct")
 
 agent = CodeAgent(tools=[], model=model, add_base_tools=True)
-agent.toolbox.add_tool(model_download_tool)
+agent.tools.append(model_download_tool)
 ```
 Now we can leverage the new tool:
 
@@ -200,11 +200,6 @@ agent.run(
 
 > [!TIP]
 > Beware of not adding too many tools to an agent: this can overwhelm weaker LLM engines.
-
-
-Use the `agent.toolbox.update_tool()` method to replace an existing tool in the agent's toolbox.
-This is useful if your new tool is a one-to-one replacement of the existing tool because the agent already knows how to perform that specific task.
-Just make sure the new tool follows the same API as the replaced tool or adapt the system prompt template to ensure all examples using the replaced tool are updated.
 
 
 ### Use a collection of tools

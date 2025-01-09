@@ -322,6 +322,15 @@ class SpeechToTextTool(PipelineTool):
         return self.pre_processor.batch_decode(outputs, skip_special_tokens=True)[0]
 
 
+TOOL_MAPPING = {
+    tool_class.name: tool_class
+    for tool_class in [
+        PythonInterpreterTool,
+        DuckDuckGoSearchTool,
+        VisitWebpageTool,
+    ]
+}
+
 __all__ = [
     "PythonInterpreterTool",
     "FinalAnswerTool",

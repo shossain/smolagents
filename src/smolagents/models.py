@@ -157,6 +157,14 @@ class Model:
     ):
         raise NotImplementedError
 
+    def get_tool_call(
+        self,
+        messages: List[Dict[str, str]],
+        available_tools: List[Tool],
+        stop_sequences,
+    ):
+        raise NotImplementedError
+
     def __call__(
         self,
         messages: List[Dict[str, str]],
