@@ -778,9 +778,12 @@ def launch_gradio_demo(tool: Tool):
         "integer": gr.Textbox,
         "number": gr.Textbox,
     }
+    tool_instance = tool()
 
-    def fn(*args, **kwargs):
-        return tool(*args, **kwargs, sanitize_inputs_outputs=True)
+    def tool_forward(*args, **kwargs):
+        return tool_instance(*args, sanitize_inputs_outputs=True, **kwargs)
+
+    tool_forward.__signature__ = inspect.signature(tool_instance.forward)
 
     gradio_inputs = []
     for input_name, input_details in tool.inputs.items():
@@ -794,11 +797,12 @@ def launch_gradio_demo(tool: Tool):
     gradio_output = output_gradio_componentclass(label="Output")
 
     gr.Interface(
-        fn=fn,
+        fn=tool_forward,
         inputs=gradio_inputs,
         outputs=gradio_output,
         title=tool.name,
         article=tool.description,
+        api_name=tool.name,
     ).launch()
 
 
