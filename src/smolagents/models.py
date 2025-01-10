@@ -34,7 +34,7 @@ from transformers import (
     AutoTokenizer,
     StoppingCriteria,
     StoppingCriteriaList,
-    is_torch_available
+    is_torch_available,
 )
 import openai
 
@@ -58,7 +58,7 @@ try:
     is_litellm_available = True
 except ImportError:
     is_litellm_available = False
-    
+
 
 class MessageRole(str, Enum):
     USER = "user"
@@ -283,6 +283,7 @@ class TransformersModel(Model):
         if not is_torch_available():
             raise ImportError("Please install torch in order to use TransformersModel.")
         import torch
+
         default_model_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
         if model_id is None:
             model_id = default_model_id

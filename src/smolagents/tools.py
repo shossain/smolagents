@@ -50,7 +50,7 @@ from .tool_validation import MethodChecker, validate_tool_attributes
 from .types import ImageType, handle_agent_input_types, handle_agent_output_types
 from .utils import instance_to_source
 
-logger = logging.getLogger(__name__)    
+logger = logging.getLogger(__name__)
 
 if is_accelerate_available():
     from accelerate import PartialState
@@ -996,8 +996,6 @@ class PipelineTool(Tool):
         if not is_torch_available():
             raise ImportError("Please install torch in order to use this tool.")
 
-        import torch
-
         if not is_accelerate_available():
             raise ImportError("Please install accelerate in order to use this tool.")
 
@@ -1066,6 +1064,7 @@ class PipelineTool(Tool):
         Sends the inputs through the `model`.
         """
         import torch
+
         with torch.no_grad():
             return self.model(**inputs)
 
@@ -1077,6 +1076,7 @@ class PipelineTool(Tool):
 
     def __call__(self, *args, **kwargs):
         import torch
+
         args, kwargs = handle_agent_input_types(*args, **kwargs)
 
         if not self.is_initialized:

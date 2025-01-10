@@ -44,7 +44,7 @@ def get_new_path(suffix="") -> str:
 class AgentAudioTests(unittest.TestCase):
     def test_from_tensor(self):
         import torch
-    
+
         tensor = torch.rand(12, dtype=torch.float64) - 0.5
         agent_type = AgentAudio(tensor)
         path = str(agent_type.to_string())
@@ -79,6 +79,7 @@ class AgentAudioTests(unittest.TestCase):
 class AgentImageTests(unittest.TestCase):
     def test_from_tensor(self):
         import torch
+
         tensor = torch.randint(0, 256, (64, 64, 3))
         agent_type = AgentImage(tensor)
         path = str(agent_type.to_string())
