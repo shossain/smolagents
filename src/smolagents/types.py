@@ -277,7 +277,8 @@ def handle_agent_output_types(output, output_type=None):
         # If the class does not have defined output, then we map according to the type
         for _k, _v in INSTANCE_TYPE_MAPPING.items():
             if isinstance(output, _k):
-                return _v(output)
+                if not isinstance(output, object): # avoid converting to audio if torch is not installed
+                    return _v(output)
         return output
 
 
