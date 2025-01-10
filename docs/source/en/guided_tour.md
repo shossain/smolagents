@@ -113,8 +113,7 @@ The Python interpreter also doesn't allow imports by default outside of a safe l
 You can authorize additional imports by passing the authorized modules as a list of strings in argument `additional_authorized_imports` upon initialization of your [`CodeAgent`]:
 
 ```py
-from smolagents import CodeAgent
-
+model = HfApiModel()
 agent = CodeAgent(tools=[], model=model, additional_authorized_imports=['requests', 'bs4'])
 agent.run("Could you get me the title of the page at url 'https://huggingface.co/blog'?")
 ```
@@ -164,12 +163,12 @@ Transformers comes with a default toolbox for empowering agents, that you can ad
 - **Python code interpreter**: runs your the LLM generated Python code in a secure environment. This tool will only be added to [`ToolCallingAgent`] if you initialize it with `add_base_tools=True`, since code-based agent can already natively execute Python code
 - **Transcriber**: a speech-to-text pipeline built on Whisper-Turbo that transcribes an audio to text.
 
-You can manually use a tool by calling the [`load_tool`] function and a task to perform.
+You can manually use a tool by calling it with its arguments.
 
 ```python
-from smolagents import load_tool
+from smolagents import DuckDuckGoSearchTool
 
-search_tool = load_tool("web_search")
+search_tool = DuckDuckGoSearchTool()
 print(search_tool("Who's the current president of Russia?"))
 ```
 
