@@ -776,11 +776,15 @@ class ToolCallingAgent(MultiStepAgent):
         log_entry.agent_memory = agent_memory.copy()
 
         try:
-            tool_name, tool_arguments, tool_call_id = self.model.get_tool_call(
+            model_message = self.model(
                 self.input_messages,
-                available_tools=list(self.tools.values()),
+                tools_to_call_from=list(self.tools.values()),
                 stop_sequences=["Observation:"],
             )
+            tool_calls = model_message.tool_calls[0]
+            tool_arguments = tool_calls.function.arguments
+            tool_name, tool_call_id = tool_calls.function.name, tool_calls.id
+
         except Exception as e:
             raise AgentGenerationError(
                 f"Error in generating tool call with model:\n{e}"
@@ -913,7 +917,7 @@ class CodeAgent(MultiStepAgent):
                 self.input_messages,
                 stop_sequences=["<end_code>", "Observation:"],
                 **additional_args,
-            )
+            ).content
             log_entry.llm_output = llm_output
         except Exception as e:
             raise AgentGenerationError(f"Error in generating model output:\n{e}")

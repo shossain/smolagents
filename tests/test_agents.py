@@ -30,7 +30,11 @@ from smolagents.agents import (
 from smolagents.default_tools import PythonInterpreterTool
 from smolagents.tools import tool
 from smolagents.types import AgentImage, AgentText
-
+from huggingface_hub import (
+    ChatCompletionOutputMessage,
+    ChatCompletionOutputToolCall,
+    ChatCompletionOutputFunctionDefinition,
+)
 
 def get_new_path(suffix="") -> str:
     directory = tempfile.mkdtemp()
@@ -38,54 +42,96 @@ def get_new_path(suffix="") -> str:
 
 
 class FakeToolCallModel:
-    def get_tool_call(
-        self, messages, available_tools, stop_sequences=None, grammar=None
+    def __call__(
+        self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None
     ):
         if len(messages) < 3:
-            return "python_interpreter", {"code": "2*3.6452"}, "call_0"
+            return ChatCompletionOutputMessage(
+                role="assistant",
+                content="",
+                tool_calls=[
+                    ChatCompletionOutputToolCall(
+                        id="call_0",
+                        type="function",
+                        function=ChatCompletionOutputFunctionDefinition(
+                            name="python_interpreter", arguments={"code": "2*3.6452"}
+                        ),
+                    )
+                ],
+            )
         else:
-            return "final_answer", {"answer": "7.2904"}, "call_1"
+            return ChatCompletionOutputMessage(
+                role="assistant",
+                content="",
+                tool_calls=[
+                    ChatCompletionOutputToolCall(
+                        id="call_1",
+                        type="function",
+                        function=ChatCompletionOutputFunctionDefinition(
+                            name="final_answer", arguments={"answer": "7.2904"}
+                        ),
+                    )
+                ],
+            )
 
 
 class FakeToolCallModelImage:
-    def get_tool_call(
-        self, messages, available_tools, stop_sequences=None, grammar=None
+    def __call__(
+        self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None
     ):
         if len(messages) < 3:
-            return (
-                "fake_image_generation_tool",
-                {"prompt": "An image of a cat"},
-                "call_0",
+            return ChatCompletionOutputMessage(
+                role="assistant",
+                content="",
+                tool_calls=[
+                    ChatCompletionOutputToolCall(
+                        id="call_0",
+                        type="function",
+                        function=ChatCompletionOutputFunctionDefinition(
+                            name="fake_image_generation_tool", arguments={"prompt": "An image of a cat"}
+                        ),
+                    )
+                ],
             )
-
-        else:  # We're at step 2
-            return "final_answer", "image.png", "call_1"
-
+        else:
+            return ChatCompletionOutputMessage(
+                role="assistant",
+                content="",
+                tool_calls=[
+                    ChatCompletionOutputToolCall(
+                        id="call_1",
+                        type="function",
+                        function=ChatCompletionOutputFunctionDefinition(
+                            name="final_answer", arguments="image.png"
+                        ),
+                    )
+                ],
+            )
 
 def fake_code_model(messages, stop_sequences=None, grammar=None) -> str:
     prompt = str(messages)
     if "special_marker" not in prompt:
-        return """
+        return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: I should multiply 2 by 3.6452. special_marker
 Code:
 ```py
 result = 2**3.6452
 ```<end_code>
-"""
+""")
     else:  # We're at step 2
-        return """
+        return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: I can now answer the initial question
 Code:
 ```py
 final_answer(7.2904)
 ```<end_code>
-"""
+""")
 
 
 def fake_code_model_error(messages, stop_sequences=None) -> str:
     prompt = str(messages)
     if "special_marker" not in prompt:
-        return """
+        return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: I should multiply 2 by 3.6452. special_marker
 Code:
 ```py
@@ -94,21 +140,21 @@ b = a * 2
 print = 2
 print("Ok, calculation done!")
 ```<end_code>
-"""
+""")
     else:  # We're at step 2
-        return """
+        return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: I can now answer the initial question
 Code:
 ```py
 final_answer("got an error")
 ```<end_code>
-"""
+""")
 
 
 def fake_code_model_syntax_error(messages, stop_sequences=None) -> str:
     prompt = str(messages)
     if "special_marker" not in prompt:
-        return """
+        return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: I should multiply 2 by 3.6452. special_marker
 Code:
 ```py
@@ -117,32 +163,32 @@ b = a * 2
     print("Failing due to unexpected indent")
 print("Ok, calculation done!")
 ```<end_code>
-"""
+""")
     else:  # We're at step 2
-        return """
+        return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: I can now answer the initial question
 Code:
 ```py
 final_answer("got an error")
 ```<end_code>
-"""
+""")
 
 
 def fake_code_model_import(messages, stop_sequences=None) -> str:
-    return """
+    return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: I can answer the question
 Code:
 ```py
 import numpy as np
 final_answer("got an error")
 ```<end_code>
-"""
+""")
 
 
 def fake_code_functiondef(messages, stop_sequences=None) -> str:
     prompt = str(messages)
     if "special_marker" not in prompt:
-        return """
+        return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: Let's define the function. special_marker
 Code:
 ```py
@@ -151,9 +197,9 @@ import numpy as np
 def moving_average(x, w):
     return np.convolve(x, np.ones(w), 'valid') / w
 ```<end_code>
-"""
+""")
     else:  # We're at step 2
-        return """
+        return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: I can now answer the initial question
 Code:
 ```py
@@ -161,29 +207,29 @@ x, w = [0, 1, 2, 3, 4, 5], 2
 res = moving_average(x, w)
 final_answer(res)
 ```<end_code>
-"""
+""")
 
 
 def fake_code_model_single_step(messages, stop_sequences=None, grammar=None) -> str:
-    return """
+    return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: I should multiply 2 by 3.6452. special_marker
 Code:
 ```py
 result = python_interpreter(code="2*3.6452")
 final_answer(result)
 ```
-"""
+""")
 
 
 def fake_code_model_no_return(messages, stop_sequences=None, grammar=None) -> str:
-    return """
+    return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: I should multiply 2 by 3.6452. special_marker
 Code:
 ```py
 result = python_interpreter(code="2*3.6452")
 print(result)
 ```
-"""
+""")
 
 
 class AgentTests(unittest.TestCase):
@@ -360,52 +406,74 @@ class AgentTests(unittest.TestCase):
 
     def test_multiagents(self):
         class FakeModelMultiagentsManagerAgent:
-            def __call__(self, messages, stop_sequences=None, grammar=None):
-                if len(messages) < 3:
-                    return """
+            def __call__(self, messages, stop_sequences=None, grammar=None, tools_to_call_from=None):
+                if tools_to_call_from is not None:
+                    if len(messages) < 3:
+                        return ChatCompletionOutputMessage(
+                            role="assistant",
+                            content="",
+                            tool_calls=[
+                                ChatCompletionOutputToolCall(
+                                    id="call_0",
+                                    type="function",
+                                    function=ChatCompletionOutputFunctionDefinition(
+                                        name="search_agent", arguments="Who is the current US president?"
+                                    ),
+                                )
+                            ],
+                        )
+                    else:
+                        assert "Report on the current US president" in str(messages)
+                        return ChatCompletionOutputMessage(
+                            role="assistant",
+                            content="",
+                            tool_calls=[
+                                ChatCompletionOutputToolCall(
+                                    id="call_0",
+                                    type="function",
+                                    function=ChatCompletionOutputFunctionDefinition(
+                                        name="final_answer", arguments="Final report."
+                                    ),
+                                )
+                            ],
+                        )
+                else:
+                    if len(messages) < 3:
+                        return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: Let's call our search agent.
 Code:
 ```py
 result = search_agent("Who is the current US president?")
 ```<end_code>
-"""
-                else:
-                    assert "Report on the current US president" in str(messages)
-                    return """
+""")
+                    else:
+                        assert "Report on the current US president" in str(messages)
+                        return ChatCompletionOutputMessage(role="assistant", content="""
 Thought: Let's return the report.
 Code:
 ```py
 final_answer("Final report.")
 ```<end_code>
-"""
-
-            def get_tool_call(
-                self, messages, available_tools, stop_sequences=None, grammar=None
-            ):
-                if len(messages) < 3:
-                    return (
-                        "search_agent",
-                        "Who is the current US president?",
-                        "call_0",
-                    )
-                else:
-                    assert "Report on the current US president" in str(messages)
-                    return (
-                        "final_answer",
-                        "Final report.",
-                        "call_0",
-                    )
+""")
 
         manager_model = FakeModelMultiagentsManagerAgent()
 
         class FakeModelMultiagentsManagedAgent:
-            def get_tool_call(
-                self, messages, available_tools, stop_sequences=None, grammar=None
+            def __call__(
+                self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None
             ):
-                return (
-                    "final_answer",
-                    {"report": "Report on the current US president"},
-                    "call_0",
+                return ChatCompletionOutputMessage(
+                    role="assistant",
+                    content="",
+                    tool_calls=[
+                        ChatCompletionOutputToolCall(
+                            id="call_0",
+                            type="function",
+                            function=ChatCompletionOutputFunctionDefinition(
+                                name="final_answer", arguments="Report on the current US president"
+                            ),
+                        )
+                    ],
                 )
 
         managed_model = FakeModelMultiagentsManagedAgent()
@@ -443,13 +511,13 @@ final_answer("Final report.")
 
     def test_code_nontrivial_final_answer_works(self):
         def fake_code_model_final_answer(messages, stop_sequences=None, grammar=None):
-            return """Code:
+            return ChatCompletionOutputMessage(role="assistant", content="""Code:
 ```py
 def nested_answer():
     final_answer("Correct!")
 
 nested_answer()
-```<end_code>"""
+```<end_code>""")
 
         agent = CodeAgent(tools=[], model=fake_code_model_final_answer)
 
