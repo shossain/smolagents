@@ -20,11 +20,9 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 
 from huggingface_hub import hf_hub_download, list_spaces
-from transformers.models.whisper import (
-    WhisperForConditionalGeneration,
-    WhisperProcessor,
-)
-from transformers.utils import is_offline_mode
+
+
+from transformers.utils import is_offline_mode, is_torch_available
 
 from .local_python_executor import (
     BASE_BUILTIN_MODULES,
@@ -33,6 +31,15 @@ from .local_python_executor import (
 )
 from .tools import TOOL_CONFIG_FILE, PipelineTool, Tool
 from .types import AgentAudio
+
+if is_torch_available():
+    from transformers.models.whisper import (
+        WhisperForConditionalGeneration,
+        WhisperProcessor,
+    )
+else:
+    WhisperForConditionalGeneration = object
+    WhisperProcessor = object
 
 
 @dataclass

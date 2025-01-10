@@ -253,7 +253,7 @@ AGENT_TYPE_MAPPING = {"string": AgentText, "image": AgentImage, "audio": AgentAu
 INSTANCE_TYPE_MAPPING = {
     str: AgentText,
     ImageType: AgentImage,
-    torch.Tensor: AgentAudio,
+    Tensor: AgentAudio,
 }
 
 if is_torch_available():

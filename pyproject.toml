@@ -12,9 +12,6 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "torch",
-  "torchaudio",
-  "torchvision",
   "transformers>=4.0.0",
   "requests>=2.32.3",
   "rich>=13.9.4",
@@ -30,10 +27,22 @@ dependencies = [
 ]
 
 [tool.ruff]
-ignore = ["F403"]
+lint.ignore = ["F403"]
 
 [project.optional-dependencies]
+dev = [
+  "torch",
+  "torchaudio",
+  "torchvision",
+  "sqlalchemy",
+  "accelerate",
+  "soundfile",
+  "litellm>=1.55.10",
+]
 test = [
+  "torch",
+  "torchaudio",
+  "torchvision",
   "pytest>=8.1.0",
   "sqlalchemy",
   "ruff>=0.5.0",

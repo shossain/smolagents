@@ -22,7 +22,6 @@ from copy import deepcopy
 from enum import Enum
 from typing import Dict, List, Optional
 
-import torch
 from huggingface_hub import (
     InferenceClient,
     ChatCompletionOutputMessage,
@@ -35,6 +34,7 @@ from transformers import (
     AutoTokenizer,
     StoppingCriteria,
     StoppingCriteriaList,
+    is_torch_available
 )
 import openai
 
@@ -58,7 +58,7 @@ try:
     is_litellm_available = True
 except ImportError:
     is_litellm_available = False
-
+    
 
 class MessageRole(str, Enum):
     USER = "user"
@@ -147,28 +147,11 @@ class Model:
         self.last_input_token_count = None
         self.last_output_token_count = None
 
-    def get_token_counts(self):
+    def get_token_counts(self) -> Dict[str, int]:
         return {
             "input_token_count": self.last_input_token_count,
             "output_token_count": self.last_output_token_count,
         }
-
-    def generate(
-        self,
-        messages: List[Dict[str, str]],
-        stop_sequences: Optional[List[str]] = None,
-        grammar: Optional[str] = None,
-        max_tokens: int = 1500,
-    ):
-        raise NotImplementedError
-
-    def get_tool_call(
-        self,
-        messages: List[Dict[str, str]],
-        available_tools: List[Tool],
-        stop_sequences,
-    ):
-        raise NotImplementedError
 
     def __call__(
         self,
@@ -256,6 +239,10 @@ class HfApiModel(Model):
         max_tokens: int = 1500,
         tools_to_call_from: Optional[List[Tool]] = None,
     ) -> str:
+        """
+        Gets an LLM output message for the given list of input messages.
+        If argument `tools_to_call_from` is passed, the model's tool calling options will be used to return a tool call.
+        """
         messages = get_clean_message_list(
             messages, role_conversions=tool_role_conversions
         )
@@ -293,6 +280,9 @@ class TransformersModel(Model):
 
     def __init__(self, model_id: Optional[str] = None, device: Optional[str] = None):
         super().__init__()
+        if not is_torch_available():
+            raise ImportError("Please install torch in order to use TransformersModel.")
+        import torch
         default_model_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
         if model_id is None:
             model_id = default_model_id
