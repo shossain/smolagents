@@ -22,10 +22,10 @@ from io import BytesIO
 import numpy as np
 import requests
 from transformers.utils import (
-    is_soundfile_availble,
     is_torch_available,
     is_vision_available,
 )
+from transformers.utils.import_utils import _is_package_available
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ if is_torch_available():
 else:
     Tensor = object
 
-if is_soundfile_availble():
+if _is_package_available("soundfile"):
     import soundfile as sf
 
 
@@ -189,7 +189,7 @@ class AgentAudio(AgentType, str):
     def __init__(self, value, samplerate=16_000):
         super().__init__(value)
 
-        if not is_soundfile_availble():
+        if not _is_package_available("soundfile"):
             raise ImportError("soundfile must be installed in order to handle audio.")
 
         self._path = None
