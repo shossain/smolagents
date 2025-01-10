@@ -18,7 +18,7 @@ import unittest
 import uuid
 from pathlib import Path
 
-from transformers.testing_utils import get_tests_dir
+from smolagents.testing_utils import get_tests_dir
 
 from smolagents.agents import (
     AgentMaxStepsError,

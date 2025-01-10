@@ -41,9 +41,8 @@ from transformers.utils import (
     TypeHintParsingException,
     cached_file,
     get_json_schema,
-    is_accelerate_available,
-    is_torch_available,
 )
+from transformers.utils.import_utils import _is_package_available
 from transformers.utils.chat_template_utils import _parse_type_hint
 
 from .tool_validation import MethodChecker, validate_tool_attributes
@@ -52,11 +51,11 @@ from .utils import instance_to_source
 
 logger = logging.getLogger(__name__)
 
-if is_accelerate_available():
+if _is_package_available("accelerate"):
     from accelerate import PartialState
     from accelerate.utils import send_to_device
 
-if is_torch_available():
+if _is_package_available("torch"):
     from transformers import AutoProcessor
 else:
     AutoProcessor = object

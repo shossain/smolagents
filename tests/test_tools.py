@@ -19,7 +19,7 @@ from typing import Dict, Optional, Union
 import numpy as np
 import pytest
 from transformers import is_torch_available, is_vision_available
-from transformers.testing_utils import get_tests_dir
+from smolagents.testing_utils import get_tests_dir
 
 from smolagents.tools import AUTHORIZED_TYPES, Tool, tool
 from smolagents.types import (
