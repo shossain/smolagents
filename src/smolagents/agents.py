@@ -82,7 +82,7 @@ class AgentStep:
 @dataclass
 class ActionStep(AgentStep):
     agent_memory: List[Dict[str, str]] | None = None
-    tool_call: ToolCall | None = None
+    tool_calls: List[ToolCall] | None = None
     start_time: float | None = None
     end_time: float | None = None
     step: int | None = None
@@ -302,25 +302,26 @@ class MultiStepAgent:
                     }
                     memory.append(thought_message)
 
-                if step_log.tool_call is not None:
+                if step_log.tool_calls is not None:
                     tool_call_message = {
                         "role": MessageRole.ASSISTANT,
                         "content": str(
                             [
                                 {
-                                    "id": step_log.tool_call.id,
+                                    "id": tool_call.id,
                                     "type": "function",
                                     "function": {
-                                        "name": step_log.tool_call.name,
-                                        "arguments": step_log.tool_call.arguments,
+                                        "name": tool_call.name,
+                                        "arguments": tool_call.arguments,
                                     },
                                 }
+                                for tool_call in step_log.tool_calls
                             ]
                         ),
                     }
                     memory.append(tool_call_message)
 
-                if step_log.tool_call is None and step_log.error is not None:
+                if step_log.tool_calls is None and step_log.error is not None:
                     message_content = (
                         "Error:\n"
                         + str(step_log.error)
@@ -330,7 +331,7 @@ class MultiStepAgent:
                         "role": MessageRole.ASSISTANT,
                         "content": message_content,
                     }
-                if step_log.tool_call is not None and (
+                if step_log.tool_calls is not None and (
                     step_log.error is not None or step_log.observations is not None
                 ):
                     if step_log.error is not None:
@@ -343,7 +344,7 @@ class MultiStepAgent:
                         message_content = f"Observation:\n{step_log.observations}"
                     tool_response_message = {
                         "role": MessageRole.TOOL_RESPONSE,
-                        "content": f"Call id: {(step_log.tool_call.id if getattr(step_log.tool_call, 'id') else 'call_0')}\n"
+                        "content": f"Call id: {(step_log.tool_calls[0].id if getattr(step_log.tool_calls[0], 'id') else 'call_0')}\n"
                         + message_content,
                     }
                     memory.append(tool_response_message)
@@ -814,9 +815,9 @@ class ToolCallingAgent(MultiStepAgent):
                 f"Error in generating tool call with model:\n{e}"
             )
 
-        log_entry.tool_call = ToolCall(
-            name=tool_name, arguments=tool_arguments, id=tool_call_id
-        )
+        log_entry.tool_calls = [
+            ToolCall(name=tool_name, arguments=tool_arguments, id=tool_call_id)
+        ]
 
         # Execute
         self.logger.log(
@@ -977,11 +978,13 @@ class CodeAgent(MultiStepAgent):
             )
             raise AgentParsingError(error_msg)
 
-        log_entry.tool_call = ToolCall(
-            name="python_interpreter",
-            arguments=code_action,
-            id=f"call_{len(self.logs)}",
-        )
+        log_entry.tool_calls = [
+            ToolCall(
+                name="python_interpreter",
+                arguments=code_action,
+                id=f"call_{len(self.logs)}",
+            )
+        ]
 
         # Execute
         self.logger.log(
