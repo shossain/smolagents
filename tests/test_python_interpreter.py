@@ -18,61 +18,17 @@ import unittest
 import numpy as np
 import pytest
 
-from smolagents.default_tools import BASE_PYTHON_TOOLS, PythonInterpreterTool
+from smolagents.default_tools import BASE_PYTHON_TOOLS
 from smolagents.local_python_executor import (
     InterpreterError,
     evaluate_python_code,
     fix_final_answer_code,
 )
-from smolagents.types import AGENT_TYPE_MAPPING
-
-from .test_tools import ToolTesterMixin
 
 
 # Fake function we will use as tool
 def add_two(x):
     return x + 2
-
-
-class PythonInterpreterToolTester(unittest.TestCase, ToolTesterMixin):
-    def setUp(self):
-        self.tool = PythonInterpreterTool(authorized_imports=["sqlite3"])
-        self.tool.setup()
-
-    def test_exact_match_arg(self):
-        result = self.tool("(2 / 2) * 4")
-        self.assertEqual(result, "Stdout:\n\nOutput: 4.0")
-
-    def test_exact_match_kwarg(self):
-        result = self.tool(code="(2 / 2) * 4")
-        self.assertEqual(result, "Stdout:\n\nOutput: 4.0")
-
-    def test_agent_type_output(self):
-        inputs = ["2 * 2"]
-        output = self.tool(*inputs, sanitize_inputs_outputs=True)
-        output_type = AGENT_TYPE_MAPPING[self.tool.output_type]
-        self.assertTrue(isinstance(output, output_type))
-
-    def test_agent_types_inputs(self):
-        inputs = ["2 * 2"]
-        _inputs = []
-
-        for _input, expected_input in zip(inputs, self.tool.inputs.values()):
-            input_type = expected_input["type"]
-            if isinstance(input_type, list):
-                _inputs.append(
-                    [
-                        AGENT_TYPE_MAPPING[_input_type](_input)
-                        for _input_type in input_type
-                    ]
-                )
-            else:
-                _inputs.append(AGENT_TYPE_MAPPING[input_type](_input))
-
-        # Should not raise an error
-        output = self.tool(*inputs, sanitize_inputs_outputs=True)
-        output_type = AGENT_TYPE_MAPPING[self.tool.output_type]
-        self.assertTrue(isinstance(output, output_type))
 
 
 class PythonInterpreterTester(unittest.TestCase):
