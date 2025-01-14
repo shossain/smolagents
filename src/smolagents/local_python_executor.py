@@ -685,6 +685,9 @@ def evaluate_subscript(
     if isinstance(value, pd.core.indexing._LocIndexer):
         parent_object = value.obj
         return parent_object.loc[index]
+    if isinstance(value, pd.core.indexing._iLocIndexer):
+        parent_object = value.obj
+        return parent_object.iloc[index]
     if isinstance(value, (pd.DataFrame, pd.Series, np.ndarray)):
         return value[index]
     elif isinstance(value, pd.core.groupby.generic.DataFrameGroupBy):

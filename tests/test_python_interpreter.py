@@ -852,6 +852,7 @@ filtered_df = df.loc[df['AtomicNumber'].isin([104])]
         )
         assert np.array_equal(result.values[0], [104, 1])
 
+        # Test groupby
         code = """import pandas as pd
 data = pd.DataFrame.from_dict([
     {"Pclass": 1, "Survived": 1},
@@ -864,6 +865,21 @@ survival_rate_by_class = data.groupby('Pclass')['Survived'].mean()
             code, {}, state={}, authorized_imports=["pandas"]
         )
         assert result.values[1] == 0.5
+
+        # Test loc and iloc
+        code = """import pandas as pd
+data = pd.DataFrame.from_dict([
+    {"Pclass": 1, "Survived": 1},
+    {"Pclass": 2, "Survived": 0},
+    {"Pclass": 2, "Survived": 1}
+])
+survival_rate_biased = data.loc[data['Survived']==1]['Survived'].mean()
+survival_rate_biased = data.loc[data['Survived']==1]['Survived'].mean()
+survival_rate_sorted = data.sort_values(by='Survived', ascending=False).iloc[0]   
+"""
+        result, _ = evaluate_python_code(
+            code, {}, state={}, authorized_imports=["pandas"]
+        )
 
     def test_starred(self):
         code = """
