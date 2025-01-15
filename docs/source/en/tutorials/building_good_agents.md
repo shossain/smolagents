@@ -19,7 +19,7 @@ rendered properly in your Markdown viewer.
 
 There's a world of difference between building an agent that works and one that doesn't.
 How can we build agents that fall into the latter category?
-In this guide, we're going to see best practices for building agents.
+In this guide, we're going to talk about best practices for building agents.
 
 > [!TIP]
 > If you're new to building agents, make sure to first read the [intro to agents](../conceptual_guides/intro_agents) and the [guided tour of smolagents](../guided_tour).
