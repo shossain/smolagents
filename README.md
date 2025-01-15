@@ -66,8 +66,8 @@ In our `CodeAgent`,  the LLM engine writes its actions in code. This approach is
 and [reaches higher performance on difficult benchmarks](https://huggingface.co/papers/2411.01747). Head to [our high-level intro to agents](https://huggingface.co/docs/smolagents/conceptual_guides/intro_agents) to learn more on that.
 
 Especially, since code execution can be a security concern (arbitrary code execution!), we provide options at runtime:
-  - a secure python interpreter to run code more safely in your environment
-  - a sandboxed environment using [E2B](https://e2b.dev/).
+  - a secure python interpreter to run code more safely in your environment (more secure than raw code execution but still risky)
+  - a sandboxed environment using [E2B](https://e2b.dev/) (removes the risk to your own system).
 
 ## How smol is it really?
 
