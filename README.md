@@ -88,6 +88,18 @@ We've created [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/age
 
 This comparison shows that open source models can now take on the best closed models!
 
+## Contributing
+
+To contribute, follow our [contribution guide](https://github.com/huggingface/smolagents/blob/main/CONTRIBUTING.md).
+
+At any moment, feel welcome to open an issue, citing your exact error traces and package versions if it's a bug.
+It's often even better to open a PR with your proposed fixes/changes!
+
+To run tests locally, run this command:
+```bash
+pytest -sv .
+```
+
 ## Citing smolagents
 
 If you use `smolagents` in your publication, please cite it by using the following BibTeX entry.

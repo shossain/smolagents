@@ -31,7 +31,6 @@ from .local_python_executor import (
 )
 from .tools import TOOL_CONFIG_FILE, PipelineTool, Tool
 from .types import AgentAudio
-from .utils import truncate_content
 
 if is_torch_available():
     from transformers.models.whisper import (
@@ -278,6 +277,7 @@ class VisitWebpageTool(Tool):
             import requests
             from markdownify import markdownify
             from requests.exceptions import RequestException
+            from smolagents.utils import truncate_content
         except ImportError:
             raise ImportError(
                 "You must install packages `markdownify` and `requests` to run this tool: for instance run `pip install markdownify requests`."
