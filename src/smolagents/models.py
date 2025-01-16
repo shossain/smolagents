@@ -192,8 +192,12 @@ def get_clean_message_list(
             len(final_message_list) > 0
             and message["role"] == final_message_list[-1]["role"]
         ):
-            final_message_list[-1]["content"] += "\n=======\n" + message["content"]
+            assert isinstance(message["content"], list), "Error: wrong content:" + str(
+                message["content"]
+            )
+            final_message_list[-1]["content"].append(message["content"][0])
         else:
+            # Convert to
             final_message_list.append(message)
     return final_message_list
 
@@ -377,7 +381,9 @@ class TransformersModel(Model):
                 model_id, device_map=self.device
             )
 
-    def make_stopping_criteria(self, stop_sequences: List[str], tokenizer) -> StoppingCriteriaList:
+    def make_stopping_criteria(
+        self, stop_sequences: List[str], tokenizer
+    ) -> StoppingCriteriaList:
         class StopOnStrings(StoppingCriteria):
             def __init__(self, stop_strings: List[str], tokenizer):
                 self.stop_strings = stop_strings
@@ -446,8 +452,12 @@ class TransformersModel(Model):
             stopping_criteria=(
                 self.make_stopping_criteria(
                     stop_sequences,
-                    tokenizer=self.processor if hasattr(self, "processor") else self.tokenizer
-                ) if stop_sequences else None
+                    tokenizer=self.processor
+                    if hasattr(self, "processor")
+                    else self.tokenizer,
+                )
+                if stop_sequences
+                else None
             ),
         )
         generated_tokens = out[0, count_prompt_tokens:]
@@ -514,6 +524,13 @@ class LiteLLMModel(Model):
         messages = get_clean_message_list(
             messages, role_conversions=tool_role_conversions
         )
+        #     if message["content"][0]["type"] == "image":
+        #         base64_image = message["content"]["image"]
+        #         message["content"][0] = {"type": "image_url", "image_url": "data:image/jpeg;base64," + base64_image}
+        # for message in messages:
+        #     for el in message["content"]:
+        #         if el["type"] == "text" and not isinstance(el["text"], str):
+        #             print("FLAG", el["text"])
         if tools_to_call_from:
             response = litellm.completion(
                 model=self.model_id,

@@ -90,7 +90,7 @@ class ActionStep(AgentStep):
     duration: float | None = None
     llm_output: str | None = None
     observations: str | None = None
-    observation_images: List[str] | None = None
+    observations_images: List[str] | None = None
     action_output: Any = None
 
 
@@ -103,7 +103,7 @@ class PlanningStep(AgentStep):
 @dataclass
 class TaskStep(AgentStep):
     task: str
-    images: List[str] | None = None
+    task_images: List[str] | None = None
 
 
 @dataclass
@@ -271,7 +271,9 @@ class MultiStepAgent:
                 if not summary_mode:
                     thought_message = {
                         "role": MessageRole.SYSTEM,
-                        "content": step_log.system_prompt.strip(),
+                        "content": [
+                            {"type": "text", "text": step_log.system_prompt.strip()}
+                        ],
                     }
                     memory.append(thought_message)
 
@@ -293,11 +295,21 @@ class MultiStepAgent:
                 task_message = {
                     "role": MessageRole.USER,
                     "content": [
-                        {"type": "text", "text": "New task:\n" + step_log.task}
+                        {"type": "text", "text": f"New task:\n{step_log.task}"}
                     ],
                 }
-                if step_log.images:
-                    task_message["content"].append({"type": "image"})
+                if step_log.task_images:
+                    for image in step_log.task_images:
+                        task_message["content"].append(
+                            [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{image}"
+                                    },
+                                }
+                            ]
+                        )
                 memory.append(task_message)
 
             elif isinstance(step_log, ActionStep):
@@ -308,26 +320,43 @@ class MultiStepAgent:
                             {"type": "text", "text": step_log.llm_output.strip()}
                         ],
                     }
-                    if step_log.observation_images:
-                        thought_message["content"].append({"type": "image"})
                     memory.append(thought_message)
+                if step_log.observations_images:
+                    for image in step_log.observations_images:
+                        thought_message_image = {
+                            "role": MessageRole.USER,
+                            "content": [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{image}"
+                                    },
+                                }
+                            ],
+                        }
+                    memory.append(thought_message_image)
 
                 if step_log.tool_calls is not None:
                     tool_call_message = {
                         "role": MessageRole.ASSISTANT,
-                        "content": str(
-                            [
-                                {
-                                    "id": tool_call.id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": tool_call.name,
-                                        "arguments": tool_call.arguments,
-                                    },
-                                }
-                                for tool_call in step_log.tool_calls
-                            ]
-                        ),
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": str(
+                                    [
+                                        {
+                                            "id": tool_call.id,
+                                            "type": "function",
+                                            "function": {
+                                                "name": tool_call.name,
+                                                "arguments": tool_call.arguments,
+                                            },
+                                        }
+                                        for tool_call in step_log.tool_calls
+                                    ]
+                                ),
+                            }
+                        ],
                     }
                     memory.append(tool_call_message)
 
@@ -339,7 +368,7 @@ class MultiStepAgent:
                     )
                     tool_response_message = {
                         "role": MessageRole.ASSISTANT,
-                        "content": message_content,
+                        "content": [{"type": "text", "text": message_content}],
                     }
                 if step_log.tool_calls is not None and (
                     step_log.error is not None or step_log.observations is not None
@@ -354,8 +383,13 @@ class MultiStepAgent:
                         message_content = f"Observation:\n{step_log.observations}"
                     tool_response_message = {
                         "role": MessageRole.TOOL_RESPONSE,
-                        "content": f"Call id: {(step_log.tool_calls[0].id if getattr(step_log.tool_calls[0], 'id') else 'call_0')}\n"
-                        + message_content,
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"Call id: {(step_log.tool_calls[0].id if getattr(step_log.tool_calls[0], 'id') else 'call_0')}\n"
+                                + message_content,
+                            }
+                        ],
                     }
                     memory.append(tool_response_message)
 
@@ -502,7 +536,7 @@ class MultiStepAgent:
         agent.run("What is the result of 2 power 3.7384?")
         ```
         """
-        
+
         self.task = task
         if additional_args is not None:
             self.state.update(additional_args)
@@ -533,11 +567,13 @@ You have been provided with these additional arguments, that you can access usin
             ),
             level=LogLevel.INFO,
         )
-        
-        self.logs.append(TaskStep(task=self.task, images=images))
+
+        self.logs.append(TaskStep(task=self.task, task_images=images))
         if single_step:
             step_start_time = time.time()
-            step_log = ActionStep(start_time=step_start_time, observation_images=images)
+            step_log = ActionStep(
+                start_time=step_start_time, observations_images=images
+            )
             step_log.end_time = time.time()
             step_log.duration = step_log.end_time - step_start_time
 
@@ -561,7 +597,7 @@ You have been provided with these additional arguments, that you can access usin
             step_log = ActionStep(
                 step=self.step_number,
                 start_time=step_start_time,
-                observation_images=images,
+                observations_images=images,
             )
             try:
                 if (
@@ -621,7 +657,7 @@ You have been provided with these additional arguments, that you can access usin
             step_log = ActionStep(
                 step=self.step_number,
                 start_time=step_start_time,
-                observation_images=images,
+                observations_images=images,
             )
             try:
                 if (
@@ -834,7 +870,6 @@ class ToolCallingAgent(MultiStepAgent):
                 self.input_messages,
                 tools_to_call_from=list(self.tools.values()),
                 stop_sequences=["Observation:"],
-                images=log_entry.observation_images,
             )
             tool_call = model_message.tool_calls[0]
             tool_name, tool_call_id = tool_call.function.name, tool_call.id
@@ -990,7 +1025,6 @@ class CodeAgent(MultiStepAgent):
             llm_output = self.model(
                 self.input_messages,
                 stop_sequences=["<end_code>", "Observation:"],
-                images=[log_entry.observation_images],
                 **additional_args,
             ).content
             log_entry.llm_output = llm_output
