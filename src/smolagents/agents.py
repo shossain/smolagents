@@ -90,6 +90,7 @@ class ActionStep(AgentStep):
     duration: float | None = None
     llm_output: str | None = None
     observations: str | None = None
+    observation_images: List[str] | None = None
     action_output: Any = None
 
 
@@ -102,6 +103,7 @@ class PlanningStep(AgentStep):
 @dataclass
 class TaskStep(AgentStep):
     task: str
+    images: List[str] | None = None
 
 
 @dataclass
@@ -290,16 +292,24 @@ class MultiStepAgent:
             elif isinstance(step_log, TaskStep):
                 task_message = {
                     "role": MessageRole.USER,
-                    "content": "New task:\n" + step_log.task,
+                    "content": [
+                        {"type": "text", "text": "New task:\n" + step_log.task}
+                    ],
                 }
+                if step_log.images:
+                    task_message["content"].append({"type": "image"})
                 memory.append(task_message)
 
             elif isinstance(step_log, ActionStep):
                 if step_log.llm_output is not None and not summary_mode:
                     thought_message = {
                         "role": MessageRole.ASSISTANT,
-                        "content": step_log.llm_output.strip(),
+                        "content": [
+                            {"type": "text", "text": step_log.llm_output.strip()}
+                        ],
                     }
+                    if step_log.observation_images:
+                        thought_message["content"].append({"type": "image"})
                     memory.append(thought_message)
 
                 if step_log.tool_calls is not None:
@@ -377,16 +387,23 @@ class MultiStepAgent:
             )
         return rationale.strip(), action.strip()
 
-    def provide_final_answer(self, task) -> str:
+    def provide_final_answer(self, task, images) -> str:
         """
         This method provides a final answer to the task, based on the logs of the agent's interactions.
         """
         self.input_messages = [
             {
                 "role": MessageRole.SYSTEM,
-                "content": "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:",
+                "content": [
+                    {
+                        "type": "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:"
+                    }
+                ],
             }
         ]
+        if images:
+            self.input_messages.content.append({"type": "image"})
+
         self.input_messages += self.write_inner_memory_from_logs()[1:]
         self.input_messages += [
             {
@@ -464,6 +481,7 @@ class MultiStepAgent:
         stream: bool = False,
         reset: bool = True,
         single_step: bool = False,
+        images: Optional[List[str]] = [],
         additional_args: Optional[Dict] = None,
     ):
         """
@@ -474,6 +492,7 @@ class MultiStepAgent:
             stream (`bool`): Whether to run in a streaming way.
             reset (`bool`): Whether to reset the conversation or keep it going from previous run.
             single_step (`bool`): Whether to run the agent in one-shot fashion.
+            images (`List`): List of paths to image(s).
             additional_args (`dict`): Any other variables that you want to pass to the agent run, for instance images or dataframes. Give them clear names!
 
         Example:
@@ -514,11 +533,11 @@ You have been provided with these additional arguments, that you can access usin
             level=LogLevel.INFO,
         )
 
-        self.logs.append(TaskStep(task=self.task))
+        self.logs.append(TaskStep(task=self.task, images=images))
 
         if single_step:
             step_start_time = time.time()
-            step_log = ActionStep(start_time=step_start_time)
+            step_log = ActionStep(start_time=step_start_time, observation_images=images)
             step_log.end_time = time.time()
             step_log.duration = step_log.end_time - step_start_time
 
@@ -527,11 +546,11 @@ You have been provided with these additional arguments, that you can access usin
             return result
 
         if stream:
-            return self.stream_run(self.task)
+            return self.stream_run(self.task, images)
         else:
-            return self.direct_run(self.task)
+            return self.direct_run(self.task, images)
 
-    def stream_run(self, task: str):
+    def stream_run(self, task: str, images: List[str] | None = None):
         """
         Runs the agent in streaming mode, yielding steps as they are executed: should be launched only in the `run` method.
         """
@@ -539,7 +558,11 @@ You have been provided with these additional arguments, that you can access usin
         self.step_number = 0
         while final_answer is None and self.step_number < self.max_steps:
             step_start_time = time.time()
-            step_log = ActionStep(step=self.step_number, start_time=step_start_time)
+            step_log = ActionStep(
+                step=self.step_number,
+                start_time=step_start_time,
+                observation_images=images,
+            )
             try:
                 if (
                     self.planning_interval is not None
@@ -576,7 +599,7 @@ You have been provided with these additional arguments, that you can access usin
             error_message = "Reached max steps."
             final_step_log = ActionStep(error=AgentMaxStepsError(error_message))
             self.logs.append(final_step_log)
-            final_answer = self.provide_final_answer(task)
+            final_answer = self.provide_final_answer(task, images)
             self.logger.log(Text(f"Final answer: {final_answer}"), level=LogLevel.INFO)
             final_step_log.action_output = final_answer
             final_step_log.end_time = time.time()
@@ -587,7 +610,7 @@ You have been provided with these additional arguments, that you can access usin
 
         yield handle_agent_output_types(final_answer)
 
-    def direct_run(self, task: str):
+    def direct_run(self, task: str, images: List[str] | None = None):
         """
         Runs the agent in direct mode, returning outputs only at the end: should be launched only in the `run` method.
         """
@@ -595,7 +618,11 @@ You have been provided with these additional arguments, that you can access usin
         self.step_number = 0
         while final_answer is None and self.step_number < self.max_steps:
             step_start_time = time.time()
-            step_log = ActionStep(step=self.step_number, start_time=step_start_time)
+            step_log = ActionStep(
+                step=self.step_number,
+                start_time=step_start_time,
+                observation_images=images,
+            )
             try:
                 if (
                     self.planning_interval is not None
@@ -633,7 +660,7 @@ You have been provided with these additional arguments, that you can access usin
             error_message = "Reached max steps."
             final_step_log = ActionStep(error=AgentMaxStepsError(error_message))
             self.logs.append(final_step_log)
-            final_answer = self.provide_final_answer(task)
+            final_answer = self.provide_final_answer(task, images)
             self.logger.log(Text(f"Final answer: {final_answer}"), level=LogLevel.INFO)
             final_step_log.action_output = final_answer
             final_step_log.duration = 0
@@ -807,6 +834,7 @@ class ToolCallingAgent(MultiStepAgent):
                 self.input_messages,
                 tools_to_call_from=list(self.tools.values()),
                 stop_sequences=["Observation:"],
+                images=log_entry.observation_images,
             )
             tool_call = model_message.tool_calls[0]
             tool_name, tool_call_id = tool_call.function.name, tool_call.id
