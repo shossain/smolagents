@@ -285,6 +285,96 @@ class HfApiModel(Model):
         self.last_output_token_count = response.usage.completion_tokens
         return response.choices[0].message
 
+class VLLMModel(Model):
+    """This engine initializes a model and tokenizer from the given `model_id`.
+
+    Parameters:
+        model_id (`str`, *optional*, defaults to `"HuggingFaceTB/SmolLM2-1.7B-Instruct"`):
+            The Hugging Face model ID to be used for inference. This can be a path or model identifier from the Hugging Face model hub.
+        device (`str`, optional, defaults to `"cuda"` if available, else `"cpu"`.):
+            The device to load the model on (`"cpu"` or `"cuda"`).
+    """
+
+    def __init__(self, model_id: Optional[str] = None, device: Optional[str] = None):
+        super().__init__()
+        #if not is_vllm_available():
+        #raise ImportError("Please install torch in order to use TransformersModel.")
+
+        from vllm import LLM, SamplingParams
+        from vllm.transformers_utils.tokenizer import get_tokenizer
+
+        default_model_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+        if model_id is None:
+            model_id = default_model_id
+            logger.warning(
+                f"`model_id`not provided, using this default tokenizer for token counts: '{model_id}'"
+            )
+
+        self.model_id = model_id
+        self.sampling_params = SamplingParams(temperature=0.3, top_p=0.95, max_tokens=1024)
+        self.model = LLM(model=model_id)
+        self.tokenizer = get_tokenizer(model_id)
+
+    def __call__(
+        self,
+        messages: List[Dict[str, str]],
+        stop_sequences: Optional[List[str]] = None,
+        grammar: Optional[str] = None,
+        max_tokens: int = 1500,
+        tools_to_call_from: Optional[List[Tool]] = None,
+    ) -> ChatMessage:
+        messages = get_clean_message_list(
+            messages, role_conversions=tool_role_conversions
+        )
+        if tools_to_call_from is not None:
+            prompt_tensor = self.tokenizer.apply_chat_template(
+                messages,
+                tools=[get_json_schema(tool) for tool in tools_to_call_from],
+                add_generation_prompt=True,
+                tokenize=False,
+            )
+        else:
+            prompt_tensor = self.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+            )
+
+
+        out = self.model.generate(
+            prompt_tensor,
+            sampling_params=self.sampling_params,
+        )
+
+        output = out[0].outputs[0].text
+        count_prompt_tokens = len(out[0].prompt_token_ids)
+        count_generated_tokens = len(out[0].outputs[0].token_ids)
+
+        self.last_input_token_count = count_prompt_tokens
+        self.last_output_token_count = count_generated_tokens
+
+        if tools_to_call_from is None:
+            return ChatMessage(role="assistant", content=output)
+        else:
+            if "Action:" in output:
+                output = output.split("Action:", 1)[1].strip()
+            parsed_output = json.loads(output)
+            tool_name = parsed_output.get("tool_name")
+            tool_arguments = parsed_output.get("tool_arguments")
+            return ChatMessage(
+                role="assistant",
+                content="",
+                tool_calls=[
+                    ChatMessageToolCall(
+                        id="".join(random.choices("0123456789", k=5)),
+                        type="function",
+                        function=ChatMessageToolCallDefinition(
+                            name=tool_name, arguments=tool_arguments
+                        ),
+                    )
+                ],
+            )
+
+
 
 class TransformersModel(Model):
     """This engine initializes a model and tokenizer from the given `model_id`.
@@ -551,4 +641,5 @@ __all__ = [
     "HfApiModel",
     "LiteLLMModel",
     "OpenAIServerModel",
+    "VLLMModel",
 ]

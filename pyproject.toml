@@ -12,18 +12,19 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "transformers>=4.0.0",
-  "requests>=2.32.3",
-  "rich>=13.9.4",
-  "pandas>=2.2.3",
-  "jinja2>=3.1.4",
-  "pillow>=11.0.0",
-  "markdownify>=0.14.1",
-  "gradio>=5.8.0",
-  "duckduckgo-search>=6.3.7",
-  "python-dotenv>=1.0.1",
-  "e2b-code-interpreter>=1.0.3",
-  "openai>=1.58.1",
+  "transformers",
+  "requests",
+  "rich",
+  "pandas",
+  "jinja2",
+  "pillow",
+  "markdownify",
+  "gradio",
+  "duckduckgo-search",
+  "python-dotenv",
+  "e2b-code-interpreter",
+  "openai",
+  "datasets",
 ]
 
 [tool.ruff]
@@ -31,7 +32,7 @@ lint.ignore = ["F403"]
 
 [project.optional-dependencies]
 dev = [
-  "torch",
+  "torch==2.2.1",
   "torchaudio",
   "torchvision",
   "sqlalchemy",
@@ -50,3 +51,4 @@ test = [
   "soundfile",
   "litellm>=1.55.10",
 ]
+
