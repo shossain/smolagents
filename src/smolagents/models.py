@@ -351,7 +351,9 @@ class TransformersModel(Model):
     ```
     """
 
-    def __init__(self, model_id: Optional[str] = None, **kwargs):
+    def __init__(
+        self, model_id: Optional[str] = None, device_map: Optional[str] = None, **kwargs
+    ):
         super().__init__()
         if not is_torch_available():
             raise ImportError("Please install torch in order to use TransformersModel.")
@@ -365,15 +367,14 @@ class TransformersModel(Model):
             )
         self.model_id = model_id
         self.kwargs = kwargs
-        device = getattr(self.kwargs, "device", None)
-        if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.device = device
-        logger.info(f"Using device: {self.device}")
+        if device_map is None:
+            device_map = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device_map = device_map
+        logger.info(f"Using device: {self.device_map}")
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(model_id)
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_id, device_map=self.device
+                model_id, device_map=self.device_map
             )
         except Exception as e:
             logger.warning(
@@ -382,7 +383,7 @@ class TransformersModel(Model):
             self.model_id = default_model_id
             self.tokenizer = AutoTokenizer.from_pretrained(default_model_id)
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_id, device_map=self.device
+                model_id, device_map=self.device_map
             )
 
     def make_stopping_criteria(self, stop_sequences: List[str]) -> StoppingCriteriaList:
