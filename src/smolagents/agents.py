@@ -402,7 +402,7 @@ class MultiStepAgent:
             }
         ]
         if images:
-            self.input_messages.content.append({"type": "image"})
+            self.input_messages[0]["content"].append({"type": "image"})
 
         self.input_messages += self.write_inner_memory_from_logs()[1:]
         self.input_messages += [
@@ -502,6 +502,7 @@ class MultiStepAgent:
         agent.run("What is the result of 2 power 3.7384?")
         ```
         """
+        
         self.task = task
         if additional_args is not None:
             self.state.update(additional_args)
@@ -532,9 +533,8 @@ You have been provided with these additional arguments, that you can access usin
             ),
             level=LogLevel.INFO,
         )
-
+        
         self.logs.append(TaskStep(task=self.task, images=images))
-
         if single_step:
             step_start_time = time.time()
             step_log = ActionStep(start_time=step_start_time, observation_images=images)
@@ -983,7 +983,6 @@ class CodeAgent(MultiStepAgent):
 
         # Add new step in logs
         log_entry.agent_memory = agent_memory.copy()
-
         try:
             additional_args = (
                 {"grammar": self.grammar} if self.grammar is not None else {}
@@ -991,6 +990,7 @@ class CodeAgent(MultiStepAgent):
             llm_output = self.model(
                 self.input_messages,
                 stop_sequences=["<end_code>", "Observation:"],
+                images=[log_entry.observation_images],
                 **additional_args,
             ).content
             log_entry.llm_output = llm_output

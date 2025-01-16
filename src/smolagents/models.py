@@ -28,6 +28,7 @@ from huggingface_hub import InferenceClient
 
 from transformers import (
     AutoModelForCausalLM,
+    AutoModelForImageTextToText,
     AutoProcessor,
     AutoTokenizer,
     StoppingCriteria,
@@ -357,10 +358,15 @@ class TransformersModel(Model):
             self.model = AutoModelForCausalLM.from_pretrained(
                 model_id, device_map=self.device
             )
-            if hasattr(self.model.config, "vision_config"):
+            self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+        except ValueError as e:
+            if "Unrecognized configuration class" in str(e):
+                self.model = AutoModelForImageTextToText.from_pretrained(
+                    model_id, device_map=self.device
+                )
                 self.processor = AutoProcessor.from_pretrained(model_id)
             else:
-                self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+                raise e
         except Exception as e:
             logger.warning(
                 f"Failed to load tokenizer and model for {model_id=}: {e}. Loading default tokenizer and model instead from {default_model_id=}."
@@ -371,7 +377,7 @@ class TransformersModel(Model):
                 model_id, device_map=self.device
             )
 
-    def make_stopping_criteria(self, stop_sequences: List[str]) -> StoppingCriteriaList:
+    def make_stopping_criteria(self, stop_sequences: List[str], tokenizer) -> StoppingCriteriaList:
         class StopOnStrings(StoppingCriteria):
             def __init__(self, stop_strings: List[str], tokenizer):
                 self.stop_strings = stop_strings
@@ -395,7 +401,7 @@ class TransformersModel(Model):
                     return True
                 return False
 
-        return StoppingCriteriaList([StopOnStrings(stop_sequences, self.tokenizer)])
+        return StoppingCriteriaList([StopOnStrings(stop_sequences, tokenizer)])
 
     def __call__(
         self,
@@ -417,6 +423,7 @@ class TransformersModel(Model):
                 if tools_to_call_from
                 else None,
                 return_tensors="pt",
+                tokenize=True,
                 return_dict=True,
                 images=images,
                 add_generation_prompt=True if tools_to_call_from else False,
@@ -433,16 +440,21 @@ class TransformersModel(Model):
             )
         prompt_tensor = prompt_tensor.to(self.model.device)
         count_prompt_tokens = prompt_tensor["input_ids"].shape[1]
-
         out = self.model.generate(
             **prompt_tensor,
             max_new_tokens=max_tokens,
             stopping_criteria=(
-                self.make_stopping_criteria(stop_sequences) if stop_sequences else None
+                self.make_stopping_criteria(
+                    stop_sequences,
+                    tokenizer=self.processor if hasattr(self, "processor") else self.tokenizer
+                ) if stop_sequences else None
             ),
         )
         generated_tokens = out[0, count_prompt_tokens:]
-        output = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+        if hasattr(self, "processor"):
+            output = self.processor.decode(generated_tokens, skip_special_tokens=True)
+        else:
+            output = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
         self.last_input_token_count = count_prompt_tokens
         self.last_output_token_count = len(generated_tokens)
 
