@@ -331,6 +331,10 @@ class TransformersModel(Model):
     Parameters:
         model_id (`str`, *optional*, defaults to `"Qwen/Qwen2.5-Coder-32B-Instruct"`):
             The Hugging Face model ID to be used for inference. This can be a path or model identifier from the Hugging Face model hub.
+        device_map (`str`, *optional*):
+            The device_map to initialize your model with.
+        torch_dtype (`str`, *optional*):
+            The torch_dtype to initialize your model with.
         kwargs (dict, *optional*):
             Any additional keyword arguments that you want to use in model.generate(), for instance `max_new_tokens` or `device`.
     Raises:
@@ -352,7 +356,11 @@ class TransformersModel(Model):
     """
 
     def __init__(
-        self, model_id: Optional[str] = None, device_map: Optional[str] = None, **kwargs
+        self,
+        model_id: Optional[str] = None,
+        device_map: Optional[str] = None,
+        torch_dtype: Optional[str] = None,
+        **kwargs,
     ):
         super().__init__()
         if not is_torch_available():
@@ -369,12 +377,11 @@ class TransformersModel(Model):
         self.kwargs = kwargs
         if device_map is None:
             device_map = "cuda" if torch.cuda.is_available() else "cpu"
-        self.device_map = device_map
-        logger.info(f"Using device: {self.device_map}")
+        logger.info(f"Using device: {device_map}")
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(model_id)
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_id, device_map=self.device_map
+                model_id, device_map=device_map, torch_dtype=torch_dtype
             )
         except Exception as e:
             logger.warning(
@@ -383,7 +390,7 @@ class TransformersModel(Model):
             self.model_id = default_model_id
             self.tokenizer = AutoTokenizer.from_pretrained(default_model_id)
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_id, device_map=self.device_map
+                model_id, device_map=device_map, torch_dtype=torch_dtype
             )
 
     def make_stopping_criteria(self, stop_sequences: List[str]) -> StoppingCriteriaList:
