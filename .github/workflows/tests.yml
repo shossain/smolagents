@@ -36,9 +36,6 @@ jobs:
       - name: Agent tests
         run: |
           uv run pytest ./tests/test_agents.py
-      - name: Docs tests
-        run: |
-          uv run pytest ./tests/test_all_docs.py
       - name: Default tools tests
         run: |
           uv run pytest ./tests/test_default_tools.py
@@ -66,3 +63,6 @@ jobs:
       - name: Utils tests
         run: |
           uv run pytest ./tests/test_utils.py
+      - name: Docs tests
+        run: |
+          uv run pytest ./tests/test_all_docs.py
