@@ -1047,7 +1047,7 @@ def evaluate_with(
             context.__exit__(None, None, None)
 
 
-def get_safe_module(unsafe_module, visited=None):
+def get_safe_module(unsafe_module, dangerous_patterns, visited=None):
     """Creates a safe copy of a module or returns the original if it's a function"""
     # If it's a function or non-module object, return it directly
     if not isinstance(unsafe_module, ModuleType):
@@ -1071,7 +1071,7 @@ def get_safe_module(unsafe_module, visited=None):
         # Skip dangerous patterns at any level
         if any(
             pattern in f"{unsafe_module.__name__}.{attr_name}"
-            for pattern in ("._os", ".os")
+            for pattern in dangerous_patterns
         ):
             continue
 
@@ -1079,7 +1079,9 @@ def get_safe_module(unsafe_module, visited=None):
 
         # Recursively process nested modules, passing visited set
         if isinstance(attr_value, ModuleType):
-            attr_value = get_safe_module(attr_value, visited)
+            attr_value = get_safe_module(
+                attr_value, dangerous_patterns, visited=visited
+            )
 
         setattr(safe_module, attr_name, attr_value)
 
@@ -1087,12 +1089,32 @@ def get_safe_module(unsafe_module, visited=None):
 
 
 def import_modules(expression, state, authorized_imports):
+    dangerous_patterns = (
+        "_os",
+        "os",
+        "subprocess",
+        "_subprocess",
+        "pty",
+        "system",
+        "popen",
+        "spawn",
+        "shutil",
+        "glob",
+        "pathlib",
+        "io",
+        "socket",
+        "compile",
+        "eval",
+        "exec",
+        "multiprocessing",
+    )
+
     def check_module_authorized(module_name):
         if "*" in authorized_imports:
             return True
         else:
             module_path = module_name.split(".")
-            if any([module in ["os", "_os"] for module in module_path]):
+            if any([module in dangerous_patterns for module in module_path]):
                 return False
             module_subpaths = [
                 ".".join(module_path[:i]) for i in range(1, len(module_path) + 1)
@@ -1103,7 +1125,9 @@ def import_modules(expression, state, authorized_imports):
         for alias in expression.names:
             if check_module_authorized(alias.name):
                 raw_module = import_module(alias.name)
-                state[alias.asname or alias.name] = get_safe_module(raw_module)
+                state[alias.asname or alias.name] = get_safe_module(
+                    raw_module, dangerous_patterns
+                )
             else:
                 raise InterpreterError(
                     f"Import of {alias.name} is not allowed. Authorized imports are: {str(authorized_imports)}"
@@ -1116,7 +1140,7 @@ def import_modules(expression, state, authorized_imports):
             )
             for alias in expression.names:
                 state[alias.asname or alias.name] = get_safe_module(
-                    getattr(raw_module, alias.name)
+                    getattr(raw_module, alias.name), dangerous_patterns
                 )
         else:
             raise InterpreterError(f"Import from {expression.module} is not allowed.")
