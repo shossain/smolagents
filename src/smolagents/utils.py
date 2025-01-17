@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import ast
+import importlib.util
 import inspect
 import json
 import re
@@ -39,7 +40,7 @@ def _is_pillow_available():
     return importlib.util.find_spec("PIL") is not None
 
 
-console = Console(width=200)
+console = Console()
 
 BASE_BUILTIN_MODULES = [
     "collections",
@@ -179,9 +180,9 @@ def truncate_content(
         return content
     else:
         return (
-            content[: MAX_LENGTH_TRUNCATE_CONTENT // 2]
+            content[: max_length // 2]
             + f"\n..._This content has been truncated to stay below {max_length} characters_...\n"
-            + content[-MAX_LENGTH_TRUNCATE_CONTENT // 2 :]
+            + content[-max_length // 2 :]
         )
 
 

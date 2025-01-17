@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import importlib.util
 import logging
 import os
 import pathlib
@@ -177,14 +178,21 @@ class AgentAudio(AgentType):
     """
 
     def __init__(self, value, samplerate=16_000):
+        if importlib.util.find_spec("soundfile") is None:
+            raise ModuleNotFoundError(
+                "Please install 'audio' extra to use AgentAudio: `pip install 'smolagents[audio]'`"
+            )
         super().__init__(value)
 
+<<<<<<< HEAD
         if not _is_package_available("soundfile") or not is_torch_available():
             raise ImportError(
                 "Please install 'soundfile' and 'torch' in order to use the AgentAudio by running `pip install smolagents[audio]`"
             )
         import torch
 
+=======
+>>>>>>> main
         self._path = None
         self._tensor = None
 
@@ -214,6 +222,8 @@ class AgentAudio(AgentType):
         """
         Returns the "raw" version of that object. It is a `torch.Tensor` object.
         """
+        import soundfile as sf
+
         if self._tensor is not None:
             return self._tensor
 
@@ -235,6 +245,8 @@ class AgentAudio(AgentType):
         Returns the stringified version of that object. In the case of an AgentAudio, it is a path to the serialized
         version of the audio.
         """
+        import soundfile as sf
+
         if self._path is not None:
             return self._path
 
