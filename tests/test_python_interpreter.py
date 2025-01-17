@@ -926,3 +926,7 @@ shift_intervals
         with pytest.raises(AttributeError) as e:
             evaluate_python_code(code)
         assert "module 'random' has no attribute '_os'" in str(e)
+
+        code = "import random._os"
+        with pytest.raises(InterpreterError):
+            evaluate_python_code(code)
