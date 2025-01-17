@@ -40,7 +40,7 @@ class Monitor:
         self.total_input_token_count = 0
         self.total_output_token_count = 0
 
-    def update_metrics(self, step_log):
+    def update_metrics(self, step_log, agent):
         step_duration = step_log.duration
         self.step_durations.append(step_duration)
         console_outputs = f"[Step {len(self.step_durations) - 1}: Duration {step_duration:.2f} seconds"

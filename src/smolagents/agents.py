@@ -621,7 +621,7 @@ You have been provided with these additional arguments, that you can access usin
                 step_log.duration = step_log.end_time - step_start_time
                 self.logs.append(step_log)
                 for callback in self.step_callbacks:
-                    callback(step_log)
+                    callback(step_log, self)
                 self.step_number += 1
                 yield step_log
 
@@ -635,7 +635,7 @@ You have been provided with these additional arguments, that you can access usin
             final_step_log.end_time = time.time()
             final_step_log.duration = step_log.end_time - step_start_time
             for callback in self.step_callbacks:
-                callback(final_step_log)
+                callback(final_step_log, self)
             yield final_step_log
 
         yield handle_agent_output_types(final_answer)
@@ -683,7 +683,7 @@ You have been provided with these additional arguments, that you can access usin
                 step_log.duration = step_end_time - step_start_time
                 self.logs.append(step_log)
                 for callback in self.step_callbacks:
-                    callback(step_log)
+                    callback(step_log, self)
                 self.step_number += 1
 
         if final_answer is None and self.step_number == self.max_steps:
@@ -695,7 +695,7 @@ You have been provided with these additional arguments, that you can access usin
             final_step_log.action_output = final_answer
             final_step_log.duration = 0
             for callback in self.step_callbacks:
-                callback(final_step_log)
+                callback(final_step_log, self)
 
         return handle_agent_output_types(final_answer)
 

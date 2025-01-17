@@ -11,7 +11,7 @@ from selenium import webdriver
 model = LiteLLMModel("gpt-4o")
 # model = HfApiModel("https://lmqbs8965pj40e01.us-east-1.aws.endpoints.huggingface.cloud")
 
-def save_screenshot(step_log):
+def save_screenshot(step_log, agent):
     driver = get_driver()
     if driver is not None:
         with tempfile.NamedTemporaryFile(suffix='.png', delete=True) as tmp:
@@ -20,6 +20,8 @@ def save_screenshot(step_log):
                 width, height = img.size
                 print(f"Captured a browser screenshot: {width}x{height} pixels")
                 step_log.observations_images = [img.copy()]  # Create a copy to ensure it persists, important!
+        for step_logs in agent.logs[:-1]: #Remove previous screenshots from logs since now they're useless
+            step_logs.observations_images = None
 
     # Update observations with URL
     url_info = f"Current url: {driver.current_url}"
@@ -80,9 +82,9 @@ if Text('Accept cookies?').exists():
     click('I accept')
 ```<end_code>
 Normally the page loads quickly, no need to wait for many seconds.
-To find elements on page, don't try code searches like 'contributors = find_all(S("ol > li"))': just look at the latest screenshot you have and read it visually!
+To find elements on page, DO NOT try code-based element searches like 'contributors = find_all(S("ol > li"))': just look at the latest screenshot you have and read it visually!
 Of course you can act on buttons like a user would do when navigating.
-After each code blob you write, you willl be automatically provided with an updated screenshot of the browser and the current browser url. Don't kill the browser either.
+After each code blob you write, you will be automatically provided with an updated screenshot of the browser and the current browser url. Don't kill the browser either.
 """
 agent.run("""
 I'm trying to find if I need to work a lot to be impactful.
