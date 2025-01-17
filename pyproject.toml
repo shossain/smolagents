@@ -32,10 +32,8 @@ image = [
   "pillow>=11.0.0",
   "torch",
 ]
-accelerate = [
-  "accelerate",
-]
 transformers = [
+  "accelerate",
   "transformers>=4.0.0",
   "torch",
 ]

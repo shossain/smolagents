@@ -935,14 +935,9 @@ class PipelineTool(Tool):
         token=None,
         **hub_kwargs,
     ):
-        if not is_torch_available():
-            raise ImportError(
-                "Please install 'transformers' and 'torch' in order to use this tool by running `pip install smolagents[transformers]`"
-            )
-
-        if not _is_package_available("accelerate"):
-            raise ImportError(
-                "Please install 'accelerate' in order to use this tool by running `pip install smolagents[accelerate]`."
+        if not is_torch_available() or not _is_package_available("accelerate"):
+            raise ModuleNotFoundError(
+                "Please install 'transformers' extra to use a PipelineTool: `pip install 'smolagents[transformers]'`"
             )
 
         if model is None:

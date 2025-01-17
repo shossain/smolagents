@@ -61,8 +61,8 @@ def stream_to_gradio(
 ):
     """Runs an agent with the given task and streams the messages from the agent as gradio ChatMessages."""
     if not _is_package_available("gradio"):
-        raise ImportError(
-            "You must have `gradio` installed to use the UI. Please run `pip install smolagents[gradio]`."
+        raise ModuleNotFoundError(
+            "Please install 'gradio' extra to use the GradioUI: `pip install 'smolagents[audio]'`"
         )
     import gradio as gr
 
@@ -99,8 +99,8 @@ class GradioUI:
 
     def __init__(self, agent: MultiStepAgent, file_upload_folder: str | None = None):
         if not _is_package_available("gradio"):
-            raise ImportError(
-                "You must have `gradio` installed to use the UI. Please run `pip install smolagents[gradio]`."
+            raise ModuleNotFoundError(
+                "Please install 'gradio' extra to use the GradioUI: `pip install 'smolagents[audio]'`"
             )
 
         self.agent = agent

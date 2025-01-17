@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import importlib.util
 import logging
 import os
 import pathlib
@@ -79,8 +78,8 @@ class AgentImage(AgentType):
         super().__init__(value)
 
         if not _is_pillow_available() or not is_torch_available():
-            raise ImportError(
-                "Please install 'Pillow' and 'torch' in order to use the AgentImage by running `pip install smolagents[image]`"
+            raise ModuleNotFoundError(
+                "Please install 'image' extra to use AgentImage: `pip install 'smolagents[image]'`"
             )
         from PIL import Image
         from PIL.Image import Image as ImageType
@@ -178,21 +177,14 @@ class AgentAudio(AgentType):
     """
 
     def __init__(self, value, samplerate=16_000):
-        if importlib.util.find_spec("soundfile") is None:
+        if not _is_package_available("soundfile") or not is_torch_available:
             raise ModuleNotFoundError(
                 "Please install 'audio' extra to use AgentAudio: `pip install 'smolagents[audio]'`"
             )
-        super().__init__(value)
-
-<<<<<<< HEAD
-        if not _is_package_available("soundfile") or not is_torch_available():
-            raise ImportError(
-                "Please install 'soundfile' and 'torch' in order to use the AgentAudio by running `pip install smolagents[audio]`"
-            )
         import torch
 
-=======
->>>>>>> main
+        super().__init__(value)
+
         self._path = None
         self._tensor = None
 
@@ -227,7 +219,6 @@ class AgentAudio(AgentType):
         if self._tensor is not None:
             return self._tensor
 
-        import soundfile as sf
         import torch
 
         if self._path is not None:
@@ -249,8 +240,6 @@ class AgentAudio(AgentType):
 
         if self._path is not None:
             return self._path
-
-        import soundfile as sf
 
         if self._tensor is not None:
             directory = tempfile.mkdtemp()

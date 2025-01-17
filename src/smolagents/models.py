@@ -361,9 +361,8 @@ class TransformersModel(Model):
     ):
         super().__init__()
         if not is_torch_available() or not _is_package_available("transformers"):
-            raise ImportError(
-                "You must have `transformers` and `torch` installed on your machine. "
-                "Please run `pip install smolagents[transformers]`."
+            raise ModuleNotFoundError(
+                "Please install 'transformers' extra to use 'TransformersModel': `pip install 'smolagents[transformers]'`"
             )
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -518,7 +517,6 @@ class LiteLLMModel(Model):
             raise ModuleNotFoundError(
                 "Please install 'litellm' extra to use LiteLLMModel: `pip install 'smolagents[litellm]'`"
             )
-        import litellm
 
         super().__init__()
         self.model_id = model_id
@@ -540,7 +538,6 @@ class LiteLLMModel(Model):
         messages = get_clean_message_list(
             messages, role_conversions=tool_role_conversions
         )
-        import litellm
 
         if tools_to_call_from:
             response = litellm.completion(

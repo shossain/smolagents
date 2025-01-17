@@ -120,10 +120,10 @@ class DuckDuckGoSearchTool(Tool):
         self.max_results = max_results
         try:
             from duckduckgo_search import DDGS
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "You must install package `duckduckgo_search` to run this tool: for instance run `pip install duckduckgo-search`."
-            )
+            ) from e
         self.ddgs = DDGS()
 
     def forward(self, query: str) -> str:
@@ -237,10 +237,10 @@ class VisitWebpageTool(Tool):
             from markdownify import markdownify
             from requests.exceptions import RequestException
             from smolagents.utils import truncate_content
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "You must install packages `markdownify` and `requests` to run this tool: for instance run `pip install markdownify requests`."
-            )
+            ) from e
         try:
             # Send a GET request to the URL
             response = requests.get(url)
