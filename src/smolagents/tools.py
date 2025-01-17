@@ -37,8 +37,8 @@ from packaging import version
 from huggingface_hub.utils import is_torch_available
 from .utils import _is_package_available
 from .tool_validation import MethodChecker, validate_tool_attributes
-from .types import ImageType, handle_agent_input_types, handle_agent_output_types
-from .utils import instance_to_source
+from .types import handle_agent_input_types, handle_agent_output_types
+from .utils import instance_to_source, _is_pillow_available
 
 from ._transformers_utils import (
     get_imports,
@@ -557,7 +557,10 @@ class Tool:
             def sanitize_argument_for_prediction(self, arg):
                 from gradio_client.utils import is_http_url_like
 
-                if isinstance(arg, ImageType):
+                if _is_pillow_available():
+                    from PIL.Image import Image
+
+                if _is_pillow_available() and isinstance(arg, Image):
                     temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
                     arg.save(temp_file.name)
                     arg = temp_file.name
