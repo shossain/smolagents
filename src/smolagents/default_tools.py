@@ -14,32 +14,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import json
 import re
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-from huggingface_hub import hf_hub_download, list_spaces
-
-from huggingface_hub.utils import is_torch_available
-from huggingface_hub import constants
 
 from .local_python_executor import (
     BASE_BUILTIN_MODULES,
     BASE_PYTHON_TOOLS,
     evaluate_python_code,
 )
-from .tools import TOOL_CONFIG_FILE, PipelineTool, Tool
+from .tools import PipelineTool, Tool
 from .types import AgentAudio
-
-if is_torch_available():
-    from transformers.models.whisper import (
-        WhisperForConditionalGeneration,
-        WhisperProcessor,
-    )
-else:
-    WhisperForConditionalGeneration = object
-    WhisperProcessor = object
 
 
 @dataclass
@@ -50,33 +36,6 @@ class PreTool:
     task: str
     description: str
     repo_id: str
-
-
-def get_remote_tools(logger, organization="huggingface-tools"):
-    if constants.HF_HUB_OFFLINE:
-        logger.info("You are in offline mode, so remote tools are not available.")
-        return {}
-
-    spaces = list_spaces(author=organization)
-    tools = {}
-    for space_info in spaces:
-        repo_id = space_info.id
-        resolved_config_file = hf_hub_download(
-            repo_id, TOOL_CONFIG_FILE, repo_type="space"
-        )
-        with open(resolved_config_file, encoding="utf-8") as reader:
-            config = json.load(reader)
-        task = repo_id.split("/")[-1]
-        tools[config["name"]] = PreTool(
-            task=task,
-            description=config["description"],
-            repo_id=repo_id,
-            name=task,
-            inputs=config["inputs"],
-            output_type=config["output_type"],
-        )
-
-    return tools
 
 
 class PythonInterpreterTool(Tool):
@@ -305,9 +264,6 @@ class SpeechToTextTool(PipelineTool):
     default_checkpoint = "openai/whisper-large-v3-turbo"
     description = "This is a tool that transcribes an audio into text. It returns the transcribed text."
     name = "transcriber"
-    pre_processor_class = WhisperProcessor
-    model_class = WhisperForConditionalGeneration
-
     inputs = {
         "audio": {
             "type": "audio",
@@ -315,6 +271,18 @@ class SpeechToTextTool(PipelineTool):
         }
     }
     output_type = "string"
+
+    def __new__(cls):
+        from transformers.models.whisper import (
+            WhisperForConditionalGeneration,
+            WhisperProcessor,
+        )
+
+        if not hasattr(cls, "pre_processor_class"):
+            cls.pre_processor_class = WhisperProcessor
+        if not hasattr(cls, "model_class"):
+            cls.model_class = WhisperForConditionalGeneration
+        return super().__new__()
 
     def encode(self, audio):
         audio = AgentAudio(audio).to_raw()

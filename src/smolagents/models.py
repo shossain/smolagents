@@ -44,9 +44,6 @@ DEFAULT_CODEAGENT_REGEX_GRAMMAR = {
     "value": "Thought: .+?\\nCode:\\n```(?:py|python)?\\n(?:.|\\s)+?\\n```<end_code>",
 }
 
-if _is_package_available("litellm"):
-    import litellm
-
 
 def get_dict_from_nested_dataclasses(obj):
     def convert(obj):
@@ -519,6 +516,8 @@ class LiteLLMModel(Model):
             raise ImportError(
                 "litellm not found. Install it with `pip install litellm`"
             )
+        import litellm
+
         super().__init__()
         self.model_id = model_id
         # IMPORTANT - Set this to TRUE to add the function to the prompt for Non OpenAI LLMs
@@ -534,6 +533,8 @@ class LiteLLMModel(Model):
         grammar: Optional[str] = None,
         tools_to_call_from: Optional[List[Tool]] = None,
     ) -> ChatMessage:
+        import litellm
+
         messages = get_clean_message_list(
             messages, role_conversions=tool_role_conversions
         )
