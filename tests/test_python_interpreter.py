@@ -920,3 +920,9 @@ shift_intervals
     Expected: {expected}
     Got:      {result}
     """
+
+    def test_dangerous_subpackage_access_blocked(self):
+        code = "import random;random._os.system('echo bad command passed')"
+        with pytest.raises(AttributeError) as e:
+            evaluate_python_code(code)
+        assert "module 'random' has no attribute '_os'" in str(e)

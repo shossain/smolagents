@@ -1052,16 +1052,23 @@ def import_modules(expression, state, authorized_imports):
             return True
         else:
             module_path = module_name.split(".")
+            if any([module == "_os" for module in module_path]):
+                return False
             module_subpaths = [
                 ".".join(module_path[:i]) for i in range(1, len(module_path) + 1)
             ]
             return any(subpath in authorized_imports for subpath in module_subpaths)
 
+    dangerous_subpackages = ["_os"]
     if isinstance(expression, ast.Import):
         for alias in expression.names:
             if check_module_authorized(alias.name):
                 module = import_module(alias.name)
-                state[alias.asname or alias.name] = module
+                given_name = alias.asname or alias.name
+                state[given_name] = module
+                for subpackage in dangerous_subpackages:
+                    if hasattr(state[given_name], subpackage):
+                        delattr(state[given_name], subpackage)
             else:
                 raise InterpreterError(
                     f"Import of {alias.name} is not allowed. Authorized imports are: {str(authorized_imports)}"
@@ -1073,7 +1080,11 @@ def import_modules(expression, state, authorized_imports):
                 expression.module, fromlist=[alias.name for alias in expression.names]
             )
             for alias in expression.names:
-                state[alias.asname or alias.name] = getattr(module, alias.name)
+                given_name = alias.asname or alias.name
+                state[given_name] = getattr(module, alias.name)
+                for subpackage in dangerous_subpackages:
+                    if hasattr(state[given_name], subpackage):
+                        delattr(state[given_name], subpackage)
         else:
             raise InterpreterError(f"Import from {expression.module} is not allowed.")
         return None
