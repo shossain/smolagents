@@ -23,5 +23,5 @@ mcp_server_params = StdioServerParameters(
 
 with ToolCollection.from_mcp(mcp_server_params) as tool_collection:
     # print(tool_collection.tools[0](request={"term": "efficient treatment hangover"}))
-    agent = CodeAgent(tools=tool_collection.tools, model=HfApiModel())
-    agent.run("Find studies about hangover?")
+    agent = CodeAgent(tools=tool_collection.tools, model=HfApiModel(), max_steps=4)
+    agent.run("Find me one risk associated with drinking alcohol regularly on low doses for humans.")
