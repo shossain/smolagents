@@ -99,6 +99,9 @@ print(model([{"role": "user", "content": "Ok!"}], stop_sequences=["great"]))
 >>> What a
 ```
 
+> [!TIP]
+> You must have `transformers` and `torch` installed on your machine. Please run `pip install smolagents[transformers]` if it's not the case.
+
 [[autodoc]] TransformersModel
 
 ### HfApiModel

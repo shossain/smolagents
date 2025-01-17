@@ -55,6 +55,7 @@ agent.run(
 <hfoption id="Local Transformers Model">
 
 ```python
+# !pip install smolagents[transformers]
 from smolagents import CodeAgent, TransformersModel
 
 model_id = "meta-llama/Llama-3.2-3B-Instruct"
@@ -72,6 +73,7 @@ agent.run(
 To use `LiteLLMModel`, you need to set the environment variable `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`, or pass `api_key` variable upon initialization.
 
 ```python
+# !pip install smolagents[litellm]
 from smolagents import CodeAgent, LiteLLMModel
 
 model = LiteLLMModel(model_id="anthropic/claude-3-5-sonnet-latest", api_key="YOUR_ANTHROPIC_API_KEY") # Could use 'gpt-4o'
@@ -85,6 +87,7 @@ agent.run(
 <hfoption id="Ollama">
 
 ```python
+# !pip install smolagents[litellm]
 from smolagents import CodeAgent, LiteLLMModel
 
 model = LiteLLMModel(
