@@ -21,19 +21,16 @@ import os
 import random
 from copy import deepcopy
 from enum import Enum
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Union, Any, TYPE_CHECKING
 
 from huggingface_hub import InferenceClient
 
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    StoppingCriteria,
-    StoppingCriteriaList,
-    is_torch_available,
-)
+from huggingface_hub.utils import is_torch_available
 from .utils import _is_package_available
 from .tools import Tool
+
+if TYPE_CHECKING:
+    from transformers import StoppingCriteriaList
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +322,9 @@ class TransformersModel(Model):
 
     This model allows you to communicate with Hugging Face's models using the Inference API. It can be used in both serverless mode or with a dedicated endpoint, supporting features like stop sequences and grammar customization.
 
+    > [!TIP]
+    > You must have `transformers` and `torch` installed on your machine. Please run `pip install smolagents[transformers]` if it's not the case.
+
     Parameters:
         model_id (`str`, *optional*, defaults to `"Qwen/Qwen2.5-Coder-32B-Instruct"`):
             The Hugging Face model ID to be used for inference. This can be a path or model identifier from the Hugging Face model hub.
@@ -363,9 +363,13 @@ class TransformersModel(Model):
         **kwargs,
     ):
         super().__init__()
-        if not is_torch_available():
-            raise ImportError("Please install torch in order to use TransformersModel.")
+        if not is_torch_available() or not _is_package_available("transformers"):
+            raise ImportError(
+                "You must have `transformers` and `torch` installed on your machine. "
+                "Please run `pip install smolagents[transformers]`."
+            )
         import torch
+        from transformers import AutoModelForCausalLM, AutoTokenizer
 
         default_model_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
         if model_id is None:
@@ -396,7 +400,11 @@ class TransformersModel(Model):
                 model_id, device_map=device_map, torch_dtype=torch_dtype
             )
 
-    def make_stopping_criteria(self, stop_sequences: List[str]) -> StoppingCriteriaList:
+    def make_stopping_criteria(
+        self, stop_sequences: List[str]
+    ) -> "StoppingCriteriaList":
+        from transformers import StoppingCriteria, StoppingCriteriaList
+
         class StopOnStrings(StoppingCriteria):
             def __init__(self, stop_strings: List[str], tokenizer):
                 self.stop_strings = stop_strings
