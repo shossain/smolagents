@@ -23,6 +23,8 @@ from copy import deepcopy
 from enum import Enum
 from PIL import Image
 from typing import Dict, List, Optional, Union, Any
+import base64
+from io import BytesIO
 
 from huggingface_hub import InferenceClient
 
@@ -134,6 +136,16 @@ tool_role_conversions = {
 }
 
 
+def encode_image_base64(image):
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+
+def make_image_url(base64_image):
+    return f"data:image/png;base64,{base64_image}"
+
+
 def get_json_schema(tool: Tool) -> Dict:
     properties = deepcopy(tool.inputs)
     required = []
@@ -166,6 +178,7 @@ def remove_stop_sequences(content: str, stop_sequences: List[str]) -> str:
 def get_clean_message_list(
     message_list: List[Dict[str, str]],
     role_conversions: Dict[MessageRole, MessageRole] = {},
+    convert_images_to_image_urls: bool = False,
 ) -> List[Dict[str, str]]:
     """
     Subsequent messages with the same role will be concatenated to a single message.
@@ -175,10 +188,8 @@ def get_clean_message_list(
     """
     final_message_list = []
     message_list = deepcopy(message_list)  # Avoid modifying the original list
-    for message in message_list:
-        # if not set(message.keys()) == {"role", "content"}:
-        #     raise ValueError("Message should contain only 'role' and 'content' keys!")
 
+    for message in message_list:
         role = message["role"]
         if role not in MessageRole.roles():
             raise ValueError(
@@ -187,6 +198,21 @@ def get_clean_message_list(
 
         if role in role_conversions:
             message["role"] = role_conversions[role]
+
+        # Encode image elements
+        for i, element in enumerate(message["content"]):
+            if element["type"] == "image":
+                if convert_images_to_image_urls:
+                    message["content"][i] = {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": make_image_url(encode_image_base64(element["image"]))
+                        },
+                    }
+                else:
+                    message["content"][i]["image"] = encode_image_base64(
+                        element["image"]
+                    )
 
         if (
             len(final_message_list) > 0
@@ -307,7 +333,9 @@ class HfApiModel(Model):
         If argument `tools_to_call_from` is passed, the model's tool calling options will be used to return a tool call.
         """
         messages = get_clean_message_list(
-            messages, role_conversions=tool_role_conversions
+            messages,
+            role_conversions=tool_role_conversions,
+            convert_images_to_image_urls=True,
         )
         if tools_to_call_from:
             response = self.client.chat.completions.create(
@@ -522,7 +550,9 @@ class LiteLLMModel(Model):
         tools_to_call_from: Optional[List[Tool]] = None,
     ) -> ChatMessage:
         messages = get_clean_message_list(
-            messages, role_conversions=tool_role_conversions
+            messages,
+            role_conversions=tool_role_conversions,
+            convert_images_to_image_urls=True,
         )
         #     if message["content"][0]["type"] == "image":
         #         base64_image = message["content"]["image"]

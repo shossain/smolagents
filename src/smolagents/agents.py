@@ -301,14 +301,10 @@ class MultiStepAgent:
                 if step_log.task_images:
                     for image in step_log.task_images:
                         task_message["content"].append(
-                            [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{image}"
-                                    },
-                                }
-                            ]
+                            {
+                                "type": "image",
+                                "image": image,
+                            }
                         )
                 memory.append(task_message)
 
@@ -322,18 +318,16 @@ class MultiStepAgent:
                     }
                     memory.append(thought_message)
                 if step_log.observations_images:
-                    for image in step_log.observations_images:
-                        thought_message_image = {
-                            "role": MessageRole.USER,
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{image}"
-                                    },
-                                }
-                            ],
-                        }
+                    thought_message_image = {
+                        "role": MessageRole.USER,
+                        "content": [
+                            {
+                                "type": "image",
+                                "image": image,
+                            }
+                            for image in step_log.observations_images
+                        ],
+                    }
                     memory.append(thought_message_image)
 
                 if step_log.tool_calls is not None:
