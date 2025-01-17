@@ -22,7 +22,7 @@ from transformers import is_torch_available
 from transformers.testing_utils import get_tests_dir, require_torch
 
 from smolagents.default_tools import FinalAnswerTool
-from smolagents.types import AGENT_TYPE_MAPPING
+from smolagents.types import _AGENT_TYPE_MAPPING
 
 from .test_tools import ToolTesterMixin
 
@@ -58,5 +58,5 @@ class FinalAnswerToolTester(unittest.TestCase, ToolTesterMixin):
         inputs = self.create_inputs()
         for input_type, input in inputs.items():
             output = self.tool(**input, sanitize_inputs_outputs=True)
-            agent_type = AGENT_TYPE_MAPPING[input_type]
+            agent_type = _AGENT_TYPE_MAPPING[input_type]
             self.assertTrue(isinstance(output, agent_type))

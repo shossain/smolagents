@@ -16,7 +16,7 @@ import unittest
 import pytest
 
 from smolagents.default_tools import PythonInterpreterTool, VisitWebpageTool
-from smolagents.types import AGENT_TYPE_MAPPING
+from smolagents.types import _AGENT_TYPE_MAPPING
 
 from .test_tools import ToolTesterMixin
 
@@ -49,7 +49,7 @@ class PythonInterpreterToolTester(unittest.TestCase, ToolTesterMixin):
     def test_agent_type_output(self):
         inputs = ["2 * 2"]
         output = self.tool(*inputs, sanitize_inputs_outputs=True)
-        output_type = AGENT_TYPE_MAPPING[self.tool.output_type]
+        output_type = _AGENT_TYPE_MAPPING[self.tool.output_type]
         self.assertTrue(isinstance(output, output_type))
 
     def test_agent_types_inputs(self):
@@ -61,16 +61,16 @@ class PythonInterpreterToolTester(unittest.TestCase, ToolTesterMixin):
             if isinstance(input_type, list):
                 _inputs.append(
                     [
-                        AGENT_TYPE_MAPPING[_input_type](_input)
+                        _AGENT_TYPE_MAPPING[_input_type](_input)
                         for _input_type in input_type
                     ]
                 )
             else:
-                _inputs.append(AGENT_TYPE_MAPPING[input_type](_input))
+                _inputs.append(_AGENT_TYPE_MAPPING[input_type](_input))
 
         # Should not raise an error
         output = self.tool(*inputs, sanitize_inputs_outputs=True)
-        output_type = AGENT_TYPE_MAPPING[self.tool.output_type]
+        output_type = _AGENT_TYPE_MAPPING[self.tool.output_type]
         self.assertTrue(isinstance(output, output_type))
 
     def test_imports_work(self):
