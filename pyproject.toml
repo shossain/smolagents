@@ -61,8 +61,8 @@ addopts = "-sv --durations=0"
 [tool.ruff]
 line-length = 119
 lint.ignore = [
-  "F403",
-  "E501", # Line too long
+  "F403", # undefined-local-with-import-star
+  "E501", # line-too-long
 ]
 lint.select = ["E", "F", "I", "W"]
 
