@@ -12,7 +12,6 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "transformers>=4.0.0",
   "requests>=2.32.3",
   "rich>=13.9.4",
   "pandas>=2.2.3",
@@ -29,9 +28,12 @@ dependencies = [
 audio = [
   "soundfile",
 ]
-torch = [
-  "torch",
+accelerate = [
   "accelerate",
+]
+transformers = [
+  "transformers>=4.0.0",
+  "torch",
 ]
 litellm = [
   "litellm>=1.55.10",
@@ -42,7 +44,7 @@ quality = [
 ]
 test = [
   "pytest>=8.1.0",
-  "smolagents[audio,litellm,openai,torch]",
+  "smolagents[accelerate,audio,litellm,openai,transformers]",
 ]
 dev = [
   "smolagents[quality,test]",
