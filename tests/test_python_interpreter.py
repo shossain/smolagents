@@ -930,3 +930,7 @@ shift_intervals
         code = "import random._os"
         with pytest.raises(InterpreterError):
             evaluate_python_code(code)
+
+        code = "import doctest;doctest.inspect.os.system('echo bad command passed')"
+        with pytest.raises(AttributeError):
+            evaluate_python_code(code, authorized_imports=["doctest"])

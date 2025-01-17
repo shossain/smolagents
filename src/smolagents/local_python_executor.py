@@ -21,6 +21,7 @@ import math
 import re
 from collections.abc import Mapping
 from importlib import import_module
+from types import ModuleType
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -1046,29 +1047,63 @@ def evaluate_with(
             context.__exit__(None, None, None)
 
 
+def get_safe_module(unsafe_module, visited=None):
+    """Creates a safe copy of a module or returns the original if it's a function"""
+    # If it's a function or non-module object, return it directly
+    if not isinstance(unsafe_module, ModuleType):
+        return unsafe_module
+
+    # Handle circular references: Initialize visited set for the first call
+    if visited is None:
+        visited = set()
+
+    module_id = id(unsafe_module)
+    if module_id in visited:
+        return unsafe_module  # Return original for circular refs
+
+    visited.add(module_id)
+
+    # Create new module for actual modules
+    safe_module = ModuleType(unsafe_module.__name__)
+
+    # Copy all attributes by reference, recursively checking modules
+    for attr_name in dir(unsafe_module):
+        # Skip dangerous patterns at any level
+        if any(
+            pattern in f"{unsafe_module.__name__}.{attr_name}"
+            for pattern in ("._os", ".os")
+        ):
+            continue
+
+        attr_value = getattr(unsafe_module, attr_name)
+
+        # Recursively process nested modules, passing visited set
+        if isinstance(attr_value, ModuleType):
+            attr_value = get_safe_module(attr_value, visited)
+
+        setattr(safe_module, attr_name, attr_value)
+
+    return safe_module
+
+
 def import_modules(expression, state, authorized_imports):
     def check_module_authorized(module_name):
         if "*" in authorized_imports:
             return True
         else:
             module_path = module_name.split(".")
-            if any([module == "_os" for module in module_path]):
+            if any([module in ["os", "_os"] for module in module_path]):
                 return False
             module_subpaths = [
                 ".".join(module_path[:i]) for i in range(1, len(module_path) + 1)
             ]
             return any(subpath in authorized_imports for subpath in module_subpaths)
 
-    dangerous_subpackages = ["_os"]
     if isinstance(expression, ast.Import):
         for alias in expression.names:
             if check_module_authorized(alias.name):
-                module = import_module(alias.name)
-                given_name = alias.asname or alias.name
-                state[given_name] = module
-                for subpackage in dangerous_subpackages:
-                    if hasattr(state[given_name], subpackage):
-                        delattr(state[given_name], subpackage)
+                raw_module = import_module(alias.name)
+                state[alias.asname or alias.name] = get_safe_module(raw_module)
             else:
                 raise InterpreterError(
                     f"Import of {alias.name} is not allowed. Authorized imports are: {str(authorized_imports)}"
@@ -1076,15 +1111,13 @@ def import_modules(expression, state, authorized_imports):
         return None
     elif isinstance(expression, ast.ImportFrom):
         if check_module_authorized(expression.module):
-            module = __import__(
+            raw_module = __import__(
                 expression.module, fromlist=[alias.name for alias in expression.names]
             )
             for alias in expression.names:
-                given_name = alias.asname or alias.name
-                state[given_name] = getattr(module, alias.name)
-                for subpackage in dangerous_subpackages:
-                    if hasattr(state[given_name], subpackage):
-                        delattr(state[given_name], subpackage)
+                state[alias.asname or alias.name] = get_safe_module(
+                    getattr(raw_module, alias.name)
+                )
         else:
             raise InterpreterError(f"Import from {expression.module} is not allowed.")
         return None
