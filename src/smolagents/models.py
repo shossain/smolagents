@@ -14,17 +14,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from dataclasses import dataclass, asdict
 import json
 import logging
 import os
 import random
 from copy import deepcopy
+from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Union, Any
+from typing import Any, Dict, List, Optional, Union
 
 from huggingface_hub import InferenceClient
-
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -34,6 +33,7 @@ from transformers import (
 )
 
 from .tools import Tool
+
 
 logger = logging.getLogger(__name__)
 
@@ -100,10 +100,7 @@ class ChatMessage:
     def from_hf_api(cls, message) -> "ChatMessage":
         tool_calls = None
         if getattr(message, "tool_calls", None) is not None:
-            tool_calls = [
-                ChatMessageToolCall.from_hf_api(tool_call)
-                for tool_call in message.tool_calls
-            ]
+            tool_calls = [ChatMessageToolCall.from_hf_api(tool_call) for tool_call in message.tool_calls]
         return cls(role=message.role, content=message.content, tool_calls=tool_calls)
 
 
@@ -172,17 +169,12 @@ def get_clean_message_list(
 
         role = message["role"]
         if role not in MessageRole.roles():
-            raise ValueError(
-                f"Incorrect role {role}, only {MessageRole.roles()} are supported for now."
-            )
+            raise ValueError(f"Incorrect role {role}, only {MessageRole.roles()} are supported for now.")
 
         if role in role_conversions:
             message["role"] = role_conversions[role]
 
-        if (
-            len(final_message_list) > 0
-            and message["role"] == final_message_list[-1]["role"]
-        ):
+        if len(final_message_list) > 0 and message["role"] == final_message_list[-1]["role"]:
             final_message_list[-1]["content"] += "\n=======\n" + message["content"]
         else:
             final_message_list.append(message)
@@ -292,9 +284,7 @@ class HfApiModel(Model):
         Gets an LLM output message for the given list of input messages.
         If argument `tools_to_call_from` is passed, the model's tool calling options will be used to return a tool call.
         """
-        messages = get_clean_message_list(
-            messages, role_conversions=tool_role_conversions
-        )
+        messages = get_clean_message_list(messages, role_conversions=tool_role_conversions)
         if tools_to_call_from:
             response = self.client.chat.completions.create(
                 messages=messages,
@@ -367,9 +357,7 @@ class TransformersModel(Model):
         default_model_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
         if model_id is None:
             model_id = default_model_id
-            logger.warning(
-                f"`model_id`not provided, using this default tokenizer for token counts: '{model_id}'"
-            )
+            logger.warning(f"`model_id`not provided, using this default tokenizer for token counts: '{model_id}'")
         self.model_id = model_id
         self.kwargs = kwargs
         if device_map is None:
@@ -389,9 +377,7 @@ class TransformersModel(Model):
             )
             self.model_id = default_model_id
             self.tokenizer = AutoTokenizer.from_pretrained(default_model_id)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_id, device_map=device_map, torch_dtype=torch_dtype
-            )
+            self.model = AutoModelForCausalLM.from_pretrained(model_id, device_map=device_map, torch_dtype=torch_dtype)
 
     def make_stopping_criteria(self, stop_sequences: List[str]) -> StoppingCriteriaList:
         class StopOnStrings(StoppingCriteria):
@@ -404,16 +390,9 @@ class TransformersModel(Model):
                 self.stream = ""
 
             def __call__(self, input_ids, scores, **kwargs):
-                generated = self.tokenizer.decode(
-                    input_ids[0][-1], skip_special_tokens=True
-                )
+                generated = self.tokenizer.decode(input_ids[0][-1], skip_special_tokens=True)
                 self.stream += generated
-                if any(
-                    [
-                        self.stream.endswith(stop_string)
-                        for stop_string in self.stop_strings
-                    ]
-                ):
+                if any([self.stream.endswith(stop_string) for stop_string in self.stop_strings]):
                     return True
                 return False
 
@@ -426,9 +405,7 @@ class TransformersModel(Model):
         grammar: Optional[str] = None,
         tools_to_call_from: Optional[List[Tool]] = None,
     ) -> ChatMessage:
-        messages = get_clean_message_list(
-            messages, role_conversions=tool_role_conversions
-        )
+        messages = get_clean_message_list(messages, role_conversions=tool_role_conversions)
         if tools_to_call_from is not None:
             prompt_tensor = self.tokenizer.apply_chat_template(
                 messages,
@@ -448,9 +425,7 @@ class TransformersModel(Model):
 
         out = self.model.generate(
             **prompt_tensor,
-            stopping_criteria=(
-                self.make_stopping_criteria(stop_sequences) if stop_sequences else None
-            ),
+            stopping_criteria=(self.make_stopping_criteria(stop_sequences) if stop_sequences else None),
             **self.kwargs,
         )
         generated_tokens = out[0, count_prompt_tokens:]
@@ -475,9 +450,7 @@ class TransformersModel(Model):
                     ChatMessageToolCall(
                         id="".join(random.choices("0123456789", k=5)),
                         type="function",
-                        function=ChatMessageToolCallDefinition(
-                            name=tool_name, arguments=tool_arguments
-                        ),
+                        function=ChatMessageToolCallDefinition(name=tool_name, arguments=tool_arguments),
                     )
                 ],
             )
@@ -525,9 +498,7 @@ class LiteLLMModel(Model):
         grammar: Optional[str] = None,
         tools_to_call_from: Optional[List[Tool]] = None,
     ) -> ChatMessage:
-        messages = get_clean_message_list(
-            messages, role_conversions=tool_role_conversions
-        )
+        messages = get_clean_message_list(messages, role_conversions=tool_role_conversions)
         import litellm
 
         if tools_to_call_from:
@@ -604,11 +575,7 @@ class OpenAIServerModel(Model):
     ) -> ChatMessage:
         messages = get_clean_message_list(
             messages,
-            role_conversions=(
-                self.custom_role_conversions
-                if self.custom_role_conversions
-                else tool_role_conversions
-            ),
+            role_conversions=(self.custom_role_conversions if self.custom_role_conversions else tool_role_conversions),
         )
         if tools_to_call_from:
             response = self.client.chat.completions.create(

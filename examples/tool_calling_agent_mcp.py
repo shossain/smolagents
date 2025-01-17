@@ -13,7 +13,9 @@ Usage:
 import os
 
 from mcp import StdioServerParameters
+
 from smolagents import CodeAgent, HfApiModel, ToolCollection
+
 
 mcp_server_params = StdioServerParameters(
     command="uvx",
