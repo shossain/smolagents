@@ -23,6 +23,7 @@ dependencies = [
   "duckduckgo-search>=6.3.7",
   "python-dotenv>=1.0.1",
   "e2b-code-interpreter>=1.0.3",
+  "torchvision",
 ]
 
 [project.optional-dependencies]
