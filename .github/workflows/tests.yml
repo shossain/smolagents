@@ -20,7 +20,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-
       # Setup venv
       # TODO: revisit when https://github.com/astral-sh/uv/issues/1526 is addressed.
       - name: Setup venv + uv
@@ -39,6 +38,9 @@ jobs:
       - name: Default tools tests
         run: |
           uv run pytest ./tests/test_default_tools.py
+      # - name: Docs tests # Disabled for now (slow test + requires API keys)
+      #   run: |
+      #     uv run pytest ./tests/test_all_docs.py
       - name: Final answer tests
         run: |
           uv run pytest ./tests/test_final_answer.py
@@ -63,6 +65,3 @@ jobs:
       - name: Utils tests
         run: |
           uv run pytest ./tests/test_utils.py
-      - name: Docs tests
-        run: |
-          uv run pytest ./tests/test_all_docs.py
