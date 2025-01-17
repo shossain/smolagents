@@ -13,6 +13,8 @@ jobs:
       matrix:
         python-version: ["3.10", "3.12"]
 
+    continue-on-error: true # to get feedback on all tests even if one failed
+
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -21,7 +23,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       # Setup venv
-      # TODO: revisit when https://github.com/astral-sh/uv/issues/1526 is addressed.
       - name: Setup venv + uv
         run: |
           pip install --upgrade uv
@@ -38,9 +39,9 @@ jobs:
       - name: Default tools tests
         run: |
           uv run pytest ./tests/test_default_tools.py
-      # - name: Docs tests # Disabled for now (slow test + requires API keys)
-      #   run: |
-      #     uv run pytest ./tests/test_all_docs.py
+      - name: Docs tests # Disabled for now (slow test + requires API keys)
+        run: |
+          uv run pytest ./tests/test_all_docs.py
       - name: Final answer tests
         run: |
           uv run pytest ./tests/test_final_answer.py
