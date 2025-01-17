@@ -46,6 +46,7 @@ test = [
 ]
 dev = [
   "smolagents[quality,test]",
+  "sqlalchemy", # for ./examples
 ]
 
 [tool.pytest.ini_options]
