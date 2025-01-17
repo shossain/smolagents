@@ -21,8 +21,8 @@ from typing import Dict, Optional
 
 from huggingface_hub import hf_hub_download, list_spaces
 
-
-from transformers.utils import is_offline_mode, is_torch_available
+from huggingface_hub.utils import is_torch_available
+from huggingface_hub import constants
 
 from .local_python_executor import (
     BASE_BUILTIN_MODULES,
@@ -53,7 +53,7 @@ class PreTool:
 
 
 def get_remote_tools(logger, organization="huggingface-tools"):
-    if is_offline_mode():
+    if constants.HF_HUB_OFFLINE:
         logger.info("You are in offline mode, so remote tools are not available.")
         return {}
 

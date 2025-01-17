@@ -21,15 +21,12 @@ from io import BytesIO
 
 import numpy as np
 import requests
-from transformers.utils import (
-    is_torch_available,
-    is_vision_available,
-)
-from transformers.utils.import_utils import _is_package_available
+from huggingface_hub.utils import is_torch_available
+from .utils import _is_package_available, _is_pillow_available
 
 logger = logging.getLogger(__name__)
 
-if is_vision_available():
+if _is_pillow_available():
     from PIL import Image
     from PIL.Image import Image as ImageType
 else:
@@ -96,7 +93,7 @@ class AgentImage(AgentType, ImageType):
         AgentType.__init__(self, value)
         ImageType.__init__(self)
 
-        if not is_vision_available():
+        if not _is_pillow_available():
             raise ImportError("PIL must be installed in order to handle images.")
 
         self._path = None

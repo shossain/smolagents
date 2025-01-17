@@ -32,8 +32,7 @@ from transformers import (
     StoppingCriteriaList,
     is_torch_available,
 )
-from transformers.utils.import_utils import _is_package_available
-
+from .utils import _is_package_available
 from .tools import Tool
 
 logger = logging.getLogger(__name__)

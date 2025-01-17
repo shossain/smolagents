@@ -20,15 +20,23 @@ import json
 import re
 import types
 from typing import Dict, Tuple, Union
-
+import importlib.metadata
 from rich.console import Console
-from transformers.utils.import_utils import _is_package_available
-
-_pygments_available = _is_package_available("pygments")
+from functools import lru_cache
 
 
-def is_pygments_available():
-    return _pygments_available
+@lru_cache
+def _is_package_available(package_name: str) -> bool:
+    try:
+        importlib.metadata.version(package_name)
+        return True
+    except importlib.metadata.PackageNotFoundError:
+        return False
+
+
+@lru_cache
+def _is_pillow_available():
+    return importlib.util.find_spec("PIL") is not None
 
 
 console = Console(width=200)
