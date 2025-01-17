@@ -44,10 +44,9 @@ jobs:
           uv run pytest ./tests/test_default_tools.py
         if: ${{ success() || failure() }}
 
-      - name: Docs tests # Disabled for now (slow test + requires API keys)
-        run: |
-          uv run pytest ./tests/test_all_docs.py
-        if: ${{ success() || failure() }}
+      # - name: Docs tests # Disabled for now (slow test + requires API keys)
+      #   run: |
+      #     uv run pytest ./tests/test_all_docs.py
 
       - name: Final answer tests
         run: |
