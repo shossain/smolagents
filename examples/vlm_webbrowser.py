@@ -1,27 +1,26 @@
 from helium import get_driver
 from smolagents import CodeAgent, HfApiModel, LiteLLMModel
 from PIL import Image
-from selenium import webdriver
 import tempfile
 import helium
 from selenium import webdriver
 
 # model = HfApiModel("Qwen/Qwen2-VL-7B-Instruct")
+# model = HfApiModel("https://lmqbs8965pj40e01.us-east-1.aws.endpoints.huggingface.cloud")
 
 model = LiteLLMModel("gpt-4o")
-# model = HfApiModel("https://lmqbs8965pj40e01.us-east-1.aws.endpoints.huggingface.cloud")
 
 def save_screenshot(step_log, agent):
     driver = get_driver()
     if driver is not None:
+        for step_logs in agent.logs: # Remove previous screenshots from logs since they'll be replaced now
+            step_logs.observations_images = None
         with tempfile.NamedTemporaryFile(suffix='.png', delete=True) as tmp:
             driver.save_screenshot(tmp.name)
             with Image.open(tmp.name) as img:
                 width, height = img.size
                 print(f"Captured a browser screenshot: {width}x{height} pixels")
                 step_log.observations_images = [img.copy()]  # Create a copy to ensure it persists, important!
-        for step_logs in agent.logs[:-1]: #Remove previous screenshots from logs since now they're useless
-            step_logs.observations_images = None
 
     # Update observations with URL
     url_info = f"Current url: {driver.current_url}"
@@ -30,6 +29,7 @@ def save_screenshot(step_log, agent):
     else:
         step_log.observations += "\n" + url_info
     return
+
 
 # Initialize driver and agent
 chrome_options = webdriver.ChromeOptions()
