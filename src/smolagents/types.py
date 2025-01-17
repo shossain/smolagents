@@ -26,21 +26,6 @@ from .utils import _is_package_available, _is_pillow_available
 
 logger = logging.getLogger(__name__)
 
-if _is_pillow_available():
-    from PIL import Image
-    from PIL.Image import Image as ImageType
-else:
-    ImageType = object
-
-if is_torch_available():
-    import torch
-    from torch import Tensor
-else:
-    Tensor = object
-
-if _is_package_available("soundfile"):
-    import soundfile as sf
-
 
 class AgentType:
     """
@@ -72,7 +57,7 @@ class AgentType:
         return str(self._value)
 
 
-class AgentText(AgentType, str):
+class AgentText(AgentType):
     """
     Text type returned by the agent. Behaves as a string.
     """
@@ -84,17 +69,21 @@ class AgentText(AgentType, str):
         return str(self._value)
 
 
-class AgentImage(AgentType, ImageType):
+class AgentImage(AgentType):
     """
     Image type returned by the agent. Behaves as a PIL.Image.
     """
 
     def __init__(self, value):
-        AgentType.__init__(self, value)
-        ImageType.__init__(self)
+        super().__init__(value)
 
-        if not _is_pillow_available():
-            raise ImportError("PIL must be installed in order to handle images.")
+        if not _is_pillow_available() or not is_torch_available():
+            raise ImportError(
+                "Please install 'Pillow' and 'torch' in order to use the AgentImage by running `pip install smolagents[image]`"
+            )
+        from PIL import Image
+        from PIL.Image import Image as ImageType
+        import torch
 
         self._path = None
         self._raw = None
@@ -129,6 +118,8 @@ class AgentImage(AgentType, ImageType):
         """
         Returns the "raw" version of that object. In the case of an AgentImage, it is a PIL.Image.
         """
+        from PIL import Image
+
         if self._raw is not None:
             return self._raw
 
@@ -145,6 +136,8 @@ class AgentImage(AgentType, ImageType):
         Returns the stringified version of that object. In the case of an AgentImage, it is a path to the serialized
         version of the image.
         """
+        from PIL import Image
+
         if self._path is not None:
             return self._path
 
@@ -178,7 +171,7 @@ class AgentImage(AgentType, ImageType):
         img.save(output_bytes, format=format, **params)
 
 
-class AgentAudio(AgentType, str):
+class AgentAudio(AgentType):
     """
     Audio type returned by the agent.
     """
@@ -186,8 +179,11 @@ class AgentAudio(AgentType, str):
     def __init__(self, value, samplerate=16_000):
         super().__init__(value)
 
-        if not _is_package_available("soundfile"):
-            raise ImportError("soundfile must be installed in order to handle audio.")
+        if not _is_package_available("soundfile") or not is_torch_available():
+            raise ImportError(
+                "Please install 'soundfile' and 'torch' in order to use the AgentAudio by running `pip install smolagents[audio]`"
+            )
+        import torch
 
         self._path = None
         self._tensor = None
@@ -221,6 +217,9 @@ class AgentAudio(AgentType, str):
         if self._tensor is not None:
             return self._tensor
 
+        import soundfile as sf
+        import torch
+
         if self._path is not None:
             if "://" in str(self._path):
                 response = requests.get(self._path)
@@ -239,6 +238,8 @@ class AgentAudio(AgentType, str):
         if self._path is not None:
             return self._path
 
+        import soundfile as sf
+
         if self._tensor is not None:
             directory = tempfile.mkdtemp()
             self._path = os.path.join(directory, str(uuid.uuid4()) + ".wav")
@@ -246,15 +247,7 @@ class AgentAudio(AgentType, str):
             return self._path
 
 
-AGENT_TYPE_MAPPING = {"string": AgentText, "image": AgentImage, "audio": AgentAudio}
-INSTANCE_TYPE_MAPPING = {
-    str: AgentText,
-    ImageType: AgentImage,
-    Tensor: AgentAudio,
-}
-
-if is_torch_available():
-    INSTANCE_TYPE_MAPPING[Tensor] = AgentAudio
+_AGENT_TYPE_MAPPING = {"string": AgentText, "image": AgentImage, "audio": AgentAudio}
 
 
 def handle_agent_input_types(*args, **kwargs):
@@ -266,19 +259,25 @@ def handle_agent_input_types(*args, **kwargs):
 
 
 def handle_agent_output_types(output, output_type=None):
-    if output_type in AGENT_TYPE_MAPPING:
+    if output_type in _AGENT_TYPE_MAPPING:
         # If the class has defined outputs, we can map directly according to the class definition
-        decoded_outputs = AGENT_TYPE_MAPPING[output_type](output)
+        decoded_outputs = _AGENT_TYPE_MAPPING[output_type](output)
         return decoded_outputs
-    else:
-        # If the class does not have defined output, then we map according to the type
-        for _k, _v in INSTANCE_TYPE_MAPPING.items():
-            if isinstance(output, _k):
-                if (
-                    _k is not object
-                ):  # avoid converting to audio if torch is not installed
-                    return _v(output)
-        return output
+
+    # If the class does not have defined output, then we map according to the type
+    if isinstance(output, str):
+        return AgentText(output)
+    if _is_pillow_available():
+        from PIL.Image import Image as ImageType
+
+        if isinstance(output, ImageType):
+            return AgentImage(output)
+    if is_torch_available():
+        import torch
+
+        if isinstance(output, torch.Tensor):
+            return AgentAudio(output)
+    return output
 
 
 __all__ = ["AgentType", "AgentImage", "AgentText", "AgentAudio"]
