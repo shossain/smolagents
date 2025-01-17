@@ -85,7 +85,7 @@ class TestDocs:
     def setup_class(cls):
         cls._tmpdir = tempfile.mkdtemp()
         cls.launch_args = ["python3"]
-        cls.docs_dir = Path(__file__).parent.parent / "docs" / "source"
+        cls.docs_dir = Path(__file__).parent.parent / "docs" / "source" / "en"
         cls.extractor = DocCodeExtractor()
 
         if not cls.docs_dir.exists():

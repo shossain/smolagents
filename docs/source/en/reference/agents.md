@@ -136,8 +136,8 @@ messages = [
   {"role": "user", "content": "No need to help, take it easy."},
 ]
 
-model = LiteLLMModel("anthropic/claude-3-5-sonnet-latest", temperature=0.2)
-print(model(messages, max_tokens=10))
+model = LiteLLMModel("anthropic/claude-3-5-sonnet-latest", temperature=0.2, max_tokens=10)
+print(model(messages))
 ```
 
 [[autodoc]] LiteLLMModel
@@ -145,12 +145,13 @@ print(model(messages, max_tokens=10))
 ### OpenAiServerModel
 
 This class lets you call any OpenAIServer compatible model.
-Here's how you can set it:
+Here's how you can set it (you can customise the `api_base` url to point to another server):
 ```py
+from smolagents import OpenAIServerModel
+
 model = OpenAIServerModel(
     model_id="gpt-4o",
-    base_url="https://api.openai.com/v1",
+    api_base="https://api.openai.com/v1",
     api_key=os.environ["OPENAI_API_KEY"],
 )
-model=LiteLLMModel("gpt-4o", api_key=os.environ["OPENAI_API_KEY"])
 ```
