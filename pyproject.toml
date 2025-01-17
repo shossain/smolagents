@@ -43,12 +43,17 @@ gradio = [
 litellm = [
   "litellm>=1.55.10",
 ]
-openai = ["openai>=1.58.1"]
+mcp = [
+  "mcpadapt>=0.0.6"
+]
+openai = [
+  "openai>=1.58.1"
+]
 quality = [
   "ruff>=0.9.0",
 ]
 all = [
-  "smolagents[accelerate,audio,gradio,litellm,openai,transformers]",
+  "smolagents[accelerate,audio,gradio,litellm,mcp,openai,transformers]",
 ]
 test = [
   "pytest>=8.1.0",

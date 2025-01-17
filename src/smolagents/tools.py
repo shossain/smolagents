@@ -23,9 +23,11 @@ import os
 import sys
 import tempfile
 import textwrap
+from contextlib import contextmanager
 from functools import lru_cache, wraps
 from pathlib import Path
-from typing import Callable, Dict, Optional, Union, get_type_hints
+from typing import Callable, Dict, Optional, Union, get_type_hints, List
+
 from huggingface_hub import (
     create_repo,
     get_collection,
@@ -33,6 +35,7 @@ from huggingface_hub import (
     metadata_update,
     upload_folder,
 )
+
 from packaging import version
 from huggingface_hub.utils import is_torch_available
 from .utils import _is_package_available
@@ -241,7 +244,8 @@ class Tool:
                 raise (ValueError("\n".join(method_checker.errors)))
 
             forward_source_code = inspect.getsource(self.forward)
-            tool_code = textwrap.dedent(f"""
+            tool_code = textwrap.dedent(
+                f"""
             from smolagents import Tool
             from typing import Optional
 
@@ -250,7 +254,8 @@ class Tool:
                 description = "{self.description}"
                 inputs = {json.dumps(self.inputs, separators=(",", ":"))}
                 output_type = "{self.output_type}"
-            """).strip()
+            """
+            ).strip()
             import re
 
             def add_self_argument(source_code: str) -> str:
@@ -291,7 +296,8 @@ class Tool:
         app_file = os.path.join(output_dir, "app.py")
         with open(app_file, "w", encoding="utf-8") as f:
             f.write(
-                textwrap.dedent(f"""
+                textwrap.dedent(
+                    f"""
             from smolagents import launch_gradio_demo
             from typing import Optional
             from tool import {class_name}
@@ -299,7 +305,8 @@ class Tool:
             tool = {class_name}()
 
             launch_gradio_demo(tool)
-            """).lstrip()
+            """
+                ).lstrip()
             )
 
         # Save requirements file
@@ -803,41 +810,104 @@ def add_description(description):
 
 class ToolCollection:
     """
-    Tool collections enable loading all Spaces from a collection in order to be added to the agent's toolbox.
+    Tool collections enable loading a collection of tools in the agent's toolbox.
 
-    > [!NOTE]
-    > Only Spaces will be fetched, so you can feel free to add models and datasets to your collection if you'd
-    > like for this collection to showcase them.
+    Collections can be loaded from a collection in the Hub or from an MCP server, see:
+    - [`ToolCollection.from_hub`]
+    - [`ToolCollection.from_mcp`]
 
-    Args:
-        collection_slug (str):
-            The collection slug referencing the collection.
-        token (str, *optional*):
-            The authentication token if the collection is private.
-
-    Example:
-
-    ```py
-    >>> from smolagents import ToolCollection, CodeAgent
-
-    >>> image_tool_collection = ToolCollection(collection_slug="huggingface-tools/diffusion-tools-6630bb19a942c2306a2cdb6f")
-    >>> agent = CodeAgent(tools=[*image_tool_collection.tools], add_base_tools=True)
-
-    >>> agent.run("Please draw me a picture of rivers and lakes.")
-    ```
+    For example and usage, see: [`ToolCollection.from_hub`] and [`ToolCollection.from_mcp`]
     """
 
-    def __init__(
-        self, collection_slug: str, token: Optional[str] = None, trust_remote_code=False
-    ):
-        self._collection = get_collection(collection_slug, token=token)
-        self._hub_repo_ids = {
-            item.item_id for item in self._collection.items if item.item_type == "space"
+    def __init__(self, tools: List[Tool]):
+        self.tools = tools
+
+    @classmethod
+    def from_hub(
+        cls,
+        collection_slug: str,
+        token: Optional[str] = None,
+        trust_remote_code: bool = False,
+    ) -> "ToolCollection":
+        """Loads a tool collection from the Hub.
+
+        it adds a collection of tools from all Spaces in the collection to the agent's toolbox
+
+        > [!NOTE]
+        > Only Spaces will be fetched, so you can feel free to add models and datasets to your collection if you'd
+        > like for this collection to showcase them.
+
+        Args:
+            collection_slug (str): The collection slug referencing the collection.
+            token (str, *optional*): The authentication token if the collection is private.
+            trust_remote_code (bool, *optional*, defaults to False): Whether to trust the remote code.
+
+        Returns:
+            ToolCollection: A tool collection instance loaded with the tools.
+
+        Example:
+        ```py
+        >>> from smolagents import ToolCollection, CodeAgent
+
+        >>> image_tool_collection = ToolCollection.from_hub("huggingface-tools/diffusion-tools-6630bb19a942c2306a2cdb6f")
+        >>> agent = CodeAgent(tools=[*image_tool_collection.tools], add_base_tools=True)
+
+        >>> agent.run("Please draw me a picture of rivers and lakes.")
+        ```
+        """
+        _collection = get_collection(collection_slug, token=token)
+        _hub_repo_ids = {
+            item.item_id for item in _collection.items if item.item_type == "space"
         }
-        self.tools = {
+
+        tools = {
             Tool.from_hub(repo_id, token, trust_remote_code)
-            for repo_id in self._hub_repo_ids
+            for repo_id in _hub_repo_ids
         }
+
+        return cls(tools)
+
+    @classmethod
+    @contextmanager
+    def from_mcp(cls, server_parameters) -> "ToolCollection":
+        """Automatically load a tool collection from an MCP server.
+
+        Note: a separate thread will be spawned to run an asyncio event loop handling
+        the MCP server.
+
+        Args:
+            server_parameters (mcp.StdioServerParameters): The server parameters to use to
+            connect to the MCP server.
+
+        Returns:
+            ToolCollection: A tool collection instance.
+
+        Example:
+        ```py
+        >>> from smolagents import ToolCollection, CodeAgent
+        >>> from mcp import StdioServerParameters
+
+        >>> server_parameters = StdioServerParameters(
+        >>>     command="uv",
+        >>>     args=["--quiet", "pubmedmcp@0.1.3"],
+        >>>     env={"UV_PYTHON": "3.12", **os.environ},
+        >>> )
+
+        >>> with ToolCollection.from_mcp(server_parameters) as tool_collection:
+        >>>     agent = CodeAgent(tools=[*tool_collection.tools], add_base_tools=True)
+        >>>     agent.run("Please find a remedy for hangover.")
+        ```
+        """
+        try:
+            from mcpadapt.core import MCPAdapt
+            from mcpadapt.smolagents_adapter import SmolAgentsAdapter
+        except ImportError:
+            raise ImportError(
+                """Please install 'mcp' extra to use ToolCollection.from_mcp: `pip install "smolagents[mcp]"`."""
+            )
+
+        with MCPAdapt(server_parameters, SmolAgentsAdapter()) as tools:
+            yield cls(tools)
 
 
 def tool(tool_function: Callable) -> Tool:
