@@ -440,9 +440,9 @@ class TestToolCollection:
 
         with ToolCollection.from_mcp(mcp_server_params) as tool_collection:
             assert len(tool_collection.tools) == 1, "Expected 1 tool"
-            assert tool_collection.tools[0].name == "echo_tool", (
-                "Expected tool name to be 'echo_tool'"
-            )
-            assert tool_collection.tools[0](text="Hello") == "Hello", (
-                "Expected tool to echo the input text"
-            )
+            assert (
+                tool_collection.tools[0].name == "echo_tool"
+            ), "Expected tool name to be 'echo_tool'"
+            assert (
+                tool_collection.tools[0](text="Hello") == "Hello"
+            ), "Expected tool to echo the input text"
