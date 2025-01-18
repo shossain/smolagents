@@ -107,6 +107,26 @@ class ChatMessage:
         return cls(role=message.role, content=message.content, tool_calls=tool_calls)
 
 
+def parse_json_if_needed(arguments: Union[str, dict]) -> Union[str, dict]:
+    if isinstance(arguments, dict):
+        return arguments
+    else:
+        try:
+            parsed_args = json.loads(arguments)
+            if isinstance(parsed_args, dict):
+                return parsed_args
+        except json.JSONDecodeError:
+            return arguments
+
+
+def parse_tool_args_if_needed(message: ChatMessage) -> ChatMessage:
+    for tool_call in message.tool_calls:
+        tool_call.function.arguments = parse_json_if_needed(
+            tool_call.function.arguments
+        )
+    return message
+
+
 class MessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
@@ -187,17 +207,6 @@ def get_clean_message_list(
         else:
             final_message_list.append(message)
     return final_message_list
-
-
-def parse_dictionary(possible_dictionary: str) -> Union[Dict, str]:
-    try:
-        start, end = (
-            possible_dictionary.find("{"),
-            possible_dictionary.rfind("}") + 1,
-        )
-        return json.loads(possible_dictionary[start:end])
-    except Exception:
-        return possible_dictionary
 
 
 class Model:
@@ -314,7 +323,10 @@ class HfApiModel(Model):
             )
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
-        return ChatMessage.from_hf_api(response.choices[0].message)
+        message = ChatMessage.from_hf_api(response.choices[0].message)
+        if tools_to_call_from is not None:
+            return parse_tool_args_if_needed(message)
+        return message
 
 
 class TransformersModel(Model):
@@ -552,7 +564,10 @@ class LiteLLMModel(Model):
             )
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
-        return response.choices[0].message
+        message = response.choices[0].message
+        if tools_to_call_from is not None:
+            return parse_tool_args_if_needed(message)
+        return message
 
 
 class OpenAIServerModel(Model):
@@ -615,7 +630,7 @@ class OpenAIServerModel(Model):
                 model=self.model_id,
                 messages=messages,
                 tools=[get_json_schema(tool) for tool in tools_to_call_from],
-                tool_choice="auto",
+                tool_choice="required",
                 stop=stop_sequences,
                 **self.kwargs,
             )
@@ -628,7 +643,10 @@ class OpenAIServerModel(Model):
             )
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
-        return response.choices[0].message
+        message = response.choices[0].message
+        if tools_to_call_from is not None:
+            return parse_tool_args_if_needed(message)
+        return message
 
 
 __all__ = [
