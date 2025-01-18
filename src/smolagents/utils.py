@@ -83,9 +83,7 @@ def parse_json_blob(json_blob: str) -> Dict[str, str]:
     try:
         first_accolade_index = json_blob.find("{")
         last_accolade_index = [a.start() for a in list(re.finditer("}", json_blob))][-1]
-        json_blob = json_blob[first_accolade_index : last_accolade_index + 1].replace(
-            '\\"', "'"
-        )
+        json_blob = json_blob[first_accolade_index : last_accolade_index + 1].replace('\\"', "'")
         json_data = json.loads(json_blob, strict=False)
         return json_data
     except json.JSONDecodeError as e:
@@ -162,9 +160,7 @@ def parse_json_tool_call(json_blob: str) -> Tuple[str, Union[str, None]]:
 MAX_LENGTH_TRUNCATE_CONTENT = 20000
 
 
-def truncate_content(
-    content: str, max_length: int = MAX_LENGTH_TRUNCATE_CONTENT
-) -> str:
+def truncate_content(content: str, max_length: int = MAX_LENGTH_TRUNCATE_CONTENT) -> str:
     if len(content) <= max_length:
         return content
     else:
@@ -206,12 +202,8 @@ def is_same_method(method1, method2):
         source2 = get_method_source(method2)
 
         # Remove method decorators if any
-        source1 = "\n".join(
-            line for line in source1.split("\n") if not line.strip().startswith("@")
-        )
-        source2 = "\n".join(
-            line for line in source2.split("\n") if not line.strip().startswith("@")
-        )
+        source1 = "\n".join(line for line in source1.split("\n") if not line.strip().startswith("@"))
+        source2 = "\n".join(line for line in source2.split("\n") if not line.strip().startswith("@"))
 
         return source1 == source2
     except (TypeError, OSError):
@@ -248,9 +240,7 @@ def instance_to_source(instance, base_cls=None):
         for name, value in cls.__dict__.items()
         if not name.startswith("__")
         and not callable(value)
-        and not (
-            base_cls and hasattr(base_cls, name) and getattr(base_cls, name) == value
-        )
+        and not (base_cls and hasattr(base_cls, name) and getattr(base_cls, name) == value)
     }
 
     for name, value in class_attrs.items():
@@ -271,9 +261,7 @@ def instance_to_source(instance, base_cls=None):
         for name, func in cls.__dict__.items()
         if callable(func)
         and not (
-            base_cls
-            and hasattr(base_cls, name)
-            and getattr(base_cls, name).__code__.co_code == func.__code__.co_code
+            base_cls and hasattr(base_cls, name) and getattr(base_cls, name).__code__.co_code == func.__code__.co_code
         )
     }
 
@@ -284,9 +272,7 @@ def instance_to_source(instance, base_cls=None):
         first_line = method_lines[0]
         indent = len(first_line) - len(first_line.lstrip())
         method_lines = [line[indent:] for line in method_lines]
-        method_source = "\n".join(
-            ["    " + line if line.strip() else line for line in method_lines]
-        )
+        method_source = "\n".join(["    " + line if line.strip() else line for line in method_lines])
         class_lines.append(method_source)
         class_lines.append("")
 

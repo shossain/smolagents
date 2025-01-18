@@ -60,9 +60,18 @@ dev = [
 addopts = "-sv --durations=0"
 
 [tool.ruff]
-lint.ignore = ["F403"]
+line-length = 119
+lint.ignore = [
+  "F403", # undefined-local-with-import-star
+  "E501", # line-too-long
+]
+lint.select = ["E", "F", "I", "W"]
 
 [tool.ruff.lint.per-file-ignores]
 "examples/*" = [
   "E402", # module-import-not-at-top-of-file
 ]
+
+[tool.ruff.lint.isort]
+known-first-party = ["smolagents"]
+lines-after-imports = 2

@@ -1,6 +1,8 @@
-from smolagents.agents import ToolCallingAgent
-from smolagents import tool, LiteLLMModel
 from typing import Optional
+
+from smolagents import LiteLLMModel, tool
+from smolagents.agents import ToolCallingAgent
+
 
 model = LiteLLMModel(
     model_id="ollama_chat/llama3.2",

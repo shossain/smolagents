@@ -27,6 +27,7 @@ from transformers.utils import (
     is_vision_available,
 )
 
+
 logger = logging.getLogger(__name__)
 
 if is_vision_available():
@@ -113,9 +114,7 @@ class AgentImage(AgentType, ImageType):
         elif isinstance(value, np.ndarray):
             self._tensor = torch.from_numpy(value)
         else:
-            raise TypeError(
-                f"Unsupported type for {self.__class__.__name__}: {type(value)}"
-            )
+            raise TypeError(f"Unsupported type for {self.__class__.__name__}: {type(value)}")
 
     def _ipython_display_(self, include=None, exclude=None):
         """
@@ -264,9 +263,7 @@ if is_torch_available():
 
 def handle_agent_input_types(*args, **kwargs):
     args = [(arg.to_raw() if isinstance(arg, AgentType) else arg) for arg in args]
-    kwargs = {
-        k: (v.to_raw() if isinstance(v, AgentType) else v) for k, v in kwargs.items()
-    }
+    kwargs = {k: (v.to_raw() if isinstance(v, AgentType) else v) for k, v in kwargs.items()}
     return args, kwargs
 
 
@@ -279,9 +276,7 @@ def handle_agent_output_types(output, output_type=None):
         # If the class does not have defined output, then we map according to the type
         for _k, _v in INSTANCE_TYPE_MAPPING.items():
             if isinstance(output, _k):
-                if (
-                    _k is not object
-                ):  # avoid converting to audio if torch is not installed
+                if _k is not object:  # avoid converting to audio if torch is not installed
                     return _v(output)
         return output
 
