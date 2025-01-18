@@ -4,13 +4,14 @@ from PIL import Image
 import tempfile
 import helium
 from selenium import webdriver
-
+from time import sleep
 # model = HfApiModel("Qwen/Qwen2-VL-7B-Instruct")
 # model = HfApiModel("https://lmqbs8965pj40e01.us-east-1.aws.endpoints.huggingface.cloud")
 
 model = LiteLLMModel("gpt-4o")
 
 def save_screenshot(step_log, agent):
+    sleep(0.5) # Let a bit of time pass to let possible js animations happen
     driver = get_driver()
     if driver is not None:
         for step_logs in agent.logs: # Remove previous screenshots from logs since they'll be replaced now
@@ -42,7 +43,7 @@ agent = CodeAgent(
     model=model,
     additional_authorized_imports=["helium"],
     step_callbacks = [save_screenshot],
-    max_steps=15,
+    max_steps=20,
 )
 
 # Run agent
@@ -87,7 +88,4 @@ Of course you can act on buttons like a user would do when navigating.
 After each code blob you write, you will be automatically provided with an updated screenshot of the browser and the current browser url. Don't kill the browser either.
 """
 agent.run("""
-I'm trying to find if I need to work a lot to be impactful.
-Find me the current trending repos on GitHub, navigate to the top one,
-find its top contributor and tell me how many commits they did.
-""" + helium_instructions)
+Find paraboot shoes for man, size 45 (french size) on vinted.fr, between 80€ and 220€""" + helium_instructions)
