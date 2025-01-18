@@ -33,7 +33,10 @@ from .local_python_executor import (
     LocalPythonInterpreter,
     fix_final_answer_code,
 )
-from .models import MessageRole
+from .models import (
+    MessageRole,
+    ChatMessage,
+)
 from .monitoring import Monitor
 from .prompts import (
     CODE_SYSTEM_PROMPT,
@@ -179,7 +182,7 @@ class MultiStepAgent:
     def __init__(
         self,
         tools: List[Tool],
-        model: Callable[[List[Dict[str, str]]], str],
+        model: Callable[[List[Dict[str, str]]], ChatMessage],
         system_prompt: Optional[str] = None,
         tool_description_template: Optional[str] = None,
         max_steps: int = 6,
@@ -719,7 +722,7 @@ class ToolCallingAgent(MultiStepAgent):
     def __init__(
         self,
         tools: List[Tool],
-        model: Callable,
+        model: Callable[[List[Dict[str, str]]], ChatMessage],
         system_prompt: Optional[str] = None,
         planning_interval: Optional[int] = None,
         **kwargs,
@@ -823,7 +826,7 @@ class CodeAgent(MultiStepAgent):
     def __init__(
         self,
         tools: List[Tool],
-        model: Callable,
+        model: Callable[[List[Dict[str, str]]], ChatMessage],
         system_prompt: Optional[str] = None,
         grammar: Optional[Dict[str, str]] = None,
         additional_authorized_imports: Optional[List[str]] = None,
@@ -839,13 +842,6 @@ class CodeAgent(MultiStepAgent):
         self.authorized_imports = list(set(BASE_BUILTIN_MODULES) | set(self.additional_authorized_imports))
         if "{{authorized_imports}}" not in system_prompt:
             raise AgentError("Tag '{{authorized_imports}}' should be provided in the prompt.")
-
-        if "*" in self.additional_authorized_imports:
-            self.logger.log(
-                "Caution: you set an authorization for all imports, meaning your agent can decide to import any package it deems necessary. This might raise issues if the package is not installed in your environment.",
-                0,
-            )
-
         super().__init__(
             tools=tools,
             model=model,
@@ -854,6 +850,12 @@ class CodeAgent(MultiStepAgent):
             planning_interval=planning_interval,
             **kwargs,
         )
+        if "*" in self.additional_authorized_imports:
+            self.logger.log(
+                "Caution: you set an authorization for all imports, meaning your agent can decide to import any package it deems necessary. This might raise issues if the package is not installed in your environment.",
+                0,
+            )
+
         if use_e2b_executor and len(self.managed_agents) > 0:
             raise Exception(
                 f"You passed both {use_e2b_executor=} and some managed agents. Managed agents is not yet supported with remote code execution."
