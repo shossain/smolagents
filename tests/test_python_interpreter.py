@@ -936,3 +936,11 @@ shift_intervals
         code = "import doctest;doctest.inspect.os.system('echo bad command passed')"
         with pytest.raises(AttributeError):
             evaluate_python_code(code, authorized_imports=["doctest"])
+
+    def test_close_matches_subscript(self):
+        code = 'capitals = {"Czech Republic": "Prague", "Monaco": "Monaco", "Bhutan": "Thimphu"};capitals["Butan"]'
+        with pytest.raises(Exception) as e:
+            evaluate_python_code(code)
+        assert "Maybe you meant one of these indexes instead" in str(
+            e
+        ) and "['Bhutan']" in str(e).replace("\\", "")
