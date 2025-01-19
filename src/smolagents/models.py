@@ -444,7 +444,7 @@ class TransformersModel(Model):
         grammar: Optional[str] = None,
         max_tokens: int = 1500,
         tools_to_call_from: Optional[List[Tool]] = None,
-        images: Optional[List[str]] = None,
+        images: Optional[List[Image.Image]] = None,
     ) -> ChatMessage:
         messages = get_clean_message_list(
             messages, role_conversions=tool_role_conversions

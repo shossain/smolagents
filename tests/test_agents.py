@@ -110,7 +110,39 @@ class FakeToolCallModelImage:
                 ],
             )
 
-
+class FakeToolCallModelVL:
+    def __call__(
+        self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None
+    ):
+        if len(messages) < 3:
+            return ChatMessage(
+                role="assistant",
+                content="",
+                tool_calls=[
+                    ChatMessageToolCall(
+                        id="call_0",
+                        type="function",
+                        function=ChatMessageToolCallDefinition(
+                            name="fake_image_understanding_tool",
+                            arguments={"prompt": "What is in this image?", "image": "image.png"},
+                        ),
+                    )
+                ],
+            )
+        else:
+            return ChatMessage(
+                role="assistant",
+                content="",
+                tool_calls=[
+                    ChatMessageToolCall(
+                        id="call_1",
+                        type="function",
+                        function=ChatMessageToolCallDefinition(
+                            name="final_answer", arguments="The image is a cat."
+                        ),
+                    )
+                ],
+            )
 def fake_code_model(messages, stop_sequences=None, grammar=None) -> str:
     prompt = str(messages)
     if "special_marker" not in prompt:
@@ -306,7 +338,29 @@ class AgentTests(unittest.TestCase):
         output = agent.run("Make me an image.")
         assert isinstance(output, AgentImage)
         assert isinstance(agent.state["image.png"], Image.Image)
+    
+    def test_toolcalling_agent_handles_image_inputs(self):
+        from PIL import Image
 
+        @tool
+        def fake_image_understanding_tool(prompt: str) -> Image.Image:
+            """Tool that creates a caption for an image.
+
+            Args:
+                prompt: The prompt
+                image: The image
+            """
+            image = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")
+            return "The image is a cat."
+
+        agent = ToolCallingAgent(
+            tools=[fake_image_understanding_tool], model=FakeToolCallModelVL()
+        )
+        output = agent.run("Caption this image.")
+        assert output == "The image is a cat."
+        assert isinstance(agent.state["image.png"], Image.Image)
+
+    
     def test_fake_code_agent(self):
         agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model)
         output = agent.run("What is 2 multiplied by 3.6452?")
