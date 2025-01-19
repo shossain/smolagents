@@ -1424,7 +1424,16 @@ def evaluate_python_code(
             updated by this function to contain all variables as they are evaluated.
             The print outputs will be stored in the state under the key 'print_outputs'.
     """
-    expression = ast.parse(code)
+    try:
+        expression = ast.parse(code)
+    except SyntaxError as e:
+        raise InterpreterError(
+            f"Code execution failed on line {e.lineno} due to: {type(e).__name__}\n"
+            f"{e.text}"
+            f"{' ' * (e.offset or 0)}^\n"
+            f"Error: {str(e)}"
+        )
+
     if state is None:
         state = {}
     if static_tools is None:
@@ -1458,10 +1467,14 @@ def evaluate_python_code(
         )
         is_final_answer = True
         return e.value, is_final_answer
-    except InterpreterError as e:
-        msg = truncate_content(PRINT_OUTPUTS, max_length=MAX_LEN_OUTPUT)
-        msg += f"Code execution failed at line '{ast.get_source_segment(code, node)}' because of the following error:\n{e}"
-        raise InterpreterError(msg)
+    except Exception as e:
+        exception_type = type(e).__name__
+        error_msg = truncate_content(PRINT_OUTPUTS, max_length=MAX_LEN_OUTPUT)
+        error_msg = (
+            f"Code execution failed at line '{ast.get_source_segment(code, node)}' due to: {exception_type}:"
+            f"{str(e)}"
+        )
+        raise InterpreterError(error_msg)
 
 
 class LocalPythonInterpreter:

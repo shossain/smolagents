@@ -110,6 +110,7 @@ class FakeToolCallModelImage:
                 ],
             )
 
+
 class FakeToolCallModelVL:
     def __call__(
         self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None
@@ -124,7 +125,10 @@ class FakeToolCallModelVL:
                         type="function",
                         function=ChatMessageToolCallDefinition(
                             name="fake_image_understanding_tool",
-                            arguments={"prompt": "What is in this image?", "image": "image.png"},
+                            arguments={
+                                "prompt": "What is in this image?",
+                                "image": "image.png",
+                            },
                         ),
                     )
                 ],
@@ -143,6 +147,8 @@ class FakeToolCallModelVL:
                     )
                 ],
             )
+
+
 def fake_code_model(messages, stop_sequences=None, grammar=None) -> str:
     prompt = str(messages)
     if "special_marker" not in prompt:
@@ -178,10 +184,10 @@ def fake_code_model_error(messages, stop_sequences=None) -> str:
 Thought: I should multiply 2 by 3.6452. special_marker
 Code:
 ```py
-a = 2
-b = a * 2
-print = 2
-print("Ok, calculation done!")
+def error_function():
+    raise ValueError("error")
+
+error_function()
 ```<end_code>
 """,
         )
@@ -189,7 +195,7 @@ print("Ok, calculation done!")
         return ChatMessage(
             role="assistant",
             content="""
-Thought: I can now answer the initial question
+Thought: I faced an error in the previous step.
 Code:
 ```py
 final_answer("got an error")
@@ -338,7 +344,7 @@ class AgentTests(unittest.TestCase):
         output = agent.run("Make me an image.")
         assert isinstance(output, AgentImage)
         assert isinstance(agent.state["image.png"], Image.Image)
-    
+
     def test_toolcalling_agent_handles_image_inputs(self):
         from PIL import Image
 
@@ -350,7 +356,9 @@ class AgentTests(unittest.TestCase):
                 prompt: The prompt
                 image: The image
             """
-            image = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png") # dummy input
+            image = Image.open(
+                Path(get_tests_dir("fixtures")) / "000000039769.png"
+            )  # dummy input
             return "The image is a cat."
 
         agent = ToolCallingAgent(
@@ -360,7 +368,6 @@ class AgentTests(unittest.TestCase):
         assert output == "The image is a cat."
         assert isinstance(agent.state["image.png"], Image.Image)
 
-    
     def test_fake_code_agent(self):
         agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model)
         output = agent.run("What is 2 multiplied by 3.6452?")
@@ -396,12 +403,15 @@ class AgentTests(unittest.TestCase):
         assert output == 7.2904
         assert len(agent.logs) == 4
 
-    def test_code_agent_code_errors_show_offending_lines(self):
+    def test_code_agent_code_errors_show_offending_line_and_error(self):
         agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model_error)
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, AgentText)
         assert output == "got an error"
-        assert "Code execution failed at line 'print = 2' because of" in str(agent.logs)
+        assert "Code execution failed at line 'error_function()'" in str(
+            agent.logs[2].error
+        )
+        assert "ValueError" in str(agent.logs)
 
     def test_code_agent_syntax_error_show_offending_lines(self):
         agent = CodeAgent(

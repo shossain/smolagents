@@ -1,5 +1,6 @@
 from helium import get_driver
-from smolagents import CodeAgent, HfApiModel, LiteLLMModel
+from smolagents import CodeAgent, HfApiModel, LiteLLMModel, tool
+from smolagents.agents import ActionStep
 from PIL import Image
 import tempfile
 import helium
@@ -10,12 +11,19 @@ from time import sleep
 
 model = LiteLLMModel("gpt-4o")
 
-def save_screenshot(step_log, agent):
-    sleep(0.5) # Let a bit of time pass to let possible js animations happen
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, ElementNotInteractableException
+
+def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
+    sleep(1.0) # Let possible js animations happen
     driver = get_driver()
+    current_step = step_log.step_number
     if driver is not None:
         for step_logs in agent.logs: # Remove previous screenshots from logs since they'll be replaced now
-            step_logs.observations_images = None
+            if isinstance(step_log, ActionStep) and step_log.step_number <= current_step - 2:
+                step_logs.observations_images = None
         with tempfile.NamedTemporaryFile(suffix='.png', delete=True) as tmp:
             driver.save_screenshot(tmp.name)
             with Image.open(tmp.name) as img:
@@ -38,14 +46,61 @@ chrome_options.add_argument('--force-device-scale-factor=1')
 chrome_options.add_argument('--window-size=900,1200')
 driver = helium.start_chrome("google.com", headless=False, options=chrome_options)
 
+@tool
+def close_popups() -> str:
+    """
+    Closes any visible modal or pop-up on the page. Use this to dismiss pop-up windows! This does not work on cookie consent banners.
+    """
+    # Common selectors for modal close buttons and overlay elements
+    modal_selectors = [
+        # Close buttons
+        "button[class*='close']",
+        "[class*='modal']",
+        "[class*='modal'] button",
+        "[class*='CloseButton']",
+        "[aria-label*='close']",
+        ".modal-close",
+        ".close-modal",
+        ".modal .close",
+        # Overlay backgrounds
+        ".modal-backdrop",
+        ".modal-overlay",
+        "[class*='overlay']"
+    ]
+    
+    wait = WebDriverWait(driver, timeout=0.5)
+    
+    for selector in modal_selectors:
+        try:
+            # Check if any matching elements are visible
+            elements = wait.until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector))
+            )
+            
+            for element in elements:
+                if element.is_displayed():
+                    try:
+                        # Try clicking with JavaScript as it's more reliable
+                        driver.execute_script("arguments[0].click();", element)
+                    except ElementNotInteractableException:
+                        # If JavaScript click fails, try regular click
+                        element.click()
+                    
+        except TimeoutException:
+            continue
+        except Exception as e:
+            print(f"Error handling selector {selector}: {str(e)}")
+            continue
+    return "Modals closed"
+
 agent = CodeAgent(
-    tools=[],
+    tools=[close_popups],
     model=model,
     additional_authorized_imports=["helium"],
     step_callbacks = [save_screenshot],
     max_steps=20,
+    verbosity_level=2
 )
-
 # Run agent
 helium_instructions = """
 You can use helium to access websites. Don't bother about the helium driver, it's already managed.
@@ -53,21 +108,28 @@ First you need to import everything from helium, then you can do other actions!
 Code:
 ```py
 from helium import *
-go_to('github.com/login')
-click('mherrmann/helium')
+go_to('github.com')
+click('Trending')   
 ```<end_code>
-In general stop your action after each button click to see what happens on your screenshot:
+If you try to interact with an element and it's not found, you'll get a LookupError.
+In general stop your action after each button click to see what happens on your screenshot.
 Code:
 ```py
 write('username', into='Username')
 write('password', into='Password')
 click('Sign in')
 ```<end_code>
-To scroll down, use:
+To scroll up or down, use scroll_down or scrol_up with as an argument the number of pixels in the page (if larger than the page height, this will scroll to the bottom):
 Code:
 ```py
 import time
-scroll_down(num_pixels=1000)
+scroll_down(num_pixels=100000) # This will probably scroll all the way down
+time.sleep(0.5)
+```<end_code>
+When you have pop-ups that have a cross icon to close, don't try to click the close icon by finding its element or targeting an 'X' element, just use your built-in tool to close them:
+Code:
+```py
+close_popups()
 time.sleep(0.5)
 ```<end_code>
 Proceed in several steps rather than trying to do it all in one shot.
@@ -86,6 +148,7 @@ Normally the page loads quickly, no need to wait for many seconds.
 To find elements on page, DO NOT try code-based element searches like 'contributors = find_all(S("ol > li"))': just look at the latest screenshot you have and read it visually!
 Of course you can act on buttons like a user would do when navigating.
 After each code blob you write, you will be automatically provided with an updated screenshot of the browser and the current browser url. Don't kill the browser either.
+Never try to login.
 """
 agent.run("""
-Find paraboot shoes for man, size 45 (french size) on vinted.fr, between 80€ and 220€""" + helium_instructions)
+According to github, when was Regression added to the oldest closed numpy.polynomial issue that has the Regression label in MM/DD/YY?""" + helium_instructions)

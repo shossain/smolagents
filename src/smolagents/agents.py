@@ -85,7 +85,7 @@ class ActionStep(AgentStep):
     tool_calls: List[ToolCall] | None = None
     start_time: float | None = None
     end_time: float | None = None
-    step: int | None = None
+    step_number: int | None = None
     error: AgentError | None = None
     duration: float | None = None
     llm_output: str | None = None
@@ -227,6 +227,10 @@ class MultiStepAgent:
         if managed_agents is not None:
             self.managed_agents = {agent.name: agent for agent in managed_agents}
 
+        for tool in tools:
+            assert isinstance(tool, Tool), (
+                f"This element is not of class Tool: {str(tool)}"
+            )
         self.tools = {tool.name: tool for tool in tools}
         if add_base_tools:
             for tool_name, tool_class in TOOL_MAPPING.items():
@@ -589,7 +593,7 @@ You have been provided with these additional arguments, that you can access usin
         while final_answer is None and self.step_number < self.max_steps:
             step_start_time = time.time()
             step_log = ActionStep(
-                step=self.step_number,
+                step_number=self.step_number,
                 start_time=step_start_time,
                 observations_images=images,
             )
@@ -627,7 +631,9 @@ You have been provided with these additional arguments, that you can access usin
 
         if final_answer is None and self.step_number == self.max_steps:
             error_message = "Reached max steps."
-            final_step_log = ActionStep(error=AgentMaxStepsError(error_message))
+            final_step_log = ActionStep(
+                step_number=self.step_number, error=AgentMaxStepsError(error_message)
+            )
             self.logs.append(final_step_log)
             final_answer = self.provide_final_answer(task, images)
             self.logger.log(Text(f"Final answer: {final_answer}"), level=LogLevel.INFO)
@@ -649,7 +655,7 @@ You have been provided with these additional arguments, that you can access usin
         while final_answer is None and self.step_number < self.max_steps:
             step_start_time = time.time()
             step_log = ActionStep(
-                step=self.step_number,
+                step_number=self.step_number,
                 start_time=step_start_time,
                 observations_images=images,
             )
@@ -1089,16 +1095,8 @@ class CodeAgent(MultiStepAgent):
                 ]
             observation += "Execution logs:\n" + execution_logs
         except Exception as e:
-            if isinstance(e, SyntaxError):
-                error_msg = (
-                    f"Code execution failed on line {e.lineno} due to: {type(e).__name__}\n"
-                    f"{e.text}"
-                    f"{' ' * (e.offset or 0)}^\n"
-                    f"Error: {str(e)}"
-                )
-            else:
-                error_msg = str(e)
-            if "Import of " in str(e) and " is not allowed" in str(e):
+            error_msg = str(e)
+            if "Import of " in error_msg and " is not allowed" in error_msg:
                 self.logger.log(
                     "[bold red]Warning to user: Code execution failed due to an unauthorized import - Consider passing said import under `additional_authorized_imports` when initializing your CodeAgent.",
                     level=LogLevel.INFO,
