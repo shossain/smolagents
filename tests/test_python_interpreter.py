@@ -904,12 +904,12 @@ shift_intervals
 
         # Import of whitelisted modules should succeed but dangerous submodules should not exist
         code = "import random;random._os.system('echo bad command passed')"
-        with pytest.raises(AttributeError) as e:
+        with pytest.raises(InterpreterError) as e:
             evaluate_python_code(code)
-        assert "module 'random' has no attribute '_os'" in str(e)
+        assert "AttributeError:module 'random' has no attribute '_os'" in str(e)
 
         code = "import doctest;doctest.inspect.os.system('echo bad command passed')"
-        with pytest.raises(AttributeError):
+        with pytest.raises(InterpreterError):
             evaluate_python_code(code, authorized_imports=["doctest"])
 
     def test_close_matches_subscript(self):
