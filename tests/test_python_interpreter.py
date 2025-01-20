@@ -630,12 +630,9 @@ counts += 1"""
         assert "Cannot add non-list value 1 to a list." in str(e)
 
     def test_error_highlights_correct_line_of_code(self):
-        code = """# Ok this is a very long code
-# It has many commented lines
-a = 1
+        code = """a = 1
 b = 2
 
-# Here is another piece
 counts = [1, 2, 3]
 counts += 1
 b += 1"""
@@ -643,12 +640,22 @@ b += 1"""
             evaluate_python_code(code, BASE_PYTHON_TOOLS, state={})
         assert "Code execution failed at line 'counts += 1" in str(e)
 
+    def test_error_type_returned_in_function_call(self):
+        code = """def error_function():
+    raise ValueError("error")
+
+error_function()"""
+        with pytest.raises(InterpreterError) as e:
+            evaluate_python_code(code)
+        assert "error" in str(e)
+        assert "ValueError" in str(e)
+
     def test_assert(self):
         code = """
 assert 1 == 1
 assert 1 == 2
 """
-        with pytest.raises(AssertionError) as e:
+        with pytest.raises(InterpreterError) as e:
             evaluate_python_code(code, BASE_PYTHON_TOOLS, state={})
         assert "1 == 2" in str(e) and "1 == 1" not in str(e)
 
@@ -845,6 +852,13 @@ shift_intervals
         result, _ = evaluate_python_code(code, {"print": print, "map": map}, state={})
         assert result == {"Worker A": "8:00 pm", "Worker B": "11:45 am"}
 
+    def test_syntax_error_points_error(self):
+        code = "a = ;"
+        with pytest.raises(InterpreterError) as e:
+            evaluate_python_code(code)
+        assert "SyntaxError" in str(e)
+        assert "     ^" in str(e)
+
     def test_fix_final_answer_code(self):
         test_cases = [
             (
@@ -902,6 +916,4 @@ shift_intervals
         code = 'capitals = {"Czech Republic": "Prague", "Monaco": "Monaco", "Bhutan": "Thimphu"};capitals["Butan"]'
         with pytest.raises(Exception) as e:
             evaluate_python_code(code)
-        assert "Maybe you meant one of these indexes instead" in str(
-            e
-        ) and "['Bhutan']" in str(e).replace("\\", "")
+        assert "Maybe you meant one of these indexes instead" in str(e) and "['Bhutan']" in str(e).replace("\\", "")
