@@ -16,7 +16,7 @@
 # limitations under the License.
 import re
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from .local_python_executor import (
     BASE_BUILTIN_MODULES,
@@ -85,7 +85,7 @@ class FinalAnswerTool(Tool):
     inputs = {"answer": {"type": "any", "description": "The final answer to the problem"}}
     output_type = "any"
 
-    def forward(self, answer):
+    def forward(self, answer: Any) -> Any:
         return answer
 
 

@@ -136,7 +136,7 @@ tool_role_conversions = {
 }
 
 
-def get_json_schema(tool: Tool) -> Dict:
+def get_tool_json_schema(tool: Tool) -> Dict:
     properties = deepcopy(tool.inputs)
     required = []
     for key, value in properties.items():
@@ -291,7 +291,7 @@ class HfApiModel(Model):
         if tools_to_call_from:
             response = self.client.chat.completions.create(
                 messages=messages,
-                tools=[get_json_schema(tool) for tool in tools_to_call_from],
+                tools=[get_tool_json_schema(tool) for tool in tools_to_call_from],
                 tool_choice="auto",
                 stop=stop_sequences,
                 temperature=self.temperature,
@@ -423,7 +423,7 @@ class TransformersModel(Model):
         if tools_to_call_from is not None:
             prompt_tensor = self.tokenizer.apply_chat_template(
                 messages,
-                tools=[get_json_schema(tool) for tool in tools_to_call_from],
+                tools=[get_tool_json_schema(tool) for tool in tools_to_call_from],
                 return_tensors="pt",
                 return_dict=True,
                 add_generation_prompt=True,
@@ -521,7 +521,7 @@ class LiteLLMModel(Model):
             response = litellm.completion(
                 model=self.model_id,
                 messages=messages,
-                tools=[get_json_schema(tool) for tool in tools_to_call_from],
+                tools=[get_tool_json_schema(tool) for tool in tools_to_call_from],
                 tool_choice="required",
                 stop=stop_sequences,
                 api_base=self.api_base,
@@ -600,7 +600,7 @@ class OpenAIServerModel(Model):
             response = self.client.chat.completions.create(
                 model=self.model_id,
                 messages=messages,
-                tools=[get_json_schema(tool) for tool in tools_to_call_from],
+                tools=[get_tool_json_schema(tool) for tool in tools_to_call_from],
                 tool_choice="required",
                 stop=stop_sequences,
                 **self.kwargs,

@@ -26,7 +26,7 @@ import textwrap
 from contextlib import contextmanager
 from functools import lru_cache, wraps
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Union, get_type_hints
+from typing import Callable, Dict, List, Optional, Union
 
 from huggingface_hub import (
     create_repo,
@@ -38,9 +38,9 @@ from huggingface_hub import (
 from huggingface_hub.utils import is_torch_available
 from packaging import version
 
-from ._transformers_utils import (
+from ._function_type_hints_utils import (
     TypeHintParsingException,
-    _parse_type_hint,
+    _convert_type_hints_to_json_schema,
     get_imports,
     get_json_schema,
 )
@@ -64,22 +64,6 @@ def validate_after_init(cls):
     return cls
 
 
-def _convert_type_hints_to_json_schema(func: Callable) -> Dict:
-    type_hints = get_type_hints(func)
-    signature = inspect.signature(func)
-    properties = {}
-    for param_name, param_type in type_hints.items():
-        if param_name != "return":
-            properties[param_name] = _parse_type_hint(param_type)
-            if signature.parameters[param_name].default != inspect.Parameter.empty:
-                properties[param_name]["nullable"] = True
-    for param_name in signature.parameters.keys():
-        if signature.parameters[param_name].default != inspect.Parameter.empty:
-            if param_name not in properties:  # this can happen if the param has no type hint but a default value
-                properties[param_name] = {"nullable": True}
-    return properties
-
-
 AUTHORIZED_TYPES = [
     "string",
     "boolean",
@@ -89,6 +73,7 @@ AUTHORIZED_TYPES = [
     "audio",
     "any",
     "object",
+    "null",
 ]
 
 CONVERSION_DICT = {"str": "string", "int": "integer", "float": "number"}
@@ -168,12 +153,15 @@ class Tool:
                     "Tool's 'forward' method should take 'self' as its first argument, then its next arguments should match the keys of tool attribute 'inputs'."
                 )
 
-            json_schema = _convert_type_hints_to_json_schema(
-                self.forward
-            )  # This function will raise an error on missing docstrings, contrary to get_json_schema
+            json_schema = _convert_type_hints_to_json_schema(self.forward, error_on_missing_type_hints=False)[
+                "properties"
+            ]  # This function will not raise an error on missing docstrings, contrary to get_json_schema
             for key, value in self.inputs.items():
+                assert key in json_schema, (
+                    f"Input '{key}' should be present in function signature, found only {json_schema.keys()}"
+                )
                 if "nullable" in value:
-                    assert key in json_schema and "nullable" in json_schema[key], (
+                    assert "nullable" in json_schema[key], (
                         f"Nullable argument '{key}' in inputs should have key 'nullable' set to True in function signature."
                     )
                 if key in json_schema and "nullable" in json_schema[key]:
@@ -887,16 +875,6 @@ class ToolCollection:
             yield cls(tools)
 
 
-def get_tool_json_schema(tool_function):
-    tool_json_schema = get_json_schema(tool_function)["function"]
-    tool_parameters = tool_json_schema["parameters"]
-    inputs_schema = tool_parameters["properties"]
-    for input_name in inputs_schema:
-        if "required" not in tool_parameters or input_name not in tool_parameters["required"]:
-            inputs_schema[input_name]["nullable"] = True
-    return tool_json_schema
-
-
 def tool(tool_function: Callable) -> Tool:
     """
     Converts a function into an instance of a Tool subclass.
@@ -905,7 +883,7 @@ def tool(tool_function: Callable) -> Tool:
         tool_function: Your function. Should have type hints for each input and a type hint for the output.
         Should also have a docstring description including an 'Args:' part where each argument is described.
     """
-    tool_json_schema = get_tool_json_schema(tool_function)
+    tool_json_schema = get_json_schema(tool_function)["function"]
     if "return" not in tool_json_schema:
         raise TypeHintParsingException("Tool return type not found: make sure your function has a return type hint!")
 
