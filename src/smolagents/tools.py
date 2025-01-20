@@ -892,10 +892,7 @@ def get_tool_json_schema(tool_function):
     tool_parameters = tool_json_schema["parameters"]
     inputs_schema = tool_parameters["properties"]
     for input_name in inputs_schema:
-        if (
-            "required" not in tool_parameters
-            or input_name not in tool_parameters["required"]
-        ):
+        if "required" not in tool_parameters or input_name not in tool_parameters["required"]:
             inputs_schema[input_name]["nullable"] = True
     return tool_json_schema
 
@@ -910,9 +907,7 @@ def tool(tool_function: Callable) -> Tool:
     """
     tool_json_schema = get_tool_json_schema(tool_function)
     if "return" not in tool_json_schema:
-        raise TypeHintParsingException(
-            "Tool return type not found: make sure your function has a return type hint!"
-        )
+        raise TypeHintParsingException("Tool return type not found: make sure your function has a return type hint!")
 
     class SimpleTool(Tool):
         def __init__(
