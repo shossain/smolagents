@@ -211,22 +211,13 @@ def get_clean_message_list(
                 if convert_images_to_image_urls:
                     message["content"][i] = {
                         "type": "image_url",
-                        "image_url": {
-                            "url": make_image_url(encode_image_base64(element["image"]))
-                        },
+                        "image_url": {"url": make_image_url(encode_image_base64(element["image"]))},
                     }
                 else:
-                    message["content"][i]["image"] = encode_image_base64(
-                        element["image"]
-                    )
+                    message["content"][i]["image"] = encode_image_base64(element["image"])
 
-        if (
-            len(final_message_list) > 0
-            and message["role"] == final_message_list[-1]["role"]
-        ):
-            assert isinstance(message["content"], list), "Error: wrong content:" + str(
-                message["content"]
-            )
+        if len(final_message_list) > 0 and message["role"] == final_message_list[-1]["role"]:
+            assert isinstance(message["content"], list), "Error: wrong content:" + str(message["content"])
             final_message_list[-1]["content"].append(message["content"][0])
         else:
             # Convert to
@@ -428,9 +419,7 @@ class TransformersModel(Model):
             self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         except ValueError as e:
             if "Unrecognized configuration class" in str(e):
-                self.model = AutoModelForImageTextToText.from_pretrained(
-                    model_id, device_map=self.device
-                )
+                self.model = AutoModelForImageTextToText.from_pretrained(model_id, device_map=self.device)
                 self.processor = AutoProcessor.from_pretrained(model_id)
             else:
                 raise e
@@ -444,6 +433,7 @@ class TransformersModel(Model):
 
     def make_stopping_criteria(self, stop_sequences: List[str], tokenizer) -> "StoppingCriteriaList":
         from transformers import StoppingCriteria, StoppingCriteriaList
+
         class StopOnStrings(StoppingCriteria):
             def __init__(self, stop_strings: List[str], tokenizer):
                 self.stop_strings = stop_strings
@@ -470,16 +460,12 @@ class TransformersModel(Model):
         tools_to_call_from: Optional[List[Tool]] = None,
         images: Optional[List[Image.Image]] = None,
     ) -> ChatMessage:
-        messages = get_clean_message_list(
-            messages, role_conversions=tool_role_conversions
-        )
+        messages = get_clean_message_list(messages, role_conversions=tool_role_conversions)
         if hasattr(self, "processor"):
             images = [Image.open(image) for image in images] if images else None
             prompt_tensor = self.processor.apply_chat_template(
                 messages,
-                tools=[get_json_schema(tool) for tool in tools_to_call_from]
-                if tools_to_call_from
-                else None,
+                tools=[get_json_schema(tool) for tool in tools_to_call_from] if tools_to_call_from else None,
                 return_tensors="pt",
                 tokenize=True,
                 return_dict=True,
@@ -489,9 +475,7 @@ class TransformersModel(Model):
         else:
             prompt_tensor = self.tokenizer.apply_chat_template(
                 messages,
-                tools=[get_json_schema(tool) for tool in tools_to_call_from]
-                if tools_to_call_from
-                else None,
+                tools=[get_json_schema(tool) for tool in tools_to_call_from] if tools_to_call_from else None,
                 return_tensors="pt",
                 return_dict=True,
                 add_generation_prompt=True if tools_to_call_from else False,
@@ -503,14 +487,12 @@ class TransformersModel(Model):
             stopping_criteria=(
                 self.make_stopping_criteria(
                     stop_sequences,
-                    tokenizer=self.processor
-                    if hasattr(self, "processor")
-                    else self.tokenizer,
+                    tokenizer=self.processor if hasattr(self, "processor") else self.tokenizer,
                 )
                 if stop_sequences
                 else None
             ),
-            **self.kwargs
+            **self.kwargs,
         )
         generated_tokens = out[0, count_prompt_tokens:]
         if hasattr(self, "processor"):
@@ -587,6 +569,7 @@ class LiteLLMModel(Model):
         tools_to_call_from: Optional[List[Tool]] = None,
     ) -> ChatMessage:
         import litellm
+
         messages = get_clean_message_list(
             messages,
             role_conversions=tool_role_conversions,
@@ -677,7 +660,7 @@ class OpenAIServerModel(Model):
         messages = get_clean_message_list(
             messages,
             role_conversions=(self.custom_role_conversions if self.custom_role_conversions else tool_role_conversions),
-            convert_images_to_image_urls=True
+            convert_images_to_image_urls=True,
         )
         if tools_to_call_from:
             response = self.client.chat.completions.create(

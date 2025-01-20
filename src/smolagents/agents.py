@@ -217,9 +217,7 @@ class MultiStepAgent:
             self.managed_agents = {agent.name: agent for agent in managed_agents}
 
         for tool in tools:
-            assert isinstance(tool, Tool), (
-                f"This element is not of class Tool: {str(tool)}"
-            )
+            assert isinstance(tool, Tool), f"This element is not of class Tool: {str(tool)}"
         self.tools = {tool.name: tool for tool in tools}
         if add_base_tools:
             for tool_name, tool_class in TOOL_MAPPING.items():
@@ -257,9 +255,7 @@ class MultiStepAgent:
                 if not summary_mode:
                     thought_message = {
                         "role": MessageRole.SYSTEM,
-                        "content": [
-                            {"type": "text", "text": step_log.system_prompt.strip()}
-                        ],
+                        "content": [{"type": "text", "text": step_log.system_prompt.strip()}],
                     }
                     memory.append(thought_message)
 
@@ -280,9 +276,7 @@ class MultiStepAgent:
             elif isinstance(step_log, TaskStep):
                 task_message = {
                     "role": MessageRole.USER,
-                    "content": [
-                        {"type": "text", "text": f"New task:\n{step_log.task}"}
-                    ],
+                    "content": [{"type": "text", "text": f"New task:\n{step_log.task}"}],
                 }
                 if step_log.task_images:
                     for image in step_log.task_images:
@@ -298,15 +292,14 @@ class MultiStepAgent:
                 if step_log.llm_output is not None and not summary_mode:
                     thought_message = {
                         "role": MessageRole.ASSISTANT,
-                        "content": [
-                            {"type": "text", "text": step_log.llm_output.strip()}
-                        ],
+                        "content": [{"type": "text", "text": step_log.llm_output.strip()}],
                     }
                     memory.append(thought_message)
                 if step_log.observations_images:
                     thought_message_image = {
                         "role": MessageRole.USER,
-                        "content": [{"type": "text", "text": "Here are the observed images:"}]+[
+                        "content": [{"type": "text", "text": "Here are the observed images:"}]
+                        + [
                             {
                                 "type": "image",
                                 "image": image,
@@ -540,9 +533,7 @@ You have been provided with these additional arguments, that you can access usin
         self.logs.append(TaskStep(task=self.task, task_images=images))
         if single_step:
             step_start_time = time.time()
-            step_log = ActionStep(
-                start_time=step_start_time, observations_images=images
-            )
+            step_log = ActionStep(start_time=step_start_time, observations_images=images)
             step_log.end_time = time.time()
             step_log.duration = step_log.end_time - step_start_time
 
@@ -599,9 +590,7 @@ You have been provided with these additional arguments, that you can access usin
 
         if final_answer is None and self.step_number == self.max_steps:
             error_message = "Reached max steps."
-            final_step_log = ActionStep(
-                step_number=self.step_number, error=AgentMaxStepsError(error_message)
-            )
+            final_step_log = ActionStep(step_number=self.step_number, error=AgentMaxStepsError(error_message))
             self.logs.append(final_step_log)
             final_answer = self.provide_final_answer(task, images)
             self.logger.log(Text(f"Final answer: {final_answer}"), level=LogLevel.INFO)

@@ -1004,13 +1004,9 @@ def import_modules(expression, state, authorized_imports):
         return None
     elif isinstance(expression, ast.ImportFrom):
         if check_module_authorized(expression.module):
-            module = __import__(
-                expression.module, fromlist=[alias.name for alias in expression.names]
-            )
+            module = __import__(expression.module, fromlist=[alias.name for alias in expression.names])
             if expression.names[0].name == "*":  # Handle "from module import *"
-                if hasattr(
-                    module, "__all__"
-                ):  # If module has __all__, import only those names
+                if hasattr(module, "__all__"):  # If module has __all__, import only those names
                     for name in module.__all__:
                         state[name] = getattr(module, name)
                 else:  # If no __all__, import all public names (those not starting with '_')
@@ -1022,9 +1018,7 @@ def import_modules(expression, state, authorized_imports):
                     if hasattr(module, alias.name):
                         state[alias.asname or alias.name] = getattr(module, alias.name)
                     else:
-                        raise InterpreterError(
-                            f"Module {expression.module} has no attribute {alias.name}"
-                        )
+                        raise InterpreterError(f"Module {expression.module} has no attribute {alias.name}")
         else:
             raise InterpreterError(f"Import from {expression.module} is not allowed.")
         return None
@@ -1302,8 +1296,7 @@ def evaluate_python_code(
         exception_type = type(e).__name__
         error_msg = truncate_content(PRINT_OUTPUTS, max_length=max_print_outputs_length)
         error_msg = (
-            f"Code execution failed at line '{ast.get_source_segment(code, node)}' due to: {exception_type}:"
-            f"{str(e)}"
+            f"Code execution failed at line '{ast.get_source_segment(code, node)}' due to: {exception_type}:{str(e)}"
         )
         raise InterpreterError(error_msg)
 

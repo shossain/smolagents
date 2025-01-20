@@ -388,6 +388,7 @@ class ToolTests(unittest.TestCase):
 
         assert get_weather.inputs["celsius"]["nullable"]
 
+
 @pytest.fixture
 def mock_server_parameters():
     return MagicMock()

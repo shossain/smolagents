@@ -105,9 +105,7 @@ class FakeToolCallModelImage:
 
 
 class FakeToolCallModelVL:
-    def __call__(
-        self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None
-    ):
+    def __call__(self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None):
         if len(messages) < 3:
             return ChatMessage(
                 role="assistant",
@@ -134,9 +132,7 @@ class FakeToolCallModelVL:
                     ChatMessageToolCall(
                         id="call_1",
                         type="function",
-                        function=ChatMessageToolCallDefinition(
-                            name="final_answer", arguments="The image is a cat."
-                        ),
+                        function=ChatMessageToolCallDefinition(name="final_answer", arguments="The image is a cat."),
                     )
                 ],
             )
@@ -343,14 +339,10 @@ class AgentTests(unittest.TestCase):
                 prompt: The prompt
                 image: The image
             """
-            image = Image.open(
-                Path(get_tests_dir("fixtures")) / "000000039769.png"
-            )  # dummy input
+            image = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")  # dummy input
             return "The image is a cat."
 
-        agent = ToolCallingAgent(
-            tools=[fake_image_understanding_tool], model=FakeToolCallModelVL()
-        )
+        agent = ToolCallingAgent(tools=[fake_image_understanding_tool], model=FakeToolCallModelVL())
         output = agent.run("Caption this image.")
         assert output == "The image is a cat."
         assert isinstance(agent.state["image.png"], Image.Image)
@@ -393,9 +385,7 @@ class AgentTests(unittest.TestCase):
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, AgentText)
         assert output == "got an error"
-        assert "Code execution failed at line 'error_function()'" in str(
-            agent.logs[2].error
-        )
+        assert "Code execution failed at line 'error_function()'" in str(agent.logs[2].error)
         assert "ValueError" in str(agent.logs)
 
     def test_code_agent_syntax_error_show_offending_lines(self):
