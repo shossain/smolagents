@@ -131,7 +131,7 @@ class MonitoringTester(unittest.TestCase):
         )
 
         # Use stream_to_gradio to capture the output
-        outputs = list(stream_to_gradio(agent, task="Test task", test_mode=True))
+        outputs = list(stream_to_gradio(agent, task="Test task"))
 
         self.assertEqual(len(outputs), 4)
         final_message = outputs[-1]
@@ -151,7 +151,6 @@ class MonitoringTester(unittest.TestCase):
                 agent,
                 task="Test task",
                 additional_args=dict(image=AgentImage(value="path.png")),
-                test_mode=True,
             )
         )
 
@@ -173,7 +172,7 @@ class MonitoringTester(unittest.TestCase):
         )
 
         # Use stream_to_gradio to capture the output
-        outputs = list(stream_to_gradio(agent, task="Test task", test_mode=True))
+        outputs = list(stream_to_gradio(agent, task="Test task"))
 
         self.assertEqual(len(outputs), 5)
         final_message = outputs[-1]

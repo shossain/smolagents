@@ -25,7 +25,7 @@ from .agents import ActionStep, AgentStepLog, MultiStepAgent
 from .types import AgentAudio, AgentImage, AgentText, handle_agent_output_types
 
 
-def pull_messages_from_step(step_log: AgentStepLog, test_mode: bool = True):
+def pull_messages_from_step(step_log: AgentStepLog):
     """Extract ChatMessage objects from agent steps"""
     if isinstance(step_log, ActionStep):
         yield gr.ChatMessage(role="assistant", content=step_log.llm_output or "")
@@ -53,14 +53,13 @@ def pull_messages_from_step(step_log: AgentStepLog, test_mode: bool = True):
 def stream_to_gradio(
     agent,
     task: str,
-    test_mode: bool = False,
     reset_agent_memory: bool = False,
     additional_args: Optional[dict] = None,
 ):
     """Runs an agent with the given task and streams the messages from the agent as gradio ChatMessages."""
 
     for step_log in agent.run(task, stream=True, reset=reset_agent_memory, additional_args=additional_args):
-        for message in pull_messages_from_step(step_log, test_mode=test_mode):
+        for message in pull_messages_from_step(step_log):
             yield message
 
     final_answer = step_log  # Last log is the run's final_answer
