@@ -22,25 +22,27 @@ been duplicated.
 TODO: move them to `huggingface_hub` to avoid code duplication.
 """
 
-import json
-import types
 import inspect
+import json
 import os
 import re
+import types
 from typing import (
-    Union,
-    List,
-    Dict,
+    Any,
     Callable,
+    Dict,
+    List,
     Optional,
     Tuple,
-    get_type_hints,
-    get_origin,
+    Union,
     get_args,
-    Any,
+    get_origin,
+    get_type_hints,
 )
-from .utils import _is_pillow_available
+
 from huggingface_hub.utils import is_torch_available
+
+from .utils import _is_pillow_available
 
 
 def get_imports(filename: Union[str, os.PathLike]) -> List[str]:
@@ -201,9 +203,7 @@ def get_json_schema(func: Callable) -> Dict:
 
     json_schema = _convert_type_hints_to_json_schema(func)
     if (return_dict := json_schema["properties"].pop("return", None)) is not None:
-        if (
-            return_doc is not None
-        ):  # We allow a missing return docstring since most templates ignore it
+        if return_doc is not None:  # We allow a missing return docstring since most templates ignore it
             return_dict["description"] = return_doc
     for arg, schema in json_schema["properties"].items():
         if arg not in param_descriptions:
@@ -267,13 +267,9 @@ def _parse_google_format_docstring(
 
     # Parsing the arguments into a dictionary
     if docstring_args is not None:
-        docstring_args = "\n".join(
-            [line for line in docstring_args.split("\n") if line.strip()]
-        )  # Remove blank lines
+        docstring_args = "\n".join([line for line in docstring_args.split("\n") if line.strip()])  # Remove blank lines
         matches = args_split_re.findall(docstring_args)
-        args_dict = {
-            match[0]: re.sub(r"\s*\n+\s*", " ", match[1].strip()) for match in matches
-        }
+        args_dict = {match[0]: re.sub(r"\s*\n+\s*", " ", match[1].strip()) for match in matches}
     else:
         args_dict = {}
 
@@ -286,9 +282,7 @@ def _convert_type_hints_to_json_schema(func: Callable) -> Dict:
     required = []
     for param_name, param in signature.parameters.items():
         if param.annotation == inspect.Parameter.empty:
-            raise TypeHintParsingException(
-                f"Argument {param.name} is missing a type hint in function {func.__name__}"
-            )
+            raise TypeHintParsingException(f"Argument {param.name} is missing a type hint in function {func.__name__}")
         if param.default == inspect.Parameter.empty:
             required.append(param_name)
 
@@ -366,9 +360,7 @@ def _parse_type_hint(hint: str) -> Dict:
             out["additionalProperties"] = _parse_type_hint(args[1])
         return out
 
-    raise TypeHintParsingException(
-        "Couldn't parse this type hint, likely due to a custom class or object: ", hint
-    )
+    raise TypeHintParsingException("Couldn't parse this type hint, likely due to a custom class or object: ", hint)
 
 
 _BASE_TYPE_MAPPING = {

@@ -16,17 +16,17 @@ import unittest
 from pathlib import Path
 from textwrap import dedent
 from typing import Dict, Optional, Union
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import mcp
 import numpy as np
 import pytest
+import torch
 from transformers import is_torch_available, is_vision_available
 from transformers.testing_utils import get_tests_dir
 
-from smolagents.tools import AUTHORIZED_TYPES, Tool, tool, ToolCollection
-from smolagents.types import AgentAudio, AgentImage, AgentText, _AGENT_TYPE_MAPPING
-import torch
+from smolagents.tools import AUTHORIZED_TYPES, Tool, ToolCollection, tool
+from smolagents.types import _AGENT_TYPE_MAPPING, AgentAudio, AgentImage, AgentText
 
 
 if is_torch_available():
@@ -45,9 +45,7 @@ def create_inputs(tool_inputs: Dict[str, Dict[Union[str, type], str]]):
         if input_type == "string":
             inputs[input_name] = "Text input"
         elif input_type == "image":
-            inputs[input_name] = Image.open(
-                Path(get_tests_dir("fixtures")) / "000000039769.png"
-            ).resize((512, 512))
+            inputs[input_name] = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png").resize((512, 512))
         elif input_type == "audio":
             inputs[input_name] = np.ones(3000)
         else:
@@ -221,9 +219,7 @@ class ToolTests(unittest.TestCase):
         class FailTool(Tool):
             name = "specific"
             description = "test description"
-            inputs = {
-                "string_input": {"type": "string", "description": "input description"}
-            }
+            inputs = {"string_input": {"type": "string", "description": "input description"}}
             output_type = "string"
 
             def __init__(self, url):
@@ -245,9 +241,7 @@ class ToolTests(unittest.TestCase):
         class FailTool(Tool):
             name = "specific"
             description = "test description"
-            inputs = {
-                "string_input": {"type": "string", "description": "input description"}
-            }
+            inputs = {"string_input": {"type": "string", "description": "input description"}}
             output_type = "string"
 
             def useless_method(self):
@@ -266,9 +260,7 @@ class ToolTests(unittest.TestCase):
         class SuccessTool(Tool):
             name = "specific"
             description = "test description"
-            inputs = {
-                "string_input": {"type": "string", "description": "input description"}
-            }
+            inputs = {"string_input": {"type": "string", "description": "input description"}}
             output_type = "string"
 
             def useless_method(self):
@@ -297,9 +289,7 @@ class ToolTests(unittest.TestCase):
                     },
                 }
 
-                def forward(
-                    self, location: str, celsius: Optional[bool] = False
-                ) -> str:
+                def forward(self, location: str, celsius: Optional[bool] = False) -> str:
                     return "The weather is UNGODLY with torrential rains and temperatures below -10°C"
 
             GetWeatherTool()
@@ -337,9 +327,7 @@ class ToolTests(unittest.TestCase):
                 }
                 output_type = "string"
 
-                def forward(
-                    self, location: str, celsius: Optional[bool] = False
-                ) -> str:
+                def forward(self, location: str, celsius: Optional[bool] = False) -> str:
                     return "The weather is UNGODLY with torrential rains and temperatures below -10°C"
 
             GetWeatherTool()
@@ -407,9 +395,7 @@ def mock_smolagents_adapter():
 
 
 class TestToolCollection:
-    def test_from_mcp(
-        self, mock_server_parameters, mock_mcp_adapt, mock_smolagents_adapter
-    ):
+    def test_from_mcp(self, mock_server_parameters, mock_mcp_adapt, mock_smolagents_adapter):
         with ToolCollection.from_mcp(mock_server_parameters) as tool_collection:
             assert isinstance(tool_collection, ToolCollection)
             assert len(tool_collection.tools) == 2
@@ -437,9 +423,5 @@ class TestToolCollection:
 
         with ToolCollection.from_mcp(mcp_server_params) as tool_collection:
             assert len(tool_collection.tools) == 1, "Expected 1 tool"
-            assert tool_collection.tools[0].name == "echo_tool", (
-                "Expected tool name to be 'echo_tool'"
-            )
-            assert tool_collection.tools[0](text="Hello") == "Hello", (
-                "Expected tool to echo the input text"
-            )
+            assert tool_collection.tools[0].name == "echo_tool", "Expected tool name to be 'echo_tool'"
+            assert tool_collection.tools[0](text="Hello") == "Hello", "Expected tool to echo the input text"

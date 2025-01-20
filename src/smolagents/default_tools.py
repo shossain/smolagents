@@ -18,7 +18,6 @@ import re
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-
 from .local_python_executor import (
     BASE_BUILTIN_MODULES,
     BASE_PYTHON_TOOLS,
@@ -53,9 +52,7 @@ class PythonInterpreterTool(Tool):
         if authorized_imports is None:
             self.authorized_imports = list(set(BASE_BUILTIN_MODULES))
         else:
-            self.authorized_imports = list(
-                set(BASE_BUILTIN_MODULES) | set(authorized_imports)
-            )
+            self.authorized_imports = list(set(BASE_BUILTIN_MODULES) | set(authorized_imports))
         self.inputs = {
             "code": {
                 "type": "string",
@@ -85,9 +82,7 @@ class PythonInterpreterTool(Tool):
 class FinalAnswerTool(Tool):
     name = "final_answer"
     description = "Provides a final answer to the given problem."
-    inputs = {
-        "answer": {"type": "any", "description": "The final answer to the problem"}
-    }
+    inputs = {"answer": {"type": "any", "description": "The final answer to the problem"}}
     output_type = "any"
 
     def forward(self, answer):
@@ -97,9 +92,7 @@ class FinalAnswerTool(Tool):
 class UserInputTool(Tool):
     name = "user_input"
     description = "Asks for user's input on a specific question"
-    inputs = {
-        "question": {"type": "string", "description": "The question to ask the user"}
-    }
+    inputs = {"question": {"type": "string", "description": "The question to ask the user"}}
     output_type = "string"
 
     def forward(self, question):
@@ -110,9 +103,7 @@ class UserInputTool(Tool):
 class DuckDuckGoSearchTool(Tool):
     name = "web_search"
     description = """Performs a duckduckgo web search based on your query (think a Google search) then returns the top search results."""
-    inputs = {
-        "query": {"type": "string", "description": "The search query to perform."}
-    }
+    inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
 
     def __init__(self, *args, max_results=10, **kwargs):
@@ -128,10 +119,7 @@ class DuckDuckGoSearchTool(Tool):
 
     def forward(self, query: str) -> str:
         results = self.ddgs.text(query, max_results=self.max_results)
-        postprocessed_results = [
-            f"[{result['title']}]({result['href']})\n{result['body']}"
-            for result in results
-        ]
+        postprocessed_results = [f"[{result['title']}]({result['href']})\n{result['body']}" for result in results]
         return "## Search Results\n\n" + "\n\n".join(postprocessed_results)
 
 
@@ -158,9 +146,7 @@ class GoogleSearchTool(Tool):
         import requests
 
         if self.serpapi_key is None:
-            raise ValueError(
-                "Missing SerpAPI key. Make sure you have 'SERPAPI_API_KEY' in your env variables."
-            )
+            raise ValueError("Missing SerpAPI key. Make sure you have 'SERPAPI_API_KEY' in your env variables.")
 
         params = {
             "engine": "google",
@@ -169,9 +155,7 @@ class GoogleSearchTool(Tool):
             "google_domain": "google.com",
         }
         if filter_year is not None:
-            params["tbs"] = (
-                f"cdr:1,cd_min:01/01/{filter_year},cd_max:12/31/{filter_year}"
-            )
+            params["tbs"] = f"cdr:1,cd_min:01/01/{filter_year},cd_max:12/31/{filter_year}"
 
         response = requests.get("https://serpapi.com/search.json", params=params)
 
@@ -186,13 +170,9 @@ class GoogleSearchTool(Tool):
                     f"'organic_results' key not found for query: '{query}' with filtering on year={filter_year}. Use a less restrictive query or do not filter on year."
                 )
             else:
-                raise Exception(
-                    f"'organic_results' key not found for query: '{query}'. Use a less restrictive query."
-                )
+                raise Exception(f"'organic_results' key not found for query: '{query}'. Use a less restrictive query.")
         if len(results["organic_results"]) == 0:
-            year_filter_message = (
-                f" with filter year={filter_year}" if filter_year is not None else ""
-            )
+            year_filter_message = f" with filter year={filter_year}" if filter_year is not None else ""
             return f"No results found for '{query}'{year_filter_message}. Try with a more general query, or remove the year filter."
 
         web_snippets = []
@@ -212,9 +192,7 @@ class GoogleSearchTool(Tool):
 
                 redacted_version = f"{idx}. [{page['title']}]({page['link']}){date_published}{source}\n{snippet}"
 
-                redacted_version = redacted_version.replace(
-                    "Your browser can't play this video.", ""
-                )
+                redacted_version = redacted_version.replace("Your browser can't play this video.", "")
                 web_snippets.append(redacted_version)
 
         return "## Search Results\n" + "\n\n".join(web_snippets)
@@ -222,7 +200,9 @@ class GoogleSearchTool(Tool):
 
 class VisitWebpageTool(Tool):
     name = "visit_webpage"
-    description = "Visits a webpage at the given url and reads its content as a markdown string. Use this to browse webpages."
+    description = (
+        "Visits a webpage at the given url and reads its content as a markdown string. Use this to browse webpages."
+    )
     inputs = {
         "url": {
             "type": "string",
@@ -236,6 +216,7 @@ class VisitWebpageTool(Tool):
             import requests
             from markdownify import markdownify
             from requests.exceptions import RequestException
+
             from smolagents.utils import truncate_content
         except ImportError as e:
             raise ImportError(

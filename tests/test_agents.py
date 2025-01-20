@@ -28,13 +28,13 @@ from smolagents.agents import (
     ToolCallingAgent,
 )
 from smolagents.default_tools import PythonInterpreterTool
-from smolagents.tools import tool
-from smolagents.types import AgentImage, AgentText
 from smolagents.models import (
     ChatMessage,
     ChatMessageToolCall,
     ChatMessageToolCallDefinition,
 )
+from smolagents.tools import tool
+from smolagents.types import AgentImage, AgentText
 from smolagents.utils import BASE_BUILTIN_MODULES
 
 
@@ -44,9 +44,7 @@ def get_new_path(suffix="") -> str:
 
 
 class FakeToolCallModel:
-    def __call__(
-        self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None
-    ):
+    def __call__(self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None):
         if len(messages) < 3:
             return ChatMessage(
                 role="assistant",
@@ -69,18 +67,14 @@ class FakeToolCallModel:
                     ChatMessageToolCall(
                         id="call_1",
                         type="function",
-                        function=ChatMessageToolCallDefinition(
-                            name="final_answer", arguments={"answer": "7.2904"}
-                        ),
+                        function=ChatMessageToolCallDefinition(name="final_answer", arguments={"answer": "7.2904"}),
                     )
                 ],
             )
 
 
 class FakeToolCallModelImage:
-    def __call__(
-        self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None
-    ):
+    def __call__(self, messages, tools_to_call_from=None, stop_sequences=None, grammar=None):
         if len(messages) < 3:
             return ChatMessage(
                 role="assistant",
@@ -104,9 +98,7 @@ class FakeToolCallModelImage:
                     ChatMessageToolCall(
                         id="call_1",
                         type="function",
-                        function=ChatMessageToolCallDefinition(
-                            name="final_answer", arguments="image.png"
-                        ),
+                        function=ChatMessageToolCallDefinition(name="final_answer", arguments="image.png"),
                     )
                 ],
             )
@@ -271,17 +263,13 @@ print(result)
 
 class AgentTests(unittest.TestCase):
     def test_fake_single_step_code_agent(self):
-        agent = CodeAgent(
-            tools=[PythonInterpreterTool()], model=fake_code_model_single_step
-        )
+        agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model_single_step)
         output = agent.run("What is 2 multiplied by 3.6452?", single_step=True)
         assert isinstance(output, str)
         assert "7.2904" in output
 
     def test_fake_toolcalling_agent(self):
-        agent = ToolCallingAgent(
-            tools=[PythonInterpreterTool()], model=FakeToolCallModel()
-        )
+        agent = ToolCallingAgent(tools=[PythonInterpreterTool()], model=FakeToolCallModel())
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, str)
         assert "7.2904" in output
@@ -301,9 +289,7 @@ class AgentTests(unittest.TestCase):
             """
             return Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")
 
-        agent = ToolCallingAgent(
-            tools=[fake_image_generation_tool], model=FakeToolCallModelImage()
-        )
+        agent = ToolCallingAgent(tools=[fake_image_generation_tool], model=FakeToolCallModelImage())
         output = agent.run("Make me an image.")
         assert isinstance(output, AgentImage)
         assert isinstance(agent.state["image.png"], Image.Image)
@@ -315,9 +301,7 @@ class AgentTests(unittest.TestCase):
         assert output == 7.2904
         assert agent.logs[1].task == "What is 2 multiplied by 3.6452?"
         assert agent.logs[3].tool_calls == [
-            ToolCall(
-                name="python_interpreter", arguments="final_answer(7.2904)", id="call_3"
-            )
+            ToolCall(name="python_interpreter", arguments="final_answer(7.2904)", id="call_3")
         ]
 
     def test_additional_args_added_to_task(self):
@@ -351,9 +335,7 @@ class AgentTests(unittest.TestCase):
         assert "Code execution failed at line 'print = 2' because of" in str(agent.logs)
 
     def test_code_agent_syntax_error_show_offending_lines(self):
-        agent = CodeAgent(
-            tools=[PythonInterpreterTool()], model=fake_code_model_syntax_error
-        )
+        agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model_syntax_error)
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, AgentText)
         assert output == "got an error"
@@ -391,9 +373,7 @@ class AgentTests(unittest.TestCase):
     def test_init_agent_with_different_toolsets(self):
         toolset_1 = []
         agent = CodeAgent(tools=toolset_1, model=fake_code_model)
-        assert (
-            len(agent.tools) == 1
-        )  # when no tools are provided, only the final_answer tool is added by default
+        assert len(agent.tools) == 1  # when no tools are provided, only the final_answer tool is added by default
 
         toolset_2 = [PythonInterpreterTool(), PythonInterpreterTool()]
         agent = CodeAgent(tools=toolset_2, model=fake_code_model)
@@ -436,9 +416,7 @@ class AgentTests(unittest.TestCase):
         assert "You can also give requests to team members." not in agent.system_prompt
         print("ok1")
         assert "{{managed_agents_descriptions}}" not in agent.system_prompt
-        assert (
-            "You can also give requests to team members." in manager_agent.system_prompt
-        )
+        assert "You can also give requests to team members." in manager_agent.system_prompt
 
     def test_code_agent_missing_import_triggers_advice_in_error_log(self):
         agent = CodeAgent(tools=[], model=fake_code_model_import)

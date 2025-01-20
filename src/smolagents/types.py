@@ -22,7 +22,9 @@ from io import BytesIO
 import numpy as np
 import requests
 from huggingface_hub.utils import is_torch_available
+
 from .utils import _is_package_available, _is_pillow_available
+
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +83,9 @@ class AgentImage(AgentType):
             raise ModuleNotFoundError(
                 "Please install 'image' extra to use AgentImage: `pip install 'smolagents[image]'`"
             )
+        import torch
         from PIL import Image
         from PIL.Image import Image as ImageType
-        import torch
 
         self._path = None
         self._raw = None
@@ -102,9 +104,7 @@ class AgentImage(AgentType):
         elif isinstance(value, np.ndarray):
             self._tensor = torch.from_numpy(value)
         else:
-            raise TypeError(
-                f"Unsupported type for {self.__class__.__name__}: {type(value)}"
-            )
+            raise TypeError(f"Unsupported type for {self.__class__.__name__}: {type(value)}")
 
     def _ipython_display_(self, include=None, exclude=None):
         """
@@ -253,9 +253,7 @@ _AGENT_TYPE_MAPPING = {"string": AgentText, "image": AgentImage, "audio": AgentA
 
 def handle_agent_input_types(*args, **kwargs):
     args = [(arg.to_raw() if isinstance(arg, AgentType) else arg) for arg in args]
-    kwargs = {
-        k: (v.to_raw() if isinstance(v, AgentType) else v) for k, v in kwargs.items()
-    }
+    kwargs = {k: (v.to_raw() if isinstance(v, AgentType) else v) for k, v in kwargs.items()}
     return args, kwargs
 
 
