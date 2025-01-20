@@ -306,7 +306,7 @@ class MultiStepAgent:
                 if step_log.observations_images:
                     thought_message_image = {
                         "role": MessageRole.USER,
-                        "content": [
+                        "content": [{"type": "text", "text": "Here are the observed images:"}]+[
                             {
                                 "type": "image",
                                 "image": image,
