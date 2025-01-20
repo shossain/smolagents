@@ -109,9 +109,7 @@ def parse_json_if_needed(arguments: Union[str, dict]) -> Union[str, dict]:
         return arguments
     else:
         try:
-            parsed_args = json.loads(arguments)
-            if isinstance(parsed_args, dict):
-                return parsed_args
+            return json.loads(arguments)
         except json.JSONDecodeError:
             return arguments
 
