@@ -22,8 +22,10 @@ from io import BytesIO
 import numpy as np
 import requests
 from huggingface_hub.utils import is_torch_available
+from PIL import Image
+from PIL.Image import Image as ImageType
 
-from .utils import _is_package_available, _is_pillow_available
+from .utils import _is_package_available
 
 
 logger = logging.getLogger(__name__)
@@ -59,7 +61,7 @@ class AgentType:
         return str(self._value)
 
 
-class AgentText(AgentType):
+class AgentText(AgentType, str):
     """
     Text type returned by the agent. Behaves as a string.
     """
@@ -71,21 +73,13 @@ class AgentText(AgentType):
         return str(self._value)
 
 
-class AgentImage(AgentType):
+class AgentImage(AgentType, ImageType):
     """
     Image type returned by the agent. Behaves as a PIL.Image.
     """
 
     def __init__(self, value):
         super().__init__(value)
-
-        if not _is_pillow_available() or not is_torch_available():
-            raise ModuleNotFoundError(
-                "Please install 'image' extra to use AgentImage: `pip install 'smolagents[image]'`"
-            )
-        import torch
-        from PIL import Image
-        from PIL.Image import Image as ImageType
 
         self._path = None
         self._raw = None
@@ -99,11 +93,15 @@ class AgentImage(AgentType):
             self._raw = Image.open(BytesIO(value))
         elif isinstance(value, (str, pathlib.Path)):
             self._path = value
-        elif isinstance(value, torch.Tensor):
-            self._tensor = value
-        elif isinstance(value, np.ndarray):
-            self._tensor = torch.from_numpy(value)
-        else:
+        elif is_torch_available():
+            import torch
+
+            if isinstance(value, torch.Tensor):
+                self._tensor = value
+            if isinstance(value, np.ndarray):
+                self._tensor = torch.from_numpy(value)
+
+        if self._path is None and self._raw is None and self._tensor is None:
             raise TypeError(f"Unsupported type for {self.__class__.__name__}: {type(value)}")
 
     def _ipython_display_(self, include=None, exclude=None):
@@ -118,8 +116,6 @@ class AgentImage(AgentType):
         """
         Returns the "raw" version of that object. In the case of an AgentImage, it is a PIL.Image.
         """
-        from PIL import Image
-
         if self._raw is not None:
             return self._raw
 
@@ -136,8 +132,6 @@ class AgentImage(AgentType):
         Returns the stringified version of that object. In the case of an AgentImage, it is a path to the serialized
         version of the image.
         """
-        from PIL import Image
-
         if self._path is not None:
             return self._path
 
@@ -171,7 +165,7 @@ class AgentImage(AgentType):
         img.save(output_bytes, format=format, **params)
 
 
-class AgentAudio(AgentType):
+class AgentAudio(AgentType, str):
     """
     Audio type returned by the agent.
     """
@@ -266,11 +260,8 @@ def handle_agent_output_types(output, output_type=None):
     # If the class does not have defined output, then we map according to the type
     if isinstance(output, str):
         return AgentText(output)
-    if _is_pillow_available():
-        from PIL.Image import Image as ImageType
-
-        if isinstance(output, ImageType):
-            return AgentImage(output)
+    if isinstance(output, ImageType):
+        return AgentImage(output)
     if is_torch_available():
         import torch
 
