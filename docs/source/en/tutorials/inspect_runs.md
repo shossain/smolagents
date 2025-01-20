@@ -34,7 +34,7 @@ We've adopted the [OpenTelemetry](https://opentelemetry.io/) standard for instru
 
 This means that you can just run some instrumentation code, then run your agents normally, and everything gets logged into your platform.
 
-Here's what agent logs then look like:
+Here's how it then looks like on the platform:
 
 <div class="flex justify-center">
     <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smolagents/inspect_run_phoenix.gif"/>
