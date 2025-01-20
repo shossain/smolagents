@@ -677,6 +677,7 @@ class OpenAIServerModel(Model):
         messages = get_clean_message_list(
             messages,
             role_conversions=(self.custom_role_conversions if self.custom_role_conversions else tool_role_conversions),
+            convert_images_to_image_urls=True
         )
         if tools_to_call_from:
             response = self.client.chat.completions.create(

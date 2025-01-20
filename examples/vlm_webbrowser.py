@@ -1,5 +1,5 @@
 from helium import get_driver
-from smolagents import CodeAgent, HfApiModel, LiteLLMModel, tool
+from smolagents import CodeAgent, HfApiModel, LiteLLMModel, tool, OpenAIServerModel
 from smolagents.agents import ActionStep
 from PIL import Image
 import tempfile
@@ -9,7 +9,24 @@ from time import sleep
 # model = HfApiModel("Qwen/Qwen2-VL-7B-Instruct")
 # model = HfApiModel("https://lmqbs8965pj40e01.us-east-1.aws.endpoints.huggingface.cloud")
 
-model = LiteLLMModel("gpt-4o")
+from dotenv import load_dotenv
+load_dotenv()
+import os
+
+
+# model = OpenAIServerModel(
+#     api_key=os.environ.get("TOGETHER_API_KEY"),
+#     api_base="https://api.together.xyz/v1",
+#     model_id="Qwen/Qwen2-VL-72B-Instruct"
+# )
+
+model = OpenAIServerModel(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+    # api_base="https://api.together.xyz/v1",
+    model_id="gpt-4o"
+)
+
+
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -151,4 +168,4 @@ After each code blob you write, you will be automatically provided with an updat
 Never try to login.
 """
 agent.run("""
-According to github, when was Regression added to the oldest closed numpy.polynomial issue that has the Regression label in MM/DD/YY?""" + helium_instructions)
+I want to know how hard I need to work to have a trending repo. Could you navigate to the current trending repos on GitHub, and from the top one, get me the number of commits of the top contributor?""" + helium_instructions)
