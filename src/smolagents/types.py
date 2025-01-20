@@ -79,7 +79,8 @@ class AgentImage(AgentType, ImageType):
     """
 
     def __init__(self, value):
-        super().__init__(value)
+        AgentType.__init__(self, value)
+        ImageType.__init__(self)
 
         self._path = None
         self._raw = None
