@@ -19,10 +19,23 @@ The ReAct framework ([Yao et al., 2022](https://huggingface.co/papers/2210.03629
 
 The name is based on the concatenation of two words, "Reason" and "Act." Indeed, agents following this architecture will solve their task in as many steps as needed, each step consisting of a Reasoning step, then an Action step where it formulates tool calls that will bring it closer to solving the task at hand.
 
-React process involves keeping a memory of past steps.
+React process involves keeping a memory of past steps, and feeding it back to the model until the model comes up with the final response. These steps are given below along with how we implemented them:
 
-> [!TIP]
-> Read [Open-source LLMs as LangChain Agents](https://huggingface.co/blog/open-source-llms-as-agents) blog post to learn more about multi-step agents.
+1. **Thought:** This is the first step initializing the system, prompting it on how it should behave (`SystemPromptStep`), the facts about the task at hand (`PlanningStep`) and providing the task at hand (`TaskStep`).  System prompt, facts and task prompt are appended to the memory. Facts are updated at each step until the agent receives the final response. If there's any images in the prompt, they are fed to `TaskStep`.
+2. **Action:** This is where all the action is taken, including LLM inference and callback function execution. After the inference takes place, the output of LLM/VLM (called "observations") is fed to `ActionStep`. Callbacks are functions executed at the end of every step. A good callback example is taking screenshots and add it to agent's state in an agentic web browser.
+
+For `CodeAgent`, it looks like below.
+
+<div class="flex justify-center">
+    <img
+        class="block dark:hidden"
+        src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smolagents/codeagent_docs.png"
+    />
+    <img
+        class="hidden dark:block"
+        src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smolagents/codeagent_docs.png"
+    />
+</div>
 
 Here is a video overview of how that works:
 
@@ -45,3 +58,6 @@ We implement two versions of ToolCallingAgent:
 
 > [!TIP]
 > We also provide an option to run agents in one-shot: just pass `single_step=True` when launching the agent, like `agent.run(your_task, single_step=True)`
+
+> [!TIP]
+> Read [Open-source LLMs as LangChain Agents](https://huggingface.co/blog/open-source-llms-as-agents) blog post to learn more about multi-step agents.
