@@ -71,8 +71,9 @@ AUTHORIZED_TYPES = [
     "number",
     "image",
     "audio",
-    "any",
+    "array",
     "object",
+    "any",
     "null",
 ]
 
