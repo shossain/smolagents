@@ -203,13 +203,13 @@ class Tool:
             json_schema = _convert_type_hints_to_json_schema(self.forward)
             for key, value in self.inputs.items():
                 if "nullable" in value:
-                    assert (
-                        key in json_schema and "nullable" in json_schema[key]
-                    ), f"Nullable argument '{key}' in inputs should have key 'nullable' set to True in function signature."
+                    assert key in json_schema and "nullable" in json_schema[key], (
+                        f"Nullable argument '{key}' in inputs should have key 'nullable' set to True in function signature."
+                    )
                 if key in json_schema and "nullable" in json_schema[key]:
-                    assert (
-                        "nullable" in value
-                    ), f"Nullable argument '{key}' in function signature should have key 'nullable' set to True in inputs."
+                    assert "nullable" in value, (
+                        f"Nullable argument '{key}' in function signature should have key 'nullable' set to True in inputs."
+                    )
 
     def forward(self, *args, **kwargs):
         return NotImplementedError("Write this method in your subclass of `Tool`.")
@@ -439,7 +439,9 @@ class Tool:
                 `cache_dir`, `revision`, `subfolder`) will be used when downloading the files for your tool, and the
                 others will be passed along to its init.
         """
-        assert trust_remote_code, "Loading a tool from Hub requires to trust remote code. Make sure you've inspected the repo and pass `trust_remote_code=True` to load the tool."
+        assert trust_remote_code, (
+            "Loading a tool from Hub requires to trust remote code. Make sure you've inspected the repo and pass `trust_remote_code=True` to load the tool."
+        )
 
         hub_kwargs_names = [
             "cache_dir",
