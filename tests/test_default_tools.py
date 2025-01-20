@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import unittest
+
 import pytest
 
 from smolagents.default_tools import PythonInterpreterTool, VisitWebpageTool
@@ -23,14 +24,10 @@ from .test_tools import ToolTesterMixin
 
 class DefaultToolTests(unittest.TestCase):
     def test_visit_webpage(self):
-        arguments = {
-            "url": "https://en.wikipedia.org/wiki/United_States_Secretary_of_Homeland_Security"
-        }
+        arguments = {"url": "https://en.wikipedia.org/wiki/United_States_Secretary_of_Homeland_Security"}
         result = VisitWebpageTool()(arguments)
         assert isinstance(result, str)
-        assert (
-            "* [About Wikipedia](/wiki/Wikipedia:About)" in result
-        )  # Proper wikipedia pages have an About
+        assert "* [About Wikipedia](/wiki/Wikipedia:About)" in result  # Proper wikipedia pages have an About
 
 
 class PythonInterpreterToolTester(unittest.TestCase, ToolTesterMixin):
@@ -59,12 +56,7 @@ class PythonInterpreterToolTester(unittest.TestCase, ToolTesterMixin):
         for _input, expected_input in zip(inputs, self.tool.inputs.values()):
             input_type = expected_input["type"]
             if isinstance(input_type, list):
-                _inputs.append(
-                    [
-                        AGENT_TYPE_MAPPING[_input_type](_input)
-                        for _input_type in input_type
-                    ]
-                )
+                _inputs.append([AGENT_TYPE_MAPPING[_input_type](_input) for _input_type in input_type])
             else:
                 _inputs.append(AGENT_TYPE_MAPPING[input_type](_input))
 

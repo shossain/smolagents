@@ -1,6 +1,8 @@
-from smolagents.agents import ToolCallingAgent
-from smolagents import tool, LiteLLMModel
 from typing import Optional
+
+from smolagents import LiteLLMModel, tool
+from smolagents.agents import ToolCallingAgent
+
 
 # Choose which LLM engine to use!
 # model = HfApiModel(model_id="meta-llama/Llama-3.3-70B-Instruct")

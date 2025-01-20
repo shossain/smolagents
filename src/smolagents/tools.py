@@ -36,7 +36,6 @@ from huggingface_hub import (
     upload_folder,
 )
 from huggingface_hub.utils import RepositoryNotFoundError
-
 from packaging import version
 from transformers.dynamic_module_utils import get_imports
 from transformers.utils import (
@@ -51,6 +50,7 @@ from transformers.utils.chat_template_utils import _parse_type_hint
 from .tool_validation import MethodChecker, validate_tool_attributes
 from .types import ImageType, handle_agent_input_types, handle_agent_output_types
 from .utils import instance_to_source
+
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +77,7 @@ def get_repo_type(repo_id, repo_type=None, **hub_kwargs):
             hf_hub_download(repo_id, TOOL_CONFIG_FILE, repo_type="model", **hub_kwargs)
             return "model"
         except RepositoryNotFoundError:
-            raise EnvironmentError(
-                f"`{repo_id}` does not seem to be a valid repo identifier on the Hub."
-            )
+            raise EnvironmentError(f"`{repo_id}` does not seem to be a valid repo identifier on the Hub.")
         except Exception:
             return "model"
     except Exception:
@@ -109,9 +107,7 @@ def _convert_type_hints_to_json_schema(func: Callable) -> Dict:
                 properties[param_name]["nullable"] = True
     for param_name in signature.parameters.keys():
         if signature.parameters[param_name].default != inspect.Parameter.empty:
-            if (
-                param_name not in properties
-            ):  # this can happen if the param has no type hint but a default value
+            if param_name not in properties:  # this can happen if the param has no type hint but a default value
                 properties[param_name] = {"nullable": True}
     return properties
 
@@ -181,12 +177,10 @@ class Tool:
                     f"Attribute {attr} should have type {expected_type.__name__}, got {type(attr_value)} instead."
                 )
         for input_name, input_content in self.inputs.items():
-            assert isinstance(
-                input_content, dict
-            ), f"Input '{input_name}' should be a dictionary."
-            assert (
-                "type" in input_content and "description" in input_content
-            ), f"Input '{input_name}' should have keys 'type' and 'description', has only {list(input_content.keys())}."
+            assert isinstance(input_content, dict), f"Input '{input_name}' should be a dictionary."
+            assert "type" in input_content and "description" in input_content, (
+                f"Input '{input_name}' should have keys 'type' and 'description', has only {list(input_content.keys())}."
+            )
             if input_content["type"] not in AUTHORIZED_TYPES:
                 raise Exception(
                     f"Input '{input_name}': type '{input_content['type']}' is not an authorized value, should be one of {AUTHORIZED_TYPES}."
@@ -194,7 +188,7 @@ class Tool:
 
         assert getattr(self, "output_type", None) in AUTHORIZED_TYPES
 
-        # Validate forward function signature, except for Tools that use a "generic" signature (PipelineTool, SpaceToolWrapper)
+        # Validate forward function signature, except for Tools that use a "generic" signature (PipelineTool, SpaceToolWrapper, LangChainToolWrapper)
         if not (
             hasattr(self, "skip_forward_signature_validation")
             and getattr(self, "skip_forward_signature_validation") is True
@@ -348,15 +342,7 @@ class Tool:
         imports = []
         for module in [tool_file]:
             imports.extend(get_imports(module))
-        imports = list(
-            set(
-                [
-                    el
-                    for el in imports + ["smolagents"]
-                    if el not in sys.stdlib_module_names
-                ]
-            )
-        )
+        imports = list(set([el for el in imports + ["smolagents"] if el not in sys.stdlib_module_names]))
         with open(requirements_file, "w", encoding="utf-8") as f:
             f.write("\n".join(imports) + "\n")
 
@@ -410,9 +396,7 @@ class Tool:
             print(work_dir)
             with open(work_dir + "/tool.py", "r") as f:
                 print("\n".join(f.readlines()))
-            logger.info(
-                f"Uploading the following files to {repo_id}: {','.join(os.listdir(work_dir))}"
-            )
+            logger.info(f"Uploading the following files to {repo_id}: {','.join(os.listdir(work_dir))}")
             return upload_folder(
                 repo_id=repo_id,
                 commit_message=commit_message,
@@ -590,9 +574,7 @@ class Tool:
                 self.name = name
                 self.description = description
                 self.client = Client(space_id, hf_token=token)
-                space_description = self.client.view_api(
-                    return_format="dict", print_info=False
-                )["named_endpoints"]
+                space_description = self.client.view_api(return_format="dict", print_info=False)["named_endpoints"]
 
                 # If api_name is not defined, take the first of the available APIs for this space
                 if api_name is None:
@@ -605,9 +587,7 @@ class Tool:
                 try:
                     space_description_api = space_description[api_name]
                 except KeyError:
-                    raise KeyError(
-                        f"Could not find specified {api_name=} among available api names."
-                    )
+                    raise KeyError(f"Could not find specified {api_name=} among available api names.")
 
                 self.inputs = {}
                 for parameter in space_description_api["parameters"]:
@@ -681,8 +661,7 @@ class Tool:
                 self._gradio_tool = _gradio_tool
                 func_args = list(inspect.signature(_gradio_tool.run).parameters.items())
                 self.inputs = {
-                    key: {"type": CONVERSION_DICT[value.annotation], "description": ""}
-                    for key, value in func_args
+                    key: {"type": CONVERSION_DICT[value.annotation], "description": ""} for key, value in func_args
                 }
                 self.forward = self._gradio_tool.run
 
@@ -695,6 +674,8 @@ class Tool:
         """
 
         class LangChainToolWrapper(Tool):
+            skip_forward_signature_validation = True
+
             def __init__(self, _langchain_tool):
                 self.name = _langchain_tool.name.lower()
                 self.description = _langchain_tool.description
@@ -705,6 +686,7 @@ class Tool:
                     input_content["description"] = ""
                 self.output_type = "string"
                 self.langchain_tool = _langchain_tool
+                self.is_initialized = True
 
             def forward(self, *args, **kwargs):
                 tool_input = kwargs.copy()
@@ -724,9 +706,7 @@ DEFAULT_TOOL_DESCRIPTION_TEMPLATE = """
 """
 
 
-def get_tool_description_with_args(
-    tool: Tool, description_template: Optional[str] = None
-) -> str:
+def get_tool_description_with_args(tool: Tool, description_template: Optional[str] = None) -> str:
     if description_template is None:
         description_template = DEFAULT_TOOL_DESCRIPTION_TEMPLATE
     compiled_template = compile_jinja_template(description_template)
@@ -746,10 +726,7 @@ def compile_jinja_template(template):
         raise ImportError("template requires jinja2 to be installed.")
 
     if version.parse(jinja2.__version__) < version.parse("3.1.0"):
-        raise ImportError(
-            "template requires jinja2>=3.1.0 to be installed. Your version is "
-            f"{jinja2.__version__}."
-        )
+        raise ImportError(f"template requires jinja2>=3.1.0 to be installed. Your version is {jinja2.__version__}.")
 
     def raise_exception(message):
         raise TemplateError(message)
@@ -770,9 +747,7 @@ def launch_gradio_demo(tool: Tool):
     try:
         import gradio as gr
     except ImportError:
-        raise ImportError(
-            "Gradio should be installed in order to launch a gradio demo."
-        )
+        raise ImportError("Gradio should be installed in order to launch a gradio demo.")
 
     TYPE_TO_COMPONENT_CLASS_MAPPING = {
         "image": gr.Image,
@@ -789,9 +764,7 @@ def launch_gradio_demo(tool: Tool):
 
     gradio_inputs = []
     for input_name, input_details in tool.inputs.items():
-        input_gradio_component_class = TYPE_TO_COMPONENT_CLASS_MAPPING[
-            input_details["type"]
-        ]
+        input_gradio_component_class = TYPE_TO_COMPONENT_CLASS_MAPPING[input_details["type"]]
         new_component = input_gradio_component_class(label=input_name)
         gradio_inputs.append(new_component)
 
@@ -920,14 +893,9 @@ class ToolCollection:
         ```
         """
         _collection = get_collection(collection_slug, token=token)
-        _hub_repo_ids = {
-            item.item_id for item in _collection.items if item.item_type == "space"
-        }
+        _hub_repo_ids = {item.item_id for item in _collection.items if item.item_type == "space"}
 
-        tools = {
-            Tool.from_hub(repo_id, token, trust_remote_code)
-            for repo_id in _hub_repo_ids
-        }
+        tools = {Tool.from_hub(repo_id, token, trust_remote_code) for repo_id in _hub_repo_ids}
 
         return cls(tools)
 
@@ -984,9 +952,7 @@ def tool(tool_function: Callable) -> Tool:
     """
     parameters = get_json_schema(tool_function)["function"]
     if "return" not in parameters:
-        raise TypeHintParsingException(
-            "Tool return type not found: make sure your function has a return type hint!"
-        )
+        raise TypeHintParsingException("Tool return type not found: make sure your function has a return type hint!")
 
     class SimpleTool(Tool):
         def __init__(self, name, description, inputs, output_type, function):
@@ -1005,9 +971,9 @@ def tool(tool_function: Callable) -> Tool:
         function=tool_function,
     )
     original_signature = inspect.signature(tool_function)
-    new_parameters = [
-        inspect.Parameter("self", inspect.Parameter.POSITIONAL_ONLY)
-    ] + list(original_signature.parameters.values())
+    new_parameters = [inspect.Parameter("self", inspect.Parameter.POSITIONAL_ONLY)] + list(
+        original_signature.parameters.values()
+    )
     new_signature = original_signature.replace(parameters=new_parameters)
     simple_tool.forward.__signature__ = new_signature
     return simple_tool
@@ -1080,9 +1046,7 @@ class PipelineTool(Tool):
 
         if model is None:
             if self.default_checkpoint is None:
-                raise ValueError(
-                    "This tool does not implement a default checkpoint, you need to pass one."
-                )
+                raise ValueError("This tool does not implement a default checkpoint, you need to pass one.")
             model = self.default_checkpoint
         if pre_processor is None:
             pre_processor = model
@@ -1105,21 +1069,15 @@ class PipelineTool(Tool):
         Instantiates the `pre_processor`, `model` and `post_processor` if necessary.
         """
         if isinstance(self.pre_processor, str):
-            self.pre_processor = self.pre_processor_class.from_pretrained(
-                self.pre_processor, **self.hub_kwargs
-            )
+            self.pre_processor = self.pre_processor_class.from_pretrained(self.pre_processor, **self.hub_kwargs)
 
         if isinstance(self.model, str):
-            self.model = self.model_class.from_pretrained(
-                self.model, **self.model_kwargs, **self.hub_kwargs
-            )
+            self.model = self.model_class.from_pretrained(self.model, **self.model_kwargs, **self.hub_kwargs)
 
         if self.post_processor is None:
             self.post_processor = self.pre_processor
         elif isinstance(self.post_processor, str):
-            self.post_processor = self.post_processor_class.from_pretrained(
-                self.post_processor, **self.hub_kwargs
-            )
+            self.post_processor = self.post_processor_class.from_pretrained(self.post_processor, **self.hub_kwargs)
 
         if self.device is None:
             if self.device_map is not None:
@@ -1163,12 +1121,8 @@ class PipelineTool(Tool):
 
         encoded_inputs = self.encode(*args, **kwargs)
 
-        tensor_inputs = {
-            k: v for k, v in encoded_inputs.items() if isinstance(v, torch.Tensor)
-        }
-        non_tensor_inputs = {
-            k: v for k, v in encoded_inputs.items() if not isinstance(v, torch.Tensor)
-        }
+        tensor_inputs = {k: v for k, v in encoded_inputs.items() if isinstance(v, torch.Tensor)}
+        non_tensor_inputs = {k: v for k, v in encoded_inputs.items() if not isinstance(v, torch.Tensor)}
 
         encoded_inputs = send_to_device(tensor_inputs, self.device)
         outputs = self.forward({**encoded_inputs, **non_tensor_inputs})
