@@ -110,7 +110,7 @@ def parse_json_if_needed(arguments: Union[str, dict]) -> Union[str, dict]:
     else:
         try:
             return json.loads(arguments)
-        except json.JSONDecodeError:
+        except Exception:
             return arguments
 
 

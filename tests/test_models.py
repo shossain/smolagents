@@ -17,6 +17,7 @@ import unittest
 from typing import Optional
 
 from smolagents import ChatMessage, HfApiModel, TransformersModel, models, tool
+from smolagents.models import parse_json_if_needed
 
 
 class ModelTests(unittest.TestCase):
@@ -55,3 +56,20 @@ class ModelTests(unittest.TestCase):
         messages = [{"role": "user", "content": "Hello!"}]
         output = model(messages, stop_sequences=["great"]).content
         assert output == "assistant\nHello"
+
+    def test_parse_json_if_needed(self):
+        args = "abc"
+        parsed_args = parse_json_if_needed(args)
+        assert parsed_args == "abc"
+
+        args = '{"a": 3}'
+        parsed_args = parse_json_if_needed(args)
+        assert parsed_args == {"a": 3}
+
+        args = "3"
+        parsed_args = parse_json_if_needed(args)
+        assert parsed_args == 3
+
+        args = 3
+        parsed_args = parse_json_if_needed(args)
+        assert parsed_args == 3
