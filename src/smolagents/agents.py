@@ -498,7 +498,7 @@ You have been provided with these additional arguments, that you can access usin
             result = self.step(step_log)
             return result
 
-        if stream:  
+        if stream:
             # The steps are returned as they are executed through a generator to iterate on.
             return self._run(task=self.task)
         # Outputs are returned only at the end as a string. We only look at the last step
