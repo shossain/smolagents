@@ -15,9 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import time
+from collections import deque
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Generator
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from rich import box
 from rich.console import Console, Group
@@ -497,17 +498,20 @@ You have been provided with these additional arguments, that you can access usin
             result = self.step(step_log)
             return result
 
-        return self._run(task=self.task, stream=stream)
+        if stream:  # We want all the steps
+            return self._run(task=self.task)
+        # We only want the last step and want to go through the generator efficiently
+        return deque(self._run(task=self.task), maxlen=1)[0]
 
-    def _run(self, task: str, stream: bool) -> Union[Generator[str, None, None], str]:
+    def _run(self, task: str) -> Union[str, Generator[str, None, None]]:
         """
-        Runs the agent. Running can be done in direct or streaming mode. 
+        Runs the agent. Running can be done in direct or streaming mode.
         Note: in all cases, this function is internal and should be used only in the `run` method.
 
         Args:
             task (`str`): The task to perform.
-            stream (`bool`): If True, the steps are returned as they are executed through a generator to iterate on. 
-                If False, outputs are returned only at the end.
+            stream (`bool`): If True, the steps are returned as they are executed through a generator to iterate on.
+                If False, outputs are returned only at the end as a string.
         """
         final_answer = None
         self.step_number = 0
@@ -541,8 +545,7 @@ You have been provided with these additional arguments, that you can access usin
                 for callback in self.step_callbacks:
                     callback(step_log)
                 self.step_number += 1
-                if stream:
-                    yield step_log
+                yield step_log
 
         if final_answer is None and self.step_number == self.max_steps:
             error_message = "Reached max steps."
@@ -555,13 +558,9 @@ You have been provided with these additional arguments, that you can access usin
             final_step_log.duration = step_log.end_time - step_start_time
             for callback in self.step_callbacks:
                 callback(final_step_log)
-            if stream:
-                yield final_step_log
+            yield final_step_log
 
-        if stream:
-            yield handle_agent_output_types(final_answer)
-        else:
-            return handle_agent_output_types(final_answer)
+        yield handle_agent_output_types(final_answer)
 
     def planning_step(self, task, is_first_step: bool, step: int) -> None:
         """
