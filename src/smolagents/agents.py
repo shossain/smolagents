@@ -17,7 +17,7 @@
 import time
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Generator
 
 from rich import box
 from rich.console import Console, Group
@@ -499,9 +499,15 @@ You have been provided with these additional arguments, that you can access usin
 
         return self._run(task=self.task, stream=stream)
 
-    def _run(self, task: str, stream: bool):
+    def _run(self, task: str, stream: bool) -> Union[Generator[str], str]:
         """
-        Runs the agent in streaming mode, yielding steps as they are executed: should be launched only in the `run` method.
+        Runs the agent. Running can be done in direct or streaming mode. 
+        Note: in all cases, this function is internal and should be used only in the `run` method.
+
+        Args:
+            task (`str`): The task to perform.
+            stream (`bool`): If True, the steps are returned as they are executed through a generator to iterate on. 
+                If False, outputs are returned only at the end.
         """
         final_answer = None
         self.step_number = 0
@@ -557,7 +563,7 @@ You have been provided with these additional arguments, that you can access usin
         else:
             return handle_agent_output_types(final_answer)
 
-    def planning_step(self, task, is_first_step: bool, step: int):
+    def planning_step(self, task, is_first_step: bool, step: int) -> None:
         """
         Used periodically by the agent to plan the next steps to reach the objective.
 
