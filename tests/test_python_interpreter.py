@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import unittest
+from textwrap import dedent
 
 import numpy as np
 import pytest
@@ -630,12 +631,9 @@ counts += 1"""
         assert "Cannot add non-list value 1 to a list." in str(e)
 
     def test_error_highlights_correct_line_of_code(self):
-        code = """# Ok this is a very long code
-# It has many commented lines
-a = 1
+        code = """a = 1
 b = 2
 
-# Here is another piece
 counts = [1, 2, 3]
 counts += 1
 b += 1"""
@@ -643,12 +641,22 @@ b += 1"""
             evaluate_python_code(code, BASE_PYTHON_TOOLS, state={})
         assert "Code execution failed at line 'counts += 1" in str(e)
 
+    def test_error_type_returned_in_function_call(self):
+        code = """def error_function():
+    raise ValueError("error")
+
+error_function()"""
+        with pytest.raises(InterpreterError) as e:
+            evaluate_python_code(code)
+        assert "error" in str(e)
+        assert "ValueError" in str(e)
+
     def test_assert(self):
         code = """
 assert 1 == 1
 assert 1 == 2
 """
-        with pytest.raises(AssertionError) as e:
+        with pytest.raises(InterpreterError) as e:
             evaluate_python_code(code, BASE_PYTHON_TOOLS, state={})
         assert "1 == 2" in str(e) and "1 == 1" not in str(e)
 
@@ -845,6 +853,13 @@ shift_intervals
         result, _ = evaluate_python_code(code, {"print": print, "map": map}, state={})
         assert result == {"Worker A": "8:00 pm", "Worker B": "11:45 am"}
 
+    def test_syntax_error_points_error(self):
+        code = "a = ;"
+        with pytest.raises(InterpreterError) as e:
+            evaluate_python_code(code)
+        assert "SyntaxError" in str(e)
+        assert "     ^" in str(e)
+
     def test_fix_final_answer_code(self):
         test_cases = [
             (
@@ -890,12 +905,12 @@ shift_intervals
 
         # Import of whitelisted modules should succeed but dangerous submodules should not exist
         code = "import random;random._os.system('echo bad command passed')"
-        with pytest.raises(AttributeError) as e:
+        with pytest.raises(InterpreterError) as e:
             evaluate_python_code(code)
-        assert "module 'random' has no attribute '_os'" in str(e)
+        assert "AttributeError:module 'random' has no attribute '_os'" in str(e)
 
         code = "import doctest;doctest.inspect.os.system('echo bad command passed')"
-        with pytest.raises(AttributeError):
+        with pytest.raises(InterpreterError):
             evaluate_python_code(code, authorized_imports=["doctest"])
 
     def test_close_matches_subscript(self):
@@ -903,3 +918,75 @@ shift_intervals
         with pytest.raises(Exception) as e:
             evaluate_python_code(code)
         assert "Maybe you meant one of these indexes instead" in str(e) and "['Bhutan']" in str(e).replace("\\", "")
+
+    def test_dangerous_builtins_calls_are_blocked(self):
+        unsafe_code = "import os"
+        dangerous_code = f"""
+exec = callable.__self__.exec
+compile = callable.__self__.compile
+exec(compile('{unsafe_code}', 'no filename', 'exec'))
+"""
+
+        with pytest.raises(InterpreterError):
+            evaluate_python_code(unsafe_code, static_tools=BASE_PYTHON_TOOLS)
+
+        with pytest.raises(InterpreterError):
+            evaluate_python_code(dangerous_code, static_tools=BASE_PYTHON_TOOLS)
+
+    def test_dangerous_builtins_are_callable_if_explicitly_added(self):
+        dangerous_code = """
+compile = callable.__self__.compile
+eval = callable.__self__.eval
+exec = callable.__self__.exec
+
+eval("1 + 1")
+exec(compile("1 + 1", "no filename", "exec"))
+
+teval("1 + 1")
+texec(tcompile("1 + 1", "no filename", "exec"))
+        """
+
+        evaluate_python_code(
+            dangerous_code, static_tools={"tcompile": compile, "teval": eval, "texec": exec} | BASE_PYTHON_TOOLS
+        )
+
+
+class TestPythonInterpreter:
+    @pytest.mark.parametrize(
+        "code, expected_result",
+        [
+            (
+                dedent("""\
+                    x = 1
+                    x += 2
+                """),
+                3,
+            ),
+            (
+                dedent("""\
+                    x = "a"
+                    x += "b"
+                """),
+                "ab",
+            ),
+            (
+                dedent("""\
+                    class Custom:
+                        def __init__(self, value):
+                            self.value = value
+                        def __iadd__(self, other):
+                            self.value += other * 10
+                            return self
+
+                    x = Custom(1)
+                    x += 2
+                    x.value
+                """),
+                21,
+            ),
+        ],
+    )
+    def test_evaluate_augassign(self, code, expected_result):
+        state = {}
+        result, _ = evaluate_python_code(code, {}, state=state)
+        assert result == expected_result

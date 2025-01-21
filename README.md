@@ -127,8 +127,8 @@ If you use `smolagents` in your publication, please cite it by using the followi
 
 ```bibtex
 @Misc{smolagents,
-  title =        {`smolagents`: The easiest way to build efficient agentic systems.},
-  author =       {Aymeric Roucher and Thomas Wolf and Leandro von Werra and Erik Kaunismäki},
+  title =        {`smolagents`: a smol library to build great agentic systems.},
+  author =       {Aymeric Roucher and Albert Villanova del Moral and Thomas Wolf and Leandro von Werra and Erik Kaunismäki},
   howpublished = {\url{https://github.com/huggingface/smolagents}},
   year =         {2025}
 }
