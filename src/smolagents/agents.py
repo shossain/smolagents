@@ -498,20 +498,18 @@ You have been provided with these additional arguments, that you can access usin
             result = self.step(step_log)
             return result
 
-        if stream:  # We want all the steps
+        if stream:  
+            # The steps are returned as they are executed through a generator to iterate on.
             return self._run(task=self.task)
-        # We only want the last step and want to go through the generator efficiently
+        # Outputs are returned only at the end as a string. We only look at the last step
         return deque(self._run(task=self.task), maxlen=1)[0]
 
-    def _run(self, task: str) -> Union[str, Generator[str, None, None]]:
+    def _run(self, task: str) -> Generator[str, None, None]:
         """
-        Runs the agent. Running can be done in direct or streaming mode.
-        Note: in all cases, this function is internal and should be used only in the `run` method.
+        Runs the agent in streaming mode and returns a generator of all the steps.
 
         Args:
             task (`str`): The task to perform.
-            stream (`bool`): If True, the steps are returned as they are executed through a generator to iterate on.
-                If False, outputs are returned only at the end as a string.
         """
         final_answer = None
         self.step_number = 0
