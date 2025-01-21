@@ -24,30 +24,79 @@ from .types import AgentAudio, AgentImage, AgentText, handle_agent_output_types
 from .utils import _is_package_available
 
 
-def pull_messages_from_step(step_log: AgentStepLog):
-    """Extract ChatMessage objects from agent steps"""
-    import gradio as gr
-
+def pull_messages_from_step(step_log: AgentStepLog, test_mode: bool = True):
+    """Extract ChatMessage objects from agent steps with proper nesting"""
     if isinstance(step_log, ActionStep):
-        yield gr.ChatMessage(role="assistant", content=step_log.llm_output or "")
+        # First yield the thought/reasoning from the LLM
+        if step_log.llm_output is not None and not test_mode:
+            yield gr.ChatMessage(role="assistant", content=step_log.llm_output.strip())
+
+        # For tool calls, create a parent message 
         if step_log.tool_calls is not None:
             first_tool_call = step_log.tool_calls[0]
-            used_code = first_tool_call.name == "code interpreter"
+            used_code = first_tool_call.name == "python_interpreter"
+            parent_id = f"call_{len(step_log.tool_calls)}"
+            
+            # Calculate token information
+            token_str = ""
+            if hasattr(step_log, "input_token_count") and hasattr(step_log, "output_token_count"):
+                token_str = f"Input-tokens:{step_log.input_token_count:,} Output-tokens:{step_log.output_token_count:,}"
+            
+            step_str = f"Step {step_log.step}" if step_log.step is not None else ""
+            
+            timing_str = " | ".join(filter(None, [step_str, token_str]))
+            
+            # Tool call becomes the parent message with timing info
             content = first_tool_call.arguments
             if used_code:
-                content = f"```py\n{content}\n```"
-            yield gr.ChatMessage(
+                content = f"```python\n{content}\n```"
+            
+            parent_message = gr.ChatMessage(
                 role="assistant",
-                metadata={"title": f"🛠️ Used tool {first_tool_call.name}"},
-                content=str(content),
+                content=content,
+                metadata={
+                    "title": f"🛠️ Used tool {first_tool_call.name}" + (f" ({timing_str})" if timing_str else ""),
+                    "id": parent_id,
+                    "status": "pending",
+                    "duration": step_log.duration if step_log.duration else None
+                }
             )
-        if step_log.observations is not None:
-            yield gr.ChatMessage(role="assistant", content=step_log.observations)
-        if step_log.error is not None:
+            yield parent_message
+
+            # Nest execution logs under the tool call if they exist
+            if step_log.observations is not None:
+                log_content = step_log.observations
+                yield gr.ChatMessage(
+                    role="assistant",
+                    content=f"Execution logs:\n{log_content}",
+                    metadata={
+                        "title": "📝 Execution Logs",
+                        "parent_id": parent_id,
+                        "status": "done"
+                    }
+                )
+                
+            # Nest any errors under the tool call
+            if step_log.error is not None:
+                yield gr.ChatMessage(
+                    role="assistant", 
+                    content=str(step_log.error),
+                    metadata={
+                        "title": "💥 Error",
+                        "parent_id": parent_id,
+                        "status": "done"
+                    }
+                )
+
+            # Update parent message metadata to done status (without yielding a new message)
+            parent_message.metadata["status"] = "done"
+
+        # Handle standalone errors (not from tool calls)
+        elif step_log.error is not None:
             yield gr.ChatMessage(
                 role="assistant",
                 content=str(step_log.error),
-                metadata={"title": "💥 Error"},
+                metadata={"title": "💥 Error"}
             )
 
 
@@ -58,14 +107,21 @@ def stream_to_gradio(
     additional_args: Optional[dict] = None,
 ):
     """Runs an agent with the given task and streams the messages from the agent as gradio ChatMessages."""
-    if not _is_package_available("gradio"):
-        raise ModuleNotFoundError(
-            "Please install 'gradio' extra to use the GradioUI: `pip install 'smolagents[audio]'`"
-        )
-    import gradio as gr
+    total_input_tokens = 0
+    total_output_tokens = 0
 
-    for step_log in agent.run(task, stream=True, reset=reset_agent_memory, additional_args=additional_args):
-        for message in pull_messages_from_step(step_log):
+    for step_log in agent.run(
+        task, stream=True, reset=reset_agent_memory, additional_args=additional_args
+    ):
+        # Track tokens if model provides them
+        if hasattr(agent.model, "last_input_token_count"):
+            total_input_tokens += agent.model.last_input_token_count
+            total_output_tokens += agent.model.last_output_token_count
+            if isinstance(step_log, ActionStep):
+                step_log.input_token_count = agent.model.last_input_token_count
+                step_log.output_token_count = agent.model.last_output_token_count
+        
+        for message in pull_messages_from_step(step_log, test_mode=test_mode):
             yield message
 
     final_answer = step_log  # Last log is the run's final_answer
@@ -174,9 +230,7 @@ class GradioUI:
         )
 
     def launch(self):
-        import gradio as gr
-
-        with gr.Blocks() as demo:
+        with gr.Blocks(fill_height=True) as demo:
             stored_messages = gr.State([])
             file_uploads_log = gr.State([])
             chatbot = gr.Chatbot(
@@ -187,6 +241,7 @@ class GradioUI:
                     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smolagents/mascot_smol.png",
                 ),
                 resizeable=True,
+                scale=1
             )
             # If an upload folder is provided, enable the upload feature
             if self.file_upload_folder is not None:
@@ -204,7 +259,6 @@ class GradioUI:
                 [stored_messages, text_input],
             ).then(self.interact_with_agent, [stored_messages, chatbot], [chatbot])
 
-        demo.launch()
-
+        demo.launch(debug=True, share=True)
 
 __all__ = ["stream_to_gradio", "GradioUI"]
