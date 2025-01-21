@@ -497,7 +497,7 @@ You have been provided with these additional arguments, that you can access usin
             result = self.step(step_log)
             return result
 
-        return self._run(task = self.task, stream = stream)
+        return self._run(task=self.task, stream=stream)
 
     def _run(self, task: str, stream: bool):
         """
@@ -556,7 +556,6 @@ You have been provided with these additional arguments, that you can access usin
             yield handle_agent_output_types(final_answer)
         else:
             return handle_agent_output_types(final_answer)
-
 
     def planning_step(self, task, is_first_step: bool, step: int):
         """
