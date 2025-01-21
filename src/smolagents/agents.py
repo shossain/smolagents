@@ -499,7 +499,7 @@ You have been provided with these additional arguments, that you can access usin
 
         return self._run(task=self.task, stream=stream)
 
-    def _run(self, task: str, stream: bool) -> Union[Generator[str], str]:
+    def _run(self, task: str, stream: bool) -> Union[Generator[str, None, None], str]:
         """
         Runs the agent. Running can be done in direct or streaming mode. 
         Note: in all cases, this function is internal and should be used only in the `run` method.
