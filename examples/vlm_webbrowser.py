@@ -1,40 +1,40 @@
-from smolagents import CodeAgent, HfApiModel, LiteLLMModel, tool, OpenAIServerModel
-from smolagents.agents import ActionStep
-from PIL import Image
-import helium
-from selenium import webdriver
 from time import sleep
-# model = HfApiModel("Qwen/Qwen2-VL-7B-Instruct")
-# model = HfApiModel("https://lmqbs8965pj40e01.us-east-1.aws.endpoints.huggingface.cloud")
 
+import helium
 from dotenv import load_dotenv
+from PIL import Image
+from selenium import webdriver
+
+from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, tool
+from smolagents.agents import ActionStep
+
+
 load_dotenv()
 import os
 
 
+# You could use an open model via an inference provider like Fireworks AI
 # model = OpenAIServerModel(
-#     api_key=os.environ.get("TOGETHER_API_KEY"),
-#     api_base="https://api.together.xyz/v1",
-#     model_id="Qwen/Qwen2-VL-72B-Instruct"
+#     api_key=os.getenv("FIREWORKS_API_KEY"),
+#     api_base="https://api.fireworks.ai/inference/v1",
+#     model_id="accounts/fireworks/models/qwen2-vl-72b-instruct"
 # )
 
-model = OpenAIServerModel(
-    api_key=os.environ.get("OPENAI_API_KEY"),
-    # api_base="https://api.together.xyz/v1",
-    model_id="gpt-4o"
+model = LiteLLMModel(
+    model_id="anthropic/claude-3-5-sonnet-latest",
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
 )
 
-
-
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, ElementNotInteractableException
 from io import BytesIO
+
+from selenium.common.exceptions import ElementNotInteractableException, TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
-    sleep(1.0) # Let JavaScript animations happen
+    sleep(1.0) # Let JavaScript animations happen before taking the screenshot
     driver = helium.get_driver()
     current_step = step_log.step_number
     if driver is not None:
@@ -55,11 +55,16 @@ def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
 # Initialize driver and agent
 chrome_options = webdriver.ChromeOptions()
 chrome_options.add_argument('--force-device-scale-factor=1')
-chrome_options.add_argument('--window-size=900,1200')
-driver = helium.start_chrome("google.com", headless=False, options=chrome_options)
+chrome_options.add_argument('--window-size=1000,1300')
+driver = helium.start_chrome(headless=False, options=chrome_options)
 
 @tool
-def close_popups() -> str:
+def go_back() -> None:
+    """Goes back to previous page."""
+    driver.back()
+
+@tool
+def close_popups() -> None:
     """
     Closes any visible modal or pop-up on the page. Use this to dismiss pop-up windows! This does not work on cookie consent banners.
     """
@@ -103,7 +108,7 @@ def close_popups() -> str:
     return "Modals closed"
 
 agent = CodeAgent(
-    tools=[close_popups],
+    tools=[go_back, close_popups],
     model=model,
     additional_authorized_imports=["helium"],
     step_callbacks = [save_screenshot],
@@ -117,9 +122,21 @@ First you need to import everything from helium, then you can do other actions!
 Code:
 ```py
 from helium import *
-go_to('github.com')
-click('Trending')
+go_to('github.com/trending')
 ```<end_code>
+
+You can directly click clickable elements by inputting the text that appears on them.
+Code:
+```py
+click("Top products")
+```<end_code>
+
+If it's a link:
+Code:
+```py
+click(Link("Top products"))
+```<end_code>
+
 If you try to interact with an element and it's not found, you'll get a LookupError.
 In general stop your action after each button click to see what happens on your screenshot.
 Never try to login in a page.
@@ -127,16 +144,13 @@ Never try to login in a page.
 To scroll up or down, use scroll_down or scrol_up with as an argument the number of pixels to scroll from.
 Code:
 ```py
-import time
 scroll_down(num_pixels=100000) # This will probably scroll all the way down
-time.sleep(0.5)
 ```<end_code>
 When you have pop-ups with a cross icon to close, don't try to click the close icon by finding its element or targeting an 'X' element (this most often fails).
 Just use your built-in tool `close_popups` to close them:
 Code:
 ```py
 close_popups()
-time.sleep(0.5)
 ```<end_code>
 
 You can use .exists() to check for the existence of an element. For example:
@@ -153,12 +167,12 @@ Code:
 final_answer("YOUR_ANSWER_HERE")
 ```<end_code>
 
-The pages generally loads quickly, no need to wait for many seconds.
+If pages seem stuck on loading, you might have to wait, for instance `import time` and run `time.sleep(5.0)`. But 
 To find elements on page, DO NOT try code-based element searches like 'contributors = find_all(S("ol > li"))': just look at the latest screenshot you have and read it visually!
 Of course you can act on buttons like a user would do when navigating.
 After each code blob you write, you will be automatically provided with an updated screenshot of the browser and the current browser url. Don't kill the browser.
 """
 agent.run("""
-I want to know how hard I need to work to get my repo in the GitHub trending page.
-Could you navigate to the current trending repos on https://github.com/trending, and from the top one, get me the number of commits of the top contributor?
+I'm trying to find how hard I have to work to get a repo in github.com/trending.
+Can you navigate to the profile for the top author of the top trending repo, and give me their total number of commits over the last year?
 """ + helium_instructions)
