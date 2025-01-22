@@ -2,10 +2,10 @@
 # https://github.com/microsoft/autogen/blob/gaia_multiagent_v01_march_1st/autogen/browser_utils.py
 import copy
 
-from smolagents.models import MessageRole
+from smolagents.models import MessageRole, Model
 
 
-def prepare_response(original_task, inner_messages, llm_engine):
+def prepare_response(original_task: str, inner_messages, model: Model) -> str:
 
     messages = [
         {
@@ -50,7 +50,7 @@ If you are unable to determine the final answer, output 'FINAL ANSWER: Unable to
         }
     )
 
-    response = llm_engine(messages)
+    response = model(messages).content
 
     final_answer = response.split("FINAL ANSWER: ")[-1].strip()
     print("Reformulated answer is: ", final_answer)
@@ -68,7 +68,7 @@ If you are asked for a string, don't use articles or abbreviations (e.g. for cit
 If you are asked for a comma separated list, apply the above rules depending on whether the elements are numbers or strings.
 """.strip()})
 
-        response = llm_engine(messages)
+        response = model(messages).content
         print("\n>>>Making an educated guess.\n", response)
         final_answer = response.split("EDUCATED GUESS: ")[-1].strip()
     return final_answer

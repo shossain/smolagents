@@ -1,4 +1,3 @@
-import asyncio
 import os
 from typing import Optional
 
@@ -7,9 +6,9 @@ import pandas as pd
 from dotenv import load_dotenv
 from huggingface_hub import login
 from scripts.mdconvert import MarkdownConverter
-from scripts.reformulator import prepare_response
-from scripts.visual_qa import VisualQAGPT4Tool, VisualQATool, visualizer
-from scripts.web_surfer import (
+from scripts.run_agents import answer_questions
+from scripts.visual_qa import VisualQAGPT4Tool, visualizer
+from scripts.text_web_browser import (
     ArchiveSearchTool,
     FinderTool,
     FindNextTool,
@@ -20,14 +19,11 @@ from scripts.web_surfer import (
     VisitTool,
 )
 
-from smolagents import CodeAgent, HfApiEngine, ManagedAgent, ToolCallingAgent
-from smolagents.agents import DEFAULT_REACT_JSON_SYSTEM_PROMPT
-from smolagents.default_tools import PythonInterpreterTool, Tool
-from smolagents.models import LiteLLMModel, MessageRole
+from smolagents import CodeAgent, HfApiModel, LiteLLMModel, ManagedAgent, MessageRole, Tool, ToolCallingAgent
 
 
 load_dotenv(override=True)
-login(os.getenv("HUGGINGFACEHUB_API_TOKEN"))
+login(os.getenv("HF_TOKEN"))
 
 ### IMPORTANT: EVALUATION SWITCHES
 
@@ -35,11 +31,9 @@ print("Make sure you deactivated Tailscale VPN, else some URLs will be blocked!"
 
 OUTPUT_DIR = "output"
 USE_OPEN_MODELS = False
-USE_JSON = False
 
 SET = "validation"
 
-# proprietary_model = AnthropicEngine(use_bedrock=True)
 proprietary_model = LiteLLMModel("o1")
 
 websurfer_model = proprietary_model
@@ -49,7 +43,9 @@ repo_id_command_r = "CohereForAI/c4ai-command-r-plus"
 repo_id_gemma2 = "google/gemma-2-27b-it"
 repo_id_llama = "meta-llama/Meta-Llama-3.1-70B-Instruct"
 
-REPO_ID_OS_MODEL = repo_id_llama
+hf_model = HfApiModel(model=repo_id_llama)
+
+
 ### LOAD EVALUATION DATASET
 
 eval_ds = datasets.load_dataset("gaia-benchmark/GAIA", "2023_all")[SET]
@@ -94,13 +90,14 @@ You cannot load files yourself: instead call this tool to read a file as markdow
 This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pptx", ".wav", ".mp3", ".flac", ".pdf", ".docx"], and all other types of text files. IT DOES NOT HANDLE IMAGES."""
 
     inputs = {
-        "question": {
-            "description": "[Optional]: Your question, as a natural language sentence. Provide as much context as possible. Do not pass this parameter if you just want to directly return the content of the file.",
-            "type": "string",
-        },
         "file_path": {
             "description": "The path to the file you want to read as text. Must be a '.something' file, like '.pdf'. If it is an image, use the visualizer tool instead! DO NOT USE THIS TOOL FOR A WEBPAGE: use the search tool instead!",
             "type": "string",
+        },
+        "question": {
+            "description": "[Optional]: Your question, as a natural language sentence. Provide as much context as possible. Do not pass this parameter if you just want to directly return the content of the file.",
+            "type": "string",
+            "nullable": True
         },
     }
     output_type = "string"
@@ -169,14 +166,12 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
 
 
 surfer_agent = ToolCallingAgent(
-    llm_engine=websurfer_model,
+    model=websurfer_model,
     tools=WEB_TOOLS,
-    max_iterations=10,
-    verbose=2,
+    max_steps=10,
+    verbosity_level=2,
     # grammar = DEFAULT_JSONAGENT_REGEX_GRAMMAR,
-    system_prompt=DEFAULT_REACT_JSON_SYSTEM_PROMPT,
     planning_interval=4,
-    plan_type="default",
 )
 
 
@@ -200,18 +195,14 @@ TASK_SOLVING_TOOLBOX = [
     ti_tool,
 ]
 
-if USE_JSON:
-    TASK_SOLVING_TOOLBOX.append(PythonInterpreterTool())
 
-hf_model = HfApiEngine(model=REPO_ID_OS_MODEL)
+model = hf_model if USE_OPEN_MODELS else proprietary_model
 
-llm_engine = hf_model if USE_OPEN_MODELS else proprietary_model
-
-react_agent = CodeAgent(
-    llm_engine=llm_engine,
+manager_agent = CodeAgent(
+    model=model,
     tools=TASK_SOLVING_TOOLBOX,
-    max_iterations=12,
-    verbose=0,
+    max_steps=12,
+    verbosity_level=1,
     # grammar=DEFAULT_CODEAGENT_REGEX_GRAMMAR,
     additional_authorized_imports=[
         "requests",
@@ -243,39 +234,13 @@ react_agent = CodeAgent(
     managed_agents=[search_agent]
 )
 
-if USE_JSON:
-    react_agent = ToolCallingAgent(
-        llm_engine=llm_engine,
-        tools=TASK_SOLVING_TOOLBOX,
-        max_iterations=12,
-        verbose=0,
-    )
-
 ### EVALUATE
 
-async def call_transformers(agent, question: str, **kwargs) -> str:
-    result = agent.run(question, **kwargs)
-    agent_memory = agent.write_inner_memory_from_logs(summary_mode=True)
-    try:
-        final_result = prepare_response(question, agent_memory, llm_engine)
-    except Exception as e:
-        print(e)
-        final_result = result
-    return {
-        "output": str(final_result),
-        "intermediate_steps": [
-            {key: value for key, value in log.items() if key != "agent_memory"}
-            for log in agent.logs
-        ],
-    }
-
-
-results = asyncio.run(answer_questions(
+results = answer_questions(
     eval_ds,
-    react_agent,
-    "react_code_claude_sonnet_28-10_managedagent-summary_planning",
+    manager_agent,
+    "code_gpt4o_22-01_managedagent-summary_planning",
     output_folder=f"{OUTPUT_DIR}/{SET}",
-    agent_call_function=call_transformers,
     visual_inspection_tool = VisualQAGPT4Tool(),
     text_inspector_tool = ti_tool,
-))
+)

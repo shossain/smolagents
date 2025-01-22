@@ -112,11 +112,11 @@ class VisualQATool(Tool):
     name = "visualizer"
     description = "A tool that can answer questions about attached images."
     inputs = {
-        "question": {"description": "the question to answer", "type": "string"},
         "image_path": {
             "description": "The path to the image on which to answer the question",
             "type": "string",
         },
+        "question": {"description": "the question to answer", "type": "string", "nullable": True},
     }
     output_type = "string"
 
@@ -144,11 +144,11 @@ class VisualQAGPT4Tool(Tool):
     name = "visualizer"
     description = "A tool that can answer questions about attached images."
     inputs = {
-        "question": {"description": "the question to answer", "type": "string"},
         "image_path": {
             "description": "The path to the image on which to answer the question. This should be a local path to downloaded image.",
             "type": "string",
         },
+        "question": {"description": "the question to answer", "type": "string", "nullable": True},
     }
     output_type = "string"
 
