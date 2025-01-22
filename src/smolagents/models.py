@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from huggingface_hub import InferenceClient
 from huggingface_hub.utils import is_torch_available
 
+from ._function_type_hints_utils import get_json_schema
 from .tools import Tool
 from .utils import _is_package_available
 
