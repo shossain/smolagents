@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from huggingface_hub import login
 from scripts.mdconvert import MarkdownConverter
 from scripts.run_agents import answer_questions
-from scripts.visual_qa import VisualQAGPT4Tool, visualizer
 from scripts.text_web_browser import (
     ArchiveSearchTool,
     FinderTool,
@@ -18,6 +17,7 @@ from scripts.text_web_browser import (
     SearchInformationTool,
     VisitTool,
 )
+from scripts.visual_qa import VisualQAGPT4Tool, visualizer
 
 from smolagents import CodeAgent, HfApiModel, LiteLLMModel, ManagedAgent, MessageRole, Tool, ToolCallingAgent
 

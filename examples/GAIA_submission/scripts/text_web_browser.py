@@ -13,7 +13,8 @@ import pathvalidate
 import requests
 from dotenv import load_dotenv
 from serpapi import GoogleSearch
-from transformers.agents.agents import Tool
+
+from smolagents import Tool
 
 from .cookies import COOKIES
 from .mdconvert import FileConversionException, MarkdownConverter, UnsupportedFormatException
@@ -402,7 +403,8 @@ class SearchInformationTool(Tool):
     }
     inputs["filter_year"]= {
         "type": "string",
-        "description": "[Optional parameter]: filter the search results to only include pages from a specific year. For example, '2020' will only include pages from 2020. Make sure to use this parameter if you're trying to search for articles from a specific date!"
+        "description": "[Optional parameter]: filter the search results to only include pages from a specific year. For example, '2020' will only include pages from 2020. Make sure to use this parameter if you're trying to search for articles from a specific date!",
+        "nullable": True,
     }
     output_type = "string"
 
@@ -511,7 +513,7 @@ class PageDownTool(Tool):
     inputs = {}
     output_type = "string"
 
-    def forward(self, ) -> str:
+    def forward(self) -> str:
         browser.page_down()
         header, content = _browser_state()
         return header.strip() + "\n=======================\n" + content
@@ -539,7 +541,7 @@ class FindNextTool(Tool):
     inputs = {}
     output_type = "string"
 
-    def forward(self, ) -> str:
+    def forward(self) -> str:
         find_result = browser.find_next()
         header, content = _browser_state()
 

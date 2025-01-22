@@ -26,7 +26,8 @@ def run_agent(
     augmented_question = example["augmented_question"]
     try:
         # run executor agent
-        result = agent.run(augmented_question, additional_args=kwargs)
+        result = agent.run(augmented_question, additional_args=kwargs if len(kwargs)>0 else None)
+
         agent_memory = agent.write_inner_memory_from_logs(summary_mode=True)
         try:
             final_result = prepare_response(augmented_question, agent_memory, agent.model)
@@ -224,5 +225,8 @@ def answer_questions(
                     json.dump(d, f, default=serialize_agent_error)
                     f.write('\n')  # add a newline for JSONL format
         except Exception as e:
-            print(e)
+            if "ould not read" in str(e): # ignore broken files for now
+                print(e)
+            else:
+                raise Exception from e
     return results
