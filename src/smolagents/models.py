@@ -200,7 +200,6 @@ class Model:
         self.last_input_token_count = None
         self.last_output_token_count = None
         # Set default values for common parameters
-        kwargs.setdefault("temperature", 0.5)
         kwargs.setdefault("max_tokens", 4096)
         self.kwargs = kwargs
 
