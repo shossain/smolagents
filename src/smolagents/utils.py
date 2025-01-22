@@ -31,6 +31,35 @@ if TYPE_CHECKING:
     from smolagents.logger import AgentLogger
 
 
+@lru_cache
+def _is_package_available(package_name: str) -> bool:
+    try:
+        importlib.metadata.version(package_name)
+        return True
+    except importlib.metadata.PackageNotFoundError:
+        return False
+
+
+@lru_cache
+def _is_pillow_available():
+    return importlib.util.find_spec("PIL") is not None
+
+
+BASE_BUILTIN_MODULES = [
+    "collections",
+    "datetime",
+    "itertools",
+    "math",
+    "queue",
+    "random",
+    "re",
+    "stat",
+    "statistics",
+    "time",
+    "unicodedata",
+]
+
+
 class LogLevel(IntEnum):
     ERROR = 0  # Only errors
     INFO = 1  # Normal output (default)
@@ -109,35 +138,6 @@ class TaskStep(AgentStepLog):
 @dataclass
 class SystemPromptStep(AgentStepLog):
     system_prompt: str
-
-
-@lru_cache
-def _is_package_available(package_name: str) -> bool:
-    try:
-        importlib.metadata.version(package_name)
-        return True
-    except importlib.metadata.PackageNotFoundError:
-        return False
-
-
-@lru_cache
-def _is_pillow_available():
-    return importlib.util.find_spec("PIL") is not None
-
-
-BASE_BUILTIN_MODULES = [
-    "collections",
-    "datetime",
-    "itertools",
-    "math",
-    "queue",
-    "random",
-    "re",
-    "stat",
-    "statistics",
-    "time",
-    "unicodedata",
-]
 
 
 def parse_json_blob(json_blob: str) -> Dict[str, str]:
