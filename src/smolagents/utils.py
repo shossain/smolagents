@@ -21,11 +21,8 @@ import inspect
 import json
 import re
 import types
-from enum import IntEnum
 from functools import lru_cache
 from typing import Dict, Tuple, Union
-
-from rich.console import Console
 
 
 @lru_cache
@@ -42,7 +39,6 @@ def _is_pillow_available():
     return importlib.util.find_spec("PIL") is not None
 
 
-console = Console()
 
 BASE_BUILTIN_MODULES = [
     "collections",
@@ -57,55 +53,6 @@ BASE_BUILTIN_MODULES = [
     "time",
     "unicodedata",
 ]
-
-
-class LogLevel(IntEnum):
-    ERROR = 0  # Only errors
-    INFO = 1  # Normal output (default)
-    DEBUG = 2  # Detailed output
-
-
-class AgentLogger:
-    def __init__(self, level: LogLevel = LogLevel.INFO):
-        self.level = level
-        self.console = Console()
-
-    def log(self, *args, level: LogLevel = LogLevel.INFO, **kwargs):
-        if level <= self.level:
-            self.console.print(*args, **kwargs)
-
-
-class AgentError(Exception):
-    """Base class for other agent-related exceptions"""
-
-    def __init__(self, message, logger: AgentLogger):
-        super().__init__(message)
-        self.message = message
-        logger.log(f"[bold red]{message}[/bold red]", level=LogLevel.ERROR)
-
-
-class AgentParsingError(AgentError):
-    """Exception raised for errors in parsing in the agent"""
-
-    pass
-
-
-class AgentExecutionError(AgentError):
-    """Exception raised for errors in execution in the agent"""
-
-    pass
-
-
-class AgentMaxStepsError(AgentError):
-    """Exception raised for errors in execution in the agent"""
-
-    pass
-
-
-class AgentGenerationError(AgentError):
-    """Exception raised for errors in generation in the agent"""
-
-    pass
 
 
 def parse_json_blob(json_blob: str) -> Dict[str, str]:

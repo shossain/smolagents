@@ -16,7 +16,6 @@
 # limitations under the License.
 import time
 from collections import deque
-from dataclasses import dataclass
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from rich import box
@@ -32,6 +31,19 @@ from .local_python_executor import (
     BASE_BUILTIN_MODULES,
     LocalPythonInterpreter,
     fix_final_answer_code,
+)
+from .logger import (
+    ActionStep,
+    AgentError,
+    AgentExecutionError,
+    AgentGenerationError,
+    AgentLogger,
+    AgentMaxStepsError,
+    AgentParsingError,
+    LogLevel,
+    PlanningStep,
+    SystemPromptStep,
+    TaskStep,
 )
 from .models import (
     ChatMessage,
@@ -58,58 +70,10 @@ from .tools import (
 )
 from .types import AgentAudio, AgentImage, handle_agent_output_types
 from .utils import (
-    AgentError,
-    AgentExecutionError,
-    AgentGenerationError,
-    AgentLogger,
-    AgentMaxStepsError,
-    AgentParsingError,
-    LogLevel,
     parse_code_blobs,
     parse_json_tool_call,
     truncate_content,
 )
-
-
-@dataclass
-class ToolCall:
-    name: str
-    arguments: Any
-    id: str
-
-
-class AgentStepLog:
-    pass
-
-
-@dataclass
-class ActionStep(AgentStepLog):
-    agent_memory: List[Dict[str, str]] | None = None
-    tool_calls: List[ToolCall] | None = None
-    start_time: float | None = None
-    end_time: float | None = None
-    step: int | None = None
-    error: AgentError | None = None
-    duration: float | None = None
-    llm_output: str | None = None
-    observations: str | None = None
-    action_output: Any = None
-
-
-@dataclass
-class PlanningStep(AgentStepLog):
-    plan: str
-    facts: str
-
-
-@dataclass
-class TaskStep(AgentStepLog):
-    task: str
-
-
-@dataclass
-class SystemPromptStep(AgentStepLog):
-    system_prompt: str
 
 
 def get_tool_descriptions(tools: Dict[str, Tool], tool_description_template: str) -> str:
@@ -208,7 +172,6 @@ class MultiStepAgent:
 
         self.system_prompt = self.initialize_system_prompt()
         self.input_messages = None
-        self.logs = []
         self.task = None
         self.logger = AgentLogger(level=verbosity_level)
         self.monitor = Monitor(self.model, self.logger)
@@ -226,100 +189,7 @@ class MultiStepAgent:
         return self.system_prompt
 
     def write_inner_memory_from_logs(self, summary_mode: Optional[bool] = False) -> List[Dict[str, str]]:
-        """
-        Reads past llm_outputs, actions, and observations or errors from the logs into a series of messages
-        that can be used as input to the LLM.
-        """
-        memory = []
-        for i, step_log in enumerate(self.logs):
-            if isinstance(step_log, SystemPromptStep):
-                if not summary_mode:
-                    thought_message = {
-                        "role": MessageRole.SYSTEM,
-                        "content": step_log.system_prompt.strip(),
-                    }
-                    memory.append(thought_message)
-
-            elif isinstance(step_log, PlanningStep):
-                thought_message = {
-                    "role": MessageRole.ASSISTANT,
-                    "content": "[FACTS LIST]:\n" + step_log.facts.strip(),
-                }
-                memory.append(thought_message)
-
-                if not summary_mode:
-                    thought_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": "[PLAN]:\n" + step_log.plan.strip(),
-                    }
-                    memory.append(thought_message)
-
-            elif isinstance(step_log, TaskStep):
-                task_message = {
-                    "role": MessageRole.USER,
-                    "content": "New task:\n" + step_log.task,
-                }
-                memory.append(task_message)
-
-            elif isinstance(step_log, ActionStep):
-                if step_log.llm_output is not None and not summary_mode:
-                    thought_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": step_log.llm_output.strip(),
-                    }
-                    memory.append(thought_message)
-
-                if step_log.tool_calls is not None:
-                    tool_call_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": str(
-                            [
-                                {
-                                    "id": tool_call.id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": tool_call.name,
-                                        "arguments": tool_call.arguments,
-                                    },
-                                }
-                                for tool_call in step_log.tool_calls
-                            ]
-                        ),
-                    }
-                    memory.append(tool_call_message)
-
-                if step_log.tool_calls is None and step_log.error is not None:
-                    message_content = (
-                        "Error:\n"
-                        + str(step_log.error)
-                        + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
-                    )
-                    tool_response_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": message_content,
-                    }
-                if step_log.tool_calls is not None and (
-                    step_log.error is not None or step_log.observations is not None
-                ):
-                    if step_log.error is not None:
-                        message_content = (
-                            "Error:\n"
-                            + str(step_log.error)
-                            + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
-                        )
-                    elif step_log.observations is not None:
-                        message_content = f"Observation:\n{step_log.observations}"
-                    tool_response_message = {
-                        "role": MessageRole.TOOL_RESPONSE,
-                        "content": f"Call id: {(step_log.tool_calls[0].id if getattr(step_log.tool_calls[0], 'id') else 'call_0')}\n"
-                        + message_content,
-                    }
-                    memory.append(tool_response_message)
-
-        return memory
-
-    def get_succinct_logs(self):
-        return [{key: value for key, value in log.items() if key != "agent_memory"} for log in self.logs]
+        return self.logger.write_inner_memory_from_logs(summary_mode=summary_mode)
 
     def extract_action(self, llm_output: str, split_token: str) -> Tuple[str, str]:
         """
@@ -451,14 +321,11 @@ You have been provided with these additional arguments, that you can access usin
         system_prompt_step = SystemPromptStep(system_prompt=self.system_prompt)
 
         if reset:
-            self.logs = []
-            self.logs.append(system_prompt_step)
+            self.logger.reset()
+            self.logger.log_step(system_prompt_step)
             self.monitor.reset()
         else:
-            if len(self.logs) > 0:
-                self.logs[0] = system_prompt_step
-            else:
-                self.logs.append(system_prompt_step)
+            self.logger.log_step(system_prompt_step, position=0)
 
         self.logger.log(
             Panel(
@@ -471,7 +338,7 @@ You have been provided with these additional arguments, that you can access usin
             level=LogLevel.INFO,
         )
 
-        self.logs.append(TaskStep(task=self.task))
+        self.logger.log_step(TaskStep(task=self.task))
 
         if single_step:
             step_start_time = time.time()
@@ -524,7 +391,7 @@ You have been provided with these additional arguments, that you can access usin
             finally:
                 step_log.end_time = time.time()
                 step_log.duration = step_log.end_time - step_start_time
-                self.logs.append(step_log)
+                self.logger.log_step(step_log)
                 for callback in self.step_callbacks:
                     callback(step_log)
                 self.step_number += 1
@@ -533,7 +400,7 @@ You have been provided with these additional arguments, that you can access usin
         if final_answer is None and self.step_number == self.max_steps:
             error_message = "Reached max steps."
             final_step_log = ActionStep(error=AgentMaxStepsError(error_message, self.logger))
-            self.logs.append(final_step_log)
+            self.logger.log_step(final_step_log)
             final_answer = self.provide_final_answer(task)
             self.logger.log(Text(f"Final answer: {final_answer}"), level=LogLevel.INFO)
             final_step_log.action_output = final_answer
@@ -596,7 +463,7 @@ Now begin!""",
 ```
 {answer_facts}
 ```""".strip()
-            self.logs.append(PlanningStep(plan=final_plan_redaction, facts=final_facts_redaction))
+            self.logger.log_step(PlanningStep(plan=final_plan_redaction, facts=final_facts_redaction))
             self.logger.log(
                 Rule("[bold]Initial plan", style="orange"),
                 Text(final_plan_redaction),
@@ -644,7 +511,7 @@ Now begin!""",
 ```
 {facts_update}
 ```"""
-            self.logs.append(PlanningStep(plan=final_plan_redaction, facts=final_facts_redaction))
+            self.logger.log_step(PlanningStep(plan=final_plan_redaction, facts=final_facts_redaction))
             self.logger.log(
                 Rule("[bold]Updated plan", style="orange"),
                 Text(final_plan_redaction),
@@ -876,7 +743,7 @@ class CodeAgent(MultiStepAgent):
             ToolCall(
                 name="python_interpreter",
                 arguments=code_action,
-                id=f"call_{len(self.logs)}",
+                id=f"call_{len(self.logger.logs)}",
             )
         ]
 
