@@ -24,6 +24,8 @@ import types
 from functools import lru_cache
 from typing import Dict, Tuple, Union
 
+from smolagents.logger import AgentParsingError
+
 
 @lru_cache
 def _is_package_available(package_name: str) -> bool:
@@ -37,7 +39,6 @@ def _is_package_available(package_name: str) -> bool:
 @lru_cache
 def _is_pillow_available():
     return importlib.util.find_spec("PIL") is not None
-
 
 
 BASE_BUILTIN_MODULES = [
@@ -275,6 +276,3 @@ def instance_to_source(instance, base_cls=None):
     final_lines.extend(class_lines)
 
     return "\n".join(final_lines)
-
-
-__all__ = ["AgentError"]

@@ -1,18 +1,16 @@
 import importlib
-from enum import IntEnum
 from dataclasses import dataclass
+from enum import IntEnum
 from typing import Any, Dict, List, Optional
 
 from rich.console import Console
 
-if importlib.util.find_spec("opentelemetry") is not None:
-    from opentelemetry import trace
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+if importlib.util.find_spec("opentelemetry") is not None:
     from openinference.instrumentation.smolagents import SmolagentsInstrumentor
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-    from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
     endpoint = "http://0.0.0.0:6006/v1/traces"
     trace_provider = TracerProvider()
@@ -22,7 +20,15 @@ if importlib.util.find_spec("opentelemetry") is not None:
 
 from smolagents.models import MessageRole
 
+
 console = Console()
+
+
+class LogLevel(IntEnum):
+    ERROR = 0  # Only errors
+    INFO = 1  # Normal output (default)
+    DEBUG = 2  # Detailed output
+
 
 class AgentLogger:
     def __init__(self, level: LogLevel = LogLevel.INFO):
@@ -39,18 +45,18 @@ class AgentLogger:
         if level <= self.level:
             self.console.print(*args, **kwargs)
 
-    def log_step(self, step, position:int=None):
+    def log_step(self, step, position: int = None):
         """Logs an agent execution step for ulterior processing.
 
         Args:
             step (_type_): _description_
-            position (int, optional): Position at which to insert the item. 
+            position (int, optional): Position at which to insert the item.
                 Defaults to None, in which case item is added to the end of the list.
                 Should only be used to insert the system prompt at the start of the list.
         """
         if position:
             assert position == 0, "Position should only be 0 for system prompt."
-            self.steps = [step] + self.steps[1:] # we replace the system prompt
+            self.steps = [step] + self.steps[1:]  # we replace the system prompt
         else:
             self.steps.append(step)
 
@@ -153,6 +159,7 @@ class AgentLogger:
 
         return memory
 
+
 # All possible exception
 class AgentError(Exception):
     """Base class for other agent-related exceptions"""
@@ -186,11 +193,6 @@ class AgentGenerationError(AgentError):
 
     pass
 
-class LogLevel(IntEnum):
-    ERROR = 0  # Only errors
-    INFO = 1  # Normal output (default)
-    DEBUG = 2  # Detailed output
-
 
 @dataclass
 class ToolCall:
@@ -201,6 +203,7 @@ class ToolCall:
 
 class AgentStepLog:
     pass
+
 
 @dataclass
 class ActionStep(AgentStepLog):
@@ -232,3 +235,4 @@ class SystemPromptStep(AgentStepLog):
     system_prompt: str
 
 
+__all__ = ["AgentError", "AgentLogger"]

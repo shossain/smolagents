@@ -44,6 +44,7 @@ from .logger import (
     PlanningStep,
     SystemPromptStep,
     TaskStep,
+    ToolCall,
 )
 from .models import (
     ChatMessage,
