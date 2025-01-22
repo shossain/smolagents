@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from huggingface_hub import InferenceClient
 from huggingface_hub.utils import is_torch_available
 
-from ._function_type_hints_utils import get_json_schema
 from .tools import Tool
 from .utils import _is_package_available
 
@@ -241,7 +240,7 @@ class Model:
         if tools_to_call_from:
             completion_kwargs.update(
                 {
-                    "tools": [get_json_schema(tool) for tool in tools_to_call_from],
+                    "tools": [get_tool_json_schema(tool) for tool in tools_to_call_from],
                     "tool_choice": "required",
                 }
             )
