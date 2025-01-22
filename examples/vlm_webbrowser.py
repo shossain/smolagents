@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from PIL import Image
 from selenium import webdriver
 
-from smolagents import CodeAgent, OpenAIServerModel, tool
+from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, tool
 from smolagents.agents import ActionStep
 
 
@@ -14,16 +14,16 @@ import os
 
 
 # You could use an open model via an inference provider like Fireworks AI
-model = OpenAIServerModel(
-    api_key=os.getenv("FIREWORKS_API_KEY"),
-    api_base="https://api.fireworks.ai/inference/v1",
-    model_id="accounts/fireworks/models/qwen2-vl-72b-instruct",
-)
-
-# model = LiteLLMModel(
-#     model_id="anthropic/claude-3-5-sonnet-latest",
-#     api_key=os.getenv("ANTHROPIC_API_KEY"),
+# model = OpenAIServerModel(
+#     api_key=os.getenv("FIREWORKS_API_KEY"),
+#     api_base="https://api.fireworks.ai/inference/v1",
+#     model_id="accounts/fireworks/models/qwen2-vl-72b-instruct",
 # )
+
+model = LiteLLMModel(
+    model_id="anthropic/claude-3-5-sonnet-latest",
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
+)
 
 from io import BytesIO
 
