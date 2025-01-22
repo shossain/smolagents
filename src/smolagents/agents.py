@@ -259,23 +259,13 @@ class MultiStepAgent:
                     memory.append(thought_message)
 
             elif isinstance(step_log, TaskStep):
+                task_message = {
+                    "role": MessageRole.USER,
+                    "content": [{"type": "text", "text": f"New task:\n{step_log.task}"}],
+                }
                 if step_log.task_images:
                     for image in step_log.task_images:
-                        task_message = {
-                            "role": MessageRole.USER,
-                            "content": [
-                                {"type": "text", "text": f"New task:\n{step_log.task}"},
-                                {
-                                    "type": "image",
-                                    "image": image,
-                                },
-                            ],
-                        }
-                else:
-                    task_message = {
-                        "role": MessageRole.USER,
-                        "content": [{"type": "text", "text": f"New task:\n{step_log.task}"}],
-                    }
+                        task_message["content"].append({"type": "image", "image": image})
                 memory.append(task_message)
 
             elif isinstance(step_log, ActionStep):
