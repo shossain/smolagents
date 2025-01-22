@@ -279,7 +279,7 @@ class MultiStepAgent:
                 memory.append(task_message)
 
             elif isinstance(step_log, ActionStep):
-                if step_log.llm_output is not None:
+                if step_log.llm_output is not None and not summary_mode:
                     thought_message = {
                         "role": MessageRole.ASSISTANT,
                         "content": [{"type": "text", "text": step_log.llm_output.strip()}],
