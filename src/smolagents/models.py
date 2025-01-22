@@ -136,7 +136,7 @@ tool_role_conversions = {
 }
 
 
-def get_json_schema(tool: Tool) -> Dict:
+def get_tool_json_schema(tool: Tool) -> Dict:
     properties = deepcopy(tool.inputs)
     required = []
     for key, value in properties.items():
@@ -200,7 +200,6 @@ class Model:
         self.last_input_token_count = None
         self.last_output_token_count = None
         # Set default values for common parameters
-        kwargs.setdefault("temperature", 0.5)
         kwargs.setdefault("max_tokens", 4096)
         self.kwargs = kwargs
 
@@ -240,7 +239,7 @@ class Model:
         if tools_to_call_from:
             completion_kwargs.update(
                 {
-                    "tools": [get_json_schema(tool) for tool in tools_to_call_from],
+                    "tools": [get_tool_json_schema(tool) for tool in tools_to_call_from],
                     "tool_choice": "required",
                 }
             )
@@ -490,7 +489,7 @@ class TransformersModel(Model):
         if tools_to_call_from is not None:
             prompt_tensor = self.tokenizer.apply_chat_template(
                 messages,
-                tools=completion_kwargs.pop("tools", []),
+                tools=[get_tool_json_schema(tool) for tool in tools_to_call_from],
                 return_tensors="pt",
                 return_dict=True,
                 add_generation_prompt=True,
