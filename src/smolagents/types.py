@@ -18,7 +18,6 @@ import pathlib
 import tempfile
 import uuid
 from io import BytesIO
-from typing import Union
 
 import numpy as np
 import requests
@@ -253,7 +252,7 @@ def handle_agent_input_types(*args, **kwargs):
     return args, kwargs
 
 
-def handle_agent_output_types(output, output_type=None) -> Union[str, AgentType]:
+def handle_agent_output_types(output, output_type=None):
     if output_type in _AGENT_TYPE_MAPPING:
         # If the class has defined outputs, we can map directly according to the class definition
         decoded_outputs = _AGENT_TYPE_MAPPING[output_type](output)
