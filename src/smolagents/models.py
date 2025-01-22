@@ -187,6 +187,7 @@ def get_clean_message_list(
     message_list: List[Dict[str, str]],
     role_conversions: Dict[MessageRole, MessageRole] = {},
     convert_images_to_image_urls: bool = False,
+    flatten_messages_as_text: bool = False,
 ) -> List[Dict[str, str]]:
     """
     Subsequent messages with the same role will be concatenated to a single message.
@@ -208,6 +209,7 @@ def get_clean_message_list(
         if isinstance(message["content"], list):
             for i, element in enumerate(message["content"]):
                 if element["type"] == "image":
+                    assert not flatten_messages_as_text, f"Cannot use images with {flatten_messages_as_text=}"
                     if convert_images_to_image_urls:
                         message["content"][i] = {
                             "type": "image_url",
@@ -218,10 +220,16 @@ def get_clean_message_list(
 
         if len(final_message_list) > 0 and message["role"] == final_message_list[-1]["role"]:
             assert isinstance(message["content"], list), "Error: wrong content:" + str(message["content"])
-            final_message_list[-1]["content"].append(message["content"][0])
+            if flatten_messages_as_text:
+                final_message_list[-1]["content"] += message["content"][0]["text"]
+            else:
+                final_message_list[-1]["content"] += message["content"]
         else:
-            # Convert to
-            final_message_list.append(message)
+            if flatten_messages_as_text:
+                content = message["content"][0]["text"]
+            else:
+                content = message["content"]
+            final_message_list.append({"role": message["role"], "content": content})
     return final_message_list
 
 
@@ -257,6 +265,7 @@ class Model:
             messages,
             role_conversions=custom_role_conversions or tool_role_conversions,
             convert_images_to_image_urls=convert_images_to_image_urls,
+            flatten_messages_as_text=True,
         )
 
         # Use self.kwargs as the base configuration

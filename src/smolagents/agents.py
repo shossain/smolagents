@@ -240,7 +240,7 @@ class MultiStepAgent:
                 if not summary_mode:
                     thought_message = {
                         "role": MessageRole.SYSTEM,
-                        "content": step_log.system_prompt.strip(),
+                        "content": [{"type": "text", "text": step_log.system_prompt.strip()}],
                     }
                     memory.append(thought_message)
 
@@ -311,11 +311,16 @@ class MultiStepAgent:
                 if step_log.error is not None:
                     tool_response_message = {
                         "role": MessageRole.ASSISTANT,
-                        "content": [{"type": "text", "text": (
-                            "Error:\n"
-                            + str(step_log.error)
-                            + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
-                        )}]
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": (
+                                    "Error:\n"
+                                    + str(step_log.error)
+                                    + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
+                                ),
+                            }
+                        ],
                     }
                 if step_log.observations is not None:
                     if step_log.tool_calls:
@@ -325,7 +330,7 @@ class MultiStepAgent:
                     text_observations = f"Observation:\n{step_log.observations}"
                     tool_response_message = {
                         "role": MessageRole.TOOL_RESPONSE,
-                        "content": [{"type": "text", "text": tool_call_reference + text_observations}]
+                        "content": [{"type": "text", "text": tool_call_reference + text_observations}],
                     }
                     memory.append(tool_response_message)
                 if step_log.observations_images:

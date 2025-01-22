@@ -14,8 +14,8 @@
 # limitations under the License.
 import json
 import unittest
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 from transformers.testing_utils import get_tests_dir
 
@@ -64,7 +64,6 @@ class ModelTests(unittest.TestCase):
 
     def test_transformers_message_vl_no_tool(self):
         from PIL import Image
-        from pathlib import Path
 
         img = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")
         model = TransformersModel(
