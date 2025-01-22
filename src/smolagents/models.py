@@ -205,16 +205,17 @@ def get_clean_message_list(
         if role in role_conversions:
             message["role"] = role_conversions[role]
 
-        # Encode image elements
-        for i, element in enumerate(message["content"]):
-            if element["type"] == "image":
-                if convert_images_to_image_urls:
-                    message["content"][i] = {
-                        "type": "image_url",
-                        "image_url": {"url": make_image_url(encode_image_base64(element["image"]))},
-                    }
-                else:
-                    message["content"][i]["image"] = encode_image_base64(element["image"])
+        # encode images if needed
+        if isinstance(message["content"], list):
+            for i, element in enumerate(message["content"]):
+                if element["type"] == "image":
+                    if convert_images_to_image_urls:
+                        message["content"][i] = {
+                            "type": "image_url",
+                            "image_url": {"url": make_image_url(encode_image_base64(element["image"]))},
+                        }
+                    else:
+                        message["content"][i]["image"] = encode_image_base64(element["image"])
 
         if len(final_message_list) > 0 and message["role"] == final_message_list[-1]["role"]:
             assert isinstance(message["content"], list), "Error: wrong content:" + str(message["content"])
@@ -464,7 +465,7 @@ class TransformersModel(Model):
             self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         except ValueError as e:
             if "Unrecognized configuration class" in str(e):
-                self.model = AutoModelForImageTextToText.from_pretrained(model_id, device_map=self.device)
+                self.model = AutoModelForImageTextToText.from_pretrained(model_id, device_map=device_map)
                 self.processor = AutoProcessor.from_pretrained(model_id)
             else:
                 raise e

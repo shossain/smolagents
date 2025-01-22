@@ -15,6 +15,9 @@
 import json
 import unittest
 from typing import Optional
+from pathlib import Path
+
+from transformers.testing_utils import get_tests_dir
 
 from smolagents import ChatMessage, HfApiModel, TransformersModel, models, tool
 from smolagents.models import parse_json_if_needed
@@ -58,6 +61,21 @@ class ModelTests(unittest.TestCase):
         messages = [{"role": "user", "content": "Hello!"}]
         output = model(messages, stop_sequences=["great"]).content
         assert output == "assistant\nHello"
+
+    def test_transformers_message_vl_no_tool(self):
+        from PIL import Image
+        from pathlib import Path
+
+        img = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")
+        model = TransformersModel(
+            model_id="llava-hf/llava-interleave-qwen-0.5b-hf",
+            max_new_tokens=5,
+            device_map="auto",
+            do_sample=False,
+        )
+        messages = [{"role": "user", "content": [{"type": "text", "text": "Hello!"}, {"type": "image", "image": img}]}]
+        output = model(messages, stop_sequences=["great"]).content
+        assert output == "Hello! How can"
 
     def test_parse_json_if_needed(self):
         args = "abc"
