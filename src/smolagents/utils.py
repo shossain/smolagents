@@ -21,6 +21,7 @@ import inspect
 import json
 import re
 import types
+from enum import IntEnum
 from functools import lru_cache
 from typing import Dict, Tuple, Union
 
@@ -58,13 +59,29 @@ BASE_BUILTIN_MODULES = [
 ]
 
 
+class LogLevel(IntEnum):
+    ERROR = 0  # Only errors
+    INFO = 1  # Normal output (default)
+    DEBUG = 2  # Detailed output
+
+
+class AgentLogger:
+    def __init__(self, level: LogLevel = LogLevel.INFO):
+        self.level = level
+        self.console = Console()
+
+    def log(self, *args, level: LogLevel = LogLevel.INFO, **kwargs):
+        if level <= self.level:
+            self.console.print(*args, **kwargs)
+
+
 class AgentError(Exception):
     """Base class for other agent-related exceptions"""
 
-    def __init__(self, message):
+    def __init__(self, message, logger: AgentLogger):
         super().__init__(message)
         self.message = message
-        console.print(f"[bold red]{message}[/bold red]")
+        logger.log(f"[bold red]{message}[/bold red]", level=LogLevel.ERROR)
 
 
 class AgentParsingError(AgentError):
