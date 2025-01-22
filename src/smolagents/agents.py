@@ -240,7 +240,7 @@ class MultiStepAgent:
                 if not summary_mode:
                     thought_message = {
                         "role": MessageRole.SYSTEM,
-                        "content": [{"type": "text", "text": step_log.system_prompt.strip()}],
+                        "content": step_log.system_prompt.strip(),
                     }
                     memory.append(thought_message)
 
@@ -259,27 +259,26 @@ class MultiStepAgent:
                     memory.append(thought_message)
 
             elif isinstance(step_log, TaskStep):
-                task_message = {
-                    "role": MessageRole.USER,
-                    "content": [{"type": "text", "text": f"New task:\n{step_log.task}"}],
-                }
                 if step_log.task_images:
                     for image in step_log.task_images:
-                        task_message["content"].append(
-                            {
-                                "type": "image",
-                                "image": image,
-                            }
-                        )
+                        task_message = {
+                            "role": MessageRole.USER,
+                            "content": [
+                                {"type": "text", "text": f"New task:\n{step_log.task}"},
+                                {
+                                    "type": "image",
+                                    "image": image,
+                                },
+                            ],
+                        }
+                else:
+                    task_message = {
+                        "role": MessageRole.USER,
+                        "content": f"New task:\n{step_log.task}",
+                    }
                 memory.append(task_message)
 
             elif isinstance(step_log, ActionStep):
-                if step_log.llm_output is not None and not summary_mode:
-                    thought_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": [{"type": "text", "text": step_log.llm_output.strip()}],
-                    }
-                    memory.append(thought_message)
                 if step_log.observations_images:
                     thought_message_image = {
                         "role": MessageRole.USER,
@@ -293,41 +292,66 @@ class MultiStepAgent:
                         ],
                     }
                     memory.append(thought_message_image)
+                    if step_log.tool_calls is not None:
+                        tool_call_message = {
+                            "role": MessageRole.ASSISTANT,
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": str(
+                                        [
+                                            {
+                                                "id": tool_call.id,
+                                                "type": "function",
+                                                "function": {
+                                                    "name": tool_call.name,
+                                                    "arguments": tool_call.arguments,
+                                                },
+                                            }
+                                            for tool_call in step_log.tool_calls
+                                        ]
+                                    ),
+                                }
+                            ],
+                        }
+                        memory.append(tool_call_message)
+                else:
+                    if step_log.llm_output is not None:
+                        thought_message = {
+                            "role": MessageRole.ASSISTANT,
+                            "content": step_log.llm_output.strip(),
+                        }
+                    memory.append(thought_message)
 
-                if step_log.tool_calls is not None:
-                    tool_call_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": str(
-                                    [
-                                        {
-                                            "id": tool_call.id,
-                                            "type": "function",
-                                            "function": {
-                                                "name": tool_call.name,
-                                                "arguments": tool_call.arguments,
-                                            },
-                                        }
-                                        for tool_call in step_log.tool_calls
-                                    ]
-                                ),
-                            }
-                        ],
-                    }
-                    memory.append(tool_call_message)
+                    if step_log.tool_calls is not None:
+                        tool_call_message = {
+                            "role": MessageRole.ASSISTANT,
+                            "content": str(
+                                [
+                                    {
+                                        "id": tool_call.id,
+                                        "type": "function",
+                                        "function": {
+                                            "name": tool_call.name,
+                                            "arguments": tool_call.arguments,
+                                        },
+                                    }
+                                    for tool_call in step_log.tool_calls
+                                ]
+                            ),
+                        }
+                        memory.append(tool_call_message)
 
-                if step_log.tool_calls is None and step_log.error is not None:
-                    message_content = (
-                        "Error:\n"
-                        + str(step_log.error)
-                        + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
-                    )
-                    tool_response_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": [{"type": "text", "text": message_content}],
-                    }
+                    if step_log.tool_calls is None and step_log.error is not None:
+                        message_content = (
+                            "Error:\n"
+                            + str(step_log.error)
+                            + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
+                        )
+                        tool_response_message = {
+                            "role": MessageRole.ASSISTANT,
+                            "content": message_content,
+                        }
                 if step_log.tool_calls is not None and (
                     step_log.error is not None or step_log.observations is not None
                 ):
@@ -339,16 +363,21 @@ class MultiStepAgent:
                         )
                     elif step_log.observations is not None:
                         message_content = f"Observation:\n{step_log.observations}"
-                    tool_response_message = {
-                        "role": MessageRole.TOOL_RESPONSE,
-                        "content": [
-                            {
+                    if step_log.observations_images:
+                        tool_response_message = {
+                            "role": MessageRole.TOOL_RESPONSE,
+                            "content": {
                                 "type": "text",
                                 "text": f"Call id: {(step_log.tool_calls[0].id if getattr(step_log.tool_calls[0], 'id') else 'call_0')}\n"
                                 + message_content,
-                            }
-                        ],
-                    }
+                            },
+                        }
+                    else:
+                        tool_response_message = {
+                            "role": MessageRole.TOOL_RESPONSE,
+                            "content": f"Call id: {(step_log.tool_calls[0].id if getattr(step_log.tool_calls[0], 'id') else 'call_0')}\n"
+                            + message_content,
+                        }
                     memory.append(tool_response_message)
 
         return memory
@@ -381,26 +410,27 @@ class MultiStepAgent:
         """
         This method provides a final answer to the task, based on the logs of the agent's interactions.
         """
-        self.input_messages = [
-            {
-                "role": MessageRole.SYSTEM,
-                "content": [
-                    {
-                        "type": "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:"
-                    }
-                ],
-            }
-        ]
         if images:
-            self.input_messages[0]["content"].append({"type": "image"})
-
-        self.input_messages += self.write_inner_memory_from_logs()[1:]
-        self.input_messages += [
-            {
-                "role": MessageRole.USER,
-                "content": f"Based on the above, please provide an answer to the following user request:\n{task}",
+            self.input_messages[0]["content"] = {
+                "type": "text",
+                "text": "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:",
             }
-        ]
+            self.input_messages[0]["content"].append({"type": "image"})
+            self.input_messages += self.write_inner_memory_from_logs()[1:]
+            self.input_messages += [
+                {
+                    "role": MessageRole.USER,
+                    "content": f"Based on the above, please provide an answer to the following user request:\n{task}",
+                }
+            ]
+        else:
+            self.input_messages[0]["content"] = (
+                "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:"
+            )
+            self.input_messages += self.write_inner_memory_from_logs()[1:]
+            self.input_messages += {
+                "content": f"Based on the above, please provide an answer to the following user request:\n{task}"
+            }
         try:
             return self.model(self.input_messages).content
         except Exception as e:

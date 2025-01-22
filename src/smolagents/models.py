@@ -204,7 +204,6 @@ def get_clean_message_list(
 
         if role in role_conversions:
             message["role"] = role_conversions[role]
-
         # encode images if needed
         if isinstance(message["content"], list):
             for i, element in enumerate(message["content"]):
