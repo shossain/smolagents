@@ -273,9 +273,9 @@ class AgentTests(unittest.TestCase):
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, str)
         assert "7.2904" in output
-        assert agent.logs[1].task == "What is 2 multiplied by 3.6452?"
-        assert "7.2904" in agent.logs[2].observations
-        assert agent.logs[3].llm_output is None
+        assert agent.logger.steps[1].task == "What is 2 multiplied by 3.6452?"
+        assert "7.2904" in agent.logger.steps[2].observations
+        assert agent.logger.steps[3].llm_output is None
 
     def test_toolcalling_agent_handles_image_tool_outputs(self):
         from PIL import Image
@@ -299,8 +299,8 @@ class AgentTests(unittest.TestCase):
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, float)
         assert output == 7.2904
-        assert agent.logs[1].task == "What is 2 multiplied by 3.6452?"
-        assert agent.logs[3].tool_calls == [
+        assert agent.logger.steps[1].task == "What is 2 multiplied by 3.6452?"
+        assert agent.logger.steps[3].tool_calls == [
             ToolCall(name="python_interpreter", arguments="final_answer(7.2904)", id="call_3")
         ]
 
@@ -317,29 +317,29 @@ class AgentTests(unittest.TestCase):
         agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model)
         output = agent.run("What is 2 multiplied by 3.6452?", reset=True)
         assert output == 7.2904
-        assert len(agent.logs) == 4
+        assert len(agent.logger.steps) == 4
 
         output = agent.run("What is 2 multiplied by 3.6452?", reset=False)
         assert output == 7.2904
-        assert len(agent.logs) == 6
+        assert len(agent.logger.steps) == 6
 
         output = agent.run("What is 2 multiplied by 3.6452?", reset=True)
         assert output == 7.2904
-        assert len(agent.logs) == 4
+        assert len(agent.logger.steps) == 4
 
     def test_code_agent_code_errors_show_offending_lines(self):
         agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model_error)
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, AgentText)
         assert output == "got an error"
-        assert "Code execution failed at line 'print = 2' due to: InterpreterError" in str(agent.logs)
+        assert "Code execution failed at line 'print = 2' due to: InterpreterError" in str(agent.logger.steps)
 
     def test_code_agent_syntax_error_show_offending_lines(self):
         agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model_syntax_error)
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, AgentText)
         assert output == "got an error"
-        assert '    print("Failing due to unexpected indent")' in str(agent.logs)
+        assert '    print("Failing due to unexpected indent")' in str(agent.logger.steps)
 
     def test_setup_agent_with_empty_toolbox(self):
         ToolCallingAgent(model=FakeToolCallModel(), tools=[])
@@ -351,8 +351,8 @@ class AgentTests(unittest.TestCase):
             max_steps=5,
         )
         answer = agent.run("What is 2 multiplied by 3.6452?")
-        assert len(agent.logs) == 8
-        assert type(agent.logs[-1].error) is AgentMaxStepsError
+        assert len(agent.logger.steps) == 8
+        assert type(agent.logger.steps[-1].error) is AgentMaxStepsError
         assert isinstance(answer, str)
 
     def test_tool_descriptions_get_baked_in_system_prompt(self):

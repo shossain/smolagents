@@ -323,7 +323,7 @@ You have been provided with these additional arguments, that you can access usin
 
         if reset:
             self.logger.reset()
-            self.logger.log_step(system_prompt_step)
+            self.logger.log_step(system_prompt_step, position=0)
             self.monitor.reset()
         else:
             self.logger.log_step(system_prompt_step, position=0)

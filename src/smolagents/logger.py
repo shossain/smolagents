@@ -50,11 +50,11 @@ class AgentLogger:
                 Defaults to None, in which case item is added to the end of the list.
                 Should only be used to insert the system prompt at the start of the list.
         """
-        if position:
+        if position is None:
+            self.steps.append(step)
+        else:
             assert position == 0, "Position should only be 0 for system prompt."
             self.steps = [step] + self.steps[1:]  # we replace the system prompt
-        else:
-            self.steps.append(step)
 
     def reset(self):
         self.steps = []
@@ -168,11 +168,19 @@ class AgentLogger:
         return memory
 
     def replay(self, with_memory: bool = False):
-        memory = self.write_inner_memory_from_logs(with_memory)
+        """Prints a replay of the agent's steps.
+
+        Args:
+            with_memory (bool, optional): If True, also displays the memory at each step. Defaults to False.
+                Careful: will increase log length exponentially. Use only for debugging.
+        """
+        memory = self.write_inner_memory_from_logs(return_memory=with_memory)
         self.console.log("Replaying the agent's steps:")
         ix = 0
         for step in memory:
             role = step["role"].strip()
+            if ix > 0 and role == "system":
+                role == "memory"
             theme = "default"
             match role:
                 case "assistant":
