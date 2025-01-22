@@ -250,6 +250,7 @@ class Model:
         tools_to_call_from: Optional[List[Tool]] = None,
         custom_role_conversions: Optional[Dict[str, str]] = None,
         convert_images_to_image_urls: bool = False,
+        flatten_messages_as_text: bool = False,
         **kwargs,
     ) -> Dict:
         """
@@ -265,7 +266,7 @@ class Model:
             messages,
             role_conversions=custom_role_conversions or tool_role_conversions,
             convert_images_to_image_urls=convert_images_to_image_urls,
-            flatten_messages_as_text=True,
+            flatten_messages_as_text=flatten_messages_as_text,
         )
 
         # Use self.kwargs as the base configuration
@@ -444,6 +445,7 @@ class TransformersModel(Model):
         device_map: Optional[str] = None,
         torch_dtype: Optional[str] = None,
         trust_remote_code: bool = False,
+        flatten_messages_as_text: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -520,6 +522,7 @@ class TransformersModel(Model):
             stop_sequences=stop_sequences,
             grammar=grammar,
             tools_to_call_from=tools_to_call_from,
+            flatten_messages_as_text=getattr(self, "flatten_messages_as_text", True),
             **kwargs,
         )
 

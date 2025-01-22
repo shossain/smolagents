@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from PIL import Image
 from selenium import webdriver
 
-from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, tool
+from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, TransformersModel, tool
 from smolagents.agents import ActionStep
 
 
@@ -24,6 +24,7 @@ model = LiteLLMModel(
     model_id="anthropic/claude-3-5-sonnet-latest",
     api_key=os.getenv("ANTHROPIC_API_KEY"),
 )
+# model = TransformersModel(model_id="Qwen/Qwen2-VL-7B-Instruct")
 
 from io import BytesIO
 
