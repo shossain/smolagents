@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from PIL import Image
 from selenium import webdriver
 
-from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, tool
+from smolagents import CodeAgent, OpenAIServerModel, tool
 from smolagents.agents import ActionStep
 
 
@@ -17,7 +17,7 @@ import os
 model = OpenAIServerModel(
     api_key=os.getenv("FIREWORKS_API_KEY"),
     api_base="https://api.fireworks.ai/inference/v1",
-    model_id="accounts/fireworks/models/qwen2-vl-72b-instruct"
+    model_id="accounts/fireworks/models/qwen2-vl-72b-instruct",
 )
 
 # model = LiteLLMModel(
@@ -34,11 +34,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 
 def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
-    sleep(1.0) # Let JavaScript animations happen before taking the screenshot
+    sleep(1.0)  # Let JavaScript animations happen before taking the screenshot
     driver = helium.get_driver()
     current_step = step_log.step_number
     if driver is not None:
-        for step_logs in agent.logs: # Remove previous screenshots from logs for lean processing
+        for step_logs in agent.logs:  # Remove previous screenshots from logs for lean processing
             if isinstance(step_log, ActionStep) and step_log.step_number <= current_step - 2:
                 step_logs.observations_images = None
         png_bytes = driver.get_screenshot_as_png()
@@ -54,14 +54,16 @@ def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
 
 # Initialize driver and agent
 chrome_options = webdriver.ChromeOptions()
-chrome_options.add_argument('--force-device-scale-factor=1')
-chrome_options.add_argument('--window-size=1000,1300')
+chrome_options.add_argument("--force-device-scale-factor=1")
+chrome_options.add_argument("--window-size=1000,1300")
 driver = helium.start_chrome(headless=False, options=chrome_options)
+
 
 @tool
 def go_back() -> None:
     """Goes back to previous page."""
     driver.back()
+
 
 @tool
 def close_popups() -> None:
@@ -80,16 +82,14 @@ def close_popups() -> None:
         ".modal .close",
         ".modal-backdrop",
         ".modal-overlay",
-        "[class*='overlay']"
+        "[class*='overlay']",
     ]
 
     wait = WebDriverWait(driver, timeout=0.5)
 
     for selector in modal_selectors:
         try:
-            elements = wait.until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector))
-            )
+            elements = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))
 
             for element in elements:
                 if element.is_displayed():
@@ -107,13 +107,14 @@ def close_popups() -> None:
             continue
     return "Modals closed"
 
+
 agent = CodeAgent(
     tools=[go_back, close_popups],
     model=model,
     additional_authorized_imports=["helium"],
-    step_callbacks = [save_screenshot],
+    step_callbacks=[save_screenshot],
     max_steps=20,
-    verbosity_level=2
+    verbosity_level=2,
 )
 
 helium_instructions = """
@@ -172,7 +173,10 @@ To find elements on page, DO NOT try code-based element searches like 'contribut
 Of course you can act on buttons like a user would do when navigating.
 After each code blob you write, you will be automatically provided with an updated screenshot of the browser and the current browser url. Don't kill the browser.
 """
-agent.run("""
+agent.run(
+    """
 I'm trying to find how hard I have to work to get a repo in github.com/trending.
 Can you navigate to the profile for the top author of the top trending repo, and give me their total number of commits over the last year?
-""" + helium_instructions)
+"""
+    + helium_instructions
+)

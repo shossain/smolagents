@@ -339,7 +339,8 @@ class AgentTests(unittest.TestCase):
                 prompt: The prompt
                 image: The image
             """
-            image = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")  # dummy input
+            # TODO
+            # image = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")  # dummy input
             return "The image is a cat."
 
         agent = ToolCallingAgent(tools=[fake_image_understanding_tool], model=FakeToolCallModelVL())
