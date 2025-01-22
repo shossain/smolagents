@@ -21,10 +21,94 @@ import inspect
 import json
 import re
 import types
+from dataclasses import dataclass
+from enum import IntEnum
 from functools import lru_cache
-from typing import Dict, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
-from smolagents.logger import AgentParsingError
+
+if TYPE_CHECKING:
+    from smolagents.logger import AgentLogger
+
+
+class LogLevel(IntEnum):
+    ERROR = 0  # Only errors
+    INFO = 1  # Normal output (default)
+    DEBUG = 2  # Detailed output
+
+
+class AgentError(Exception):
+    """Base class for other agent-related exceptions"""
+
+    def __init__(self, message, logger: "AgentLogger"):
+        super().__init__(message)
+        self.message = message
+        logger.log(f"[bold red]{message}[/bold red]", level=LogLevel.ERROR)
+
+
+class AgentParsingError(AgentError):
+    """Exception raised for errors in parsing in the agent"""
+
+    pass
+
+
+class AgentExecutionError(AgentError):
+    """Exception raised for errors in execution in the agent"""
+
+    pass
+
+
+class AgentMaxStepsError(AgentError):
+    """Exception raised for errors in execution in the agent"""
+
+    pass
+
+
+class AgentGenerationError(AgentError):
+    """Exception raised for errors in generation in the agent"""
+
+    pass
+
+
+@dataclass
+class ToolCall:
+    name: str
+    arguments: Any
+    id: str
+
+
+class AgentStepLog:
+    pass
+
+
+@dataclass
+class ActionStep(AgentStepLog):
+    agent_memory: List[Dict[str, str]] | None = None
+    tool_calls: List[ToolCall] | None = None
+    start_time: float | None = None
+    end_time: float | None = None
+    step: int | None = None
+    error: AgentError | None = None
+    duration: float | None = None
+    llm_output: str | None = None
+    observations: str | None = None
+    action_output: Any = None
+
+
+@dataclass
+class PlanningStep(AgentStepLog):
+    plan: str
+    facts: str
+
+
+@dataclass
+class TaskStep(AgentStepLog):
+    task: str
+
+
+@dataclass
+class SystemPromptStep(AgentStepLog):
+    system_prompt: str
 
 
 @lru_cache
@@ -276,3 +360,6 @@ def instance_to_source(instance, base_cls=None):
     final_lines.extend(class_lines)
 
     return "\n".join(final_lines)
+
+
+__all__ = ["AgentError"]

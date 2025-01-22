@@ -1,9 +1,10 @@
 import importlib
-from dataclasses import dataclass
-from enum import IntEnum
-from typing import Any, Dict, List, Optional
+import json
+from typing import Dict, List, Optional
 
 from rich.console import Console
+from rich.rule import Rule
+from rich.syntax import Syntax
 
 
 if importlib.util.find_spec("opentelemetry") is not None:
@@ -19,15 +20,10 @@ if importlib.util.find_spec("opentelemetry") is not None:
     SmolagentsInstrumentor().instrument(tracer_provider=trace_provider)
 
 from smolagents.models import MessageRole
+from smolagents.utils import ActionStep, LogLevel, PlanningStep, SystemPromptStep, TaskStep
 
 
 console = Console()
-
-
-class LogLevel(IntEnum):
-    ERROR = 0  # Only errors
-    INFO = 1  # Normal output (default)
-    DEBUG = 2  # Detailed output
 
 
 class AgentLogger:
@@ -66,11 +62,17 @@ class AgentLogger:
     def get_succinct_logs(self):
         return [{key: value for key, value in log.items() if key != "agent_memory"} for log in self.steps]
 
-    def write_inner_memory_from_logs(self, summary_mode: Optional[bool] = False) -> List[Dict[str, str]]:
+    def write_inner_memory_from_logs(
+        self,
+        summary_mode: Optional[bool] = False,
+        return_memory: Optional[bool] = False,
+    ) -> List[Dict[str, str]]:
         """
         Reads past llm_outputs, actions, and observations or errors from the logs into a series of messages
-        that can be used as input to the LLM.
+        that can be used as input to the LLM. Adds a number of keywords (such as PLAN, error, etc) to help
+        the LLM.
         """
+        # todo: we might want to homogeneize all keywords?
         memory = []
         for i, step_log in enumerate(self.steps):
             if isinstance(step_log, SystemPromptStep):
@@ -103,6 +105,12 @@ class AgentLogger:
                 memory.append(task_message)
 
             elif isinstance(step_log, ActionStep):
+                if step_log.agent_memory is not None and return_memory:
+                    thought_message = {
+                        "role": MessageRole.SYSTEM,
+                        "content": step_log.agent_memory,
+                    }
+                    memory.append(thought_message)
                 if step_log.llm_output is not None and not summary_mode:
                     thought_message = {
                         "role": MessageRole.ASSISTANT,
@@ -159,80 +167,42 @@ class AgentLogger:
 
         return memory
 
+    def replay(self, with_memory: bool = False):
+        memory = self.write_inner_memory_from_logs(with_memory)
+        self.console.log("Replaying the agent's steps:")
+        ix = 0
+        for step in memory:
+            role = step["role"].strip()
+            theme = "default"
+            match role:
+                case "assistant":
+                    theme = "monokai"
+                    ix += 1
+                case "system":
+                    theme = "monokai"
+                case "tool-response":
+                    theme = "github_dark"
 
-# All possible exception
-class AgentError(Exception):
-    """Base class for other agent-related exceptions"""
+            content = step["content"]
+            try:
+                content = eval(content)
+            except Exception:
+                content = [step["content"]]
 
-    def __init__(self, message, logger: "AgentLogger"):
-        super().__init__(message)
-        self.message = message
-        logger.log(f"[bold red]{message}[/bold red]", level=LogLevel.ERROR)
-
-
-class AgentParsingError(AgentError):
-    """Exception raised for errors in parsing in the agent"""
-
-    pass
-
-
-class AgentExecutionError(AgentError):
-    """Exception raised for errors in execution in the agent"""
-
-    pass
-
-
-class AgentMaxStepsError(AgentError):
-    """Exception raised for errors in execution in the agent"""
-
-    pass
-
-
-class AgentGenerationError(AgentError):
-    """Exception raised for errors in generation in the agent"""
-
-    pass
-
-
-@dataclass
-class ToolCall:
-    name: str
-    arguments: Any
-    id: str
+            for substep_ix, item in enumerate(content):
+                self.console.log(
+                    Rule(
+                        f"{role.upper()}, STEP {ix}, SUBSTEP {substep_ix + 1}/{len(content)}",
+                        align="center",
+                        style="orange",
+                    ),
+                    Syntax(
+                        json.dumps(item, indent=4) if isinstance(item, dict) else str(item),
+                        lexer="json",
+                        theme=theme,
+                        word_wrap=True,
+                    ),
+                )
 
 
-class AgentStepLog:
-    pass
-
-
-@dataclass
-class ActionStep(AgentStepLog):
-    agent_memory: List[Dict[str, str]] | None = None
-    tool_calls: List[ToolCall] | None = None
-    start_time: float | None = None
-    end_time: float | None = None
-    step: int | None = None
-    error: AgentError | None = None
-    duration: float | None = None
-    llm_output: str | None = None
-    observations: str | None = None
-    action_output: Any = None
-
-
-@dataclass
-class PlanningStep(AgentStepLog):
-    plan: str
-    facts: str
-
-
-@dataclass
-class TaskStep(AgentStepLog):
-    task: str
-
-
-@dataclass
-class SystemPromptStep(AgentStepLog):
-    system_prompt: str
-
-
-__all__ = ["AgentError", "AgentLogger"]
+__all__ = ["AgentLogger"]

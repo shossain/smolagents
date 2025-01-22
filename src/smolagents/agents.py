@@ -33,18 +33,8 @@ from .local_python_executor import (
     fix_final_answer_code,
 )
 from .logger import (
-    ActionStep,
-    AgentError,
-    AgentExecutionError,
-    AgentGenerationError,
     AgentLogger,
-    AgentMaxStepsError,
-    AgentParsingError,
     LogLevel,
-    PlanningStep,
-    SystemPromptStep,
-    TaskStep,
-    ToolCall,
 )
 from .models import (
     ChatMessage,
@@ -71,6 +61,16 @@ from .tools import (
 )
 from .types import AgentAudio, AgentImage, handle_agent_output_types
 from .utils import (
+    ActionStep,
+    AgentError,
+    AgentExecutionError,
+    AgentGenerationError,
+    AgentMaxStepsError,
+    AgentParsingError,
+    PlanningStep,
+    SystemPromptStep,
+    TaskStep,
+    ToolCall,
     parse_code_blobs,
     parse_json_tool_call,
     truncate_content,
@@ -354,8 +354,9 @@ You have been provided with these additional arguments, that you can access usin
         if stream:
             # The steps are returned as they are executed through a generator to iterate on.
             return self._run(task=self.task)
-        # Outputs are returned only at the end as a string. We only look at the last step
-        return deque(self._run(task=self.task), maxlen=1)[0]
+        else:
+            # Outputs are returned only at the end as a string. We only look at the last step
+            return deque(self._run(task=self.task), maxlen=1)[0]
 
     def _run(self, task: str) -> Generator[str, None, None]:
         """
@@ -400,13 +401,13 @@ You have been provided with these additional arguments, that you can access usin
 
         if final_answer is None and self.step_number == self.max_steps:
             error_message = "Reached max steps."
-            final_step_log = ActionStep(error=AgentMaxStepsError(error_message, self.logger))
-            self.logger.log_step(final_step_log)
             final_answer = self.provide_final_answer(task)
             self.logger.log(Text(f"Final answer: {final_answer}"), level=LogLevel.INFO)
+            final_step_log = ActionStep(error=AgentMaxStepsError(error_message, self.logger))
             final_step_log.action_output = final_answer
             final_step_log.end_time = time.time()
             final_step_log.duration = step_log.end_time - step_start_time
+            self.logger.log_step(final_step_log)
             for callback in self.step_callbacks:
                 callback(final_step_log)
             yield final_step_log
@@ -744,7 +745,7 @@ class CodeAgent(MultiStepAgent):
             ToolCall(
                 name="python_interpreter",
                 arguments=code_action,
-                id=f"call_{len(self.logger.logs)}",
+                id=f"call_{len(self.logger.steps)}",
             )
         ]
 

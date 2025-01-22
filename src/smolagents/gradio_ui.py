@@ -19,9 +19,9 @@ import re
 import shutil
 from typing import Optional
 
-from .agents import ActionStep, AgentStepLog, MultiStepAgent
+from .agents import ActionStep, MultiStepAgent
 from .types import AgentAudio, AgentImage, AgentText, handle_agent_output_types
-from .utils import _is_package_available
+from .utils import AgentStepLog, _is_package_available
 
 
 def pull_messages_from_step(step_log: AgentStepLog):
