@@ -14,16 +14,16 @@ import os
 
 
 # You could use an open model via an inference provider like Fireworks AI
-# model = OpenAIServerModel(
-#     api_key=os.getenv("FIREWORKS_API_KEY"),
-#     api_base="https://api.fireworks.ai/inference/v1",
-#     model_id="accounts/fireworks/models/qwen2-vl-72b-instruct"
-# )
-
-model = LiteLLMModel(
-    model_id="anthropic/claude-3-5-sonnet-latest",
-    api_key=os.getenv("ANTHROPIC_API_KEY"),
+model = OpenAIServerModel(
+    api_key=os.getenv("FIREWORKS_API_KEY"),
+    api_base="https://api.fireworks.ai/inference/v1",
+    model_id="accounts/fireworks/models/qwen2-vl-72b-instruct"
 )
+
+# model = LiteLLMModel(
+#     model_id="anthropic/claude-3-5-sonnet-latest",
+#     api_key=os.getenv("ANTHROPIC_API_KEY"),
+# )
 
 from io import BytesIO
 
@@ -167,7 +167,7 @@ Code:
 final_answer("YOUR_ANSWER_HERE")
 ```<end_code>
 
-If pages seem stuck on loading, you might have to wait, for instance `import time` and run `time.sleep(5.0)`. But 
+If pages seem stuck on loading, you might have to wait, for instance `import time` and run `time.sleep(5.0)`. But don't overuse this!
 To find elements on page, DO NOT try code-based element searches like 'contributors = find_all(S("ol > li"))': just look at the latest screenshot you have and read it visually!
 Of course you can act on buttons like a user would do when navigating.
 After each code blob you write, you will be automatically provided with an updated screenshot of the browser and the current browser url. Don't kill the browser.
