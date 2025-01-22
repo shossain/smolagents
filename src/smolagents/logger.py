@@ -31,6 +31,10 @@ class AgentLogger:
         self.level = level
         self.steps = []
         self.console = Console()
+        # todos:
+        # - add a way to save/load logs to/from a file
+        # - group agent logs and user logs
+        # - add log configurations details
 
     def log(self, *args, level: LogLevel = LogLevel.INFO, **kwargs):
         """Logs a message to the console.
