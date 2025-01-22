@@ -170,7 +170,7 @@ class AgentLogger:
 
     def log(self, *args, level: LogLevel = LogLevel.INFO, **kwargs):
         if level <= self.level:
-            console.print(*args, **kwargs)
+            self.console.print(*args, **kwargs)
 
 
 class MultiStepAgent:
