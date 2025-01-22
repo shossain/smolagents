@@ -24,51 +24,63 @@ from .types import AgentAudio, AgentImage, AgentText, handle_agent_output_types
 from .utils import _is_package_available
 
 
-def pull_messages_from_step(step_log: AgentStepLog, test_mode: bool = True):
+def pull_messages_from_step(step_log: AgentStepLog,):
     """Extract ChatMessage objects from agent steps with proper nesting"""
-    if isinstance(step_log, ActionStep):
-        # First yield the thought/reasoning from the LLM
-        if step_log.llm_output is not None and not test_mode:
-            yield gr.ChatMessage(role="assistant", content=step_log.llm_output.strip())
+    import gradio as gr
 
-        # For tool calls, create a parent message 
-        if step_log.tool_calls is not None:
+    if isinstance(step_log, ActionStep):
+        # log the Step number first 
+        step_num = f"Step {step_log.step}" if step_log.step is not None else ""
+        yield gr.ChatMessage(role="assistant", content=f"**{step_num}**")
+        
+        # First yield the thought/reasoning from the LLM
+        if hasattr(step_log, "llm_output") and step_log.llm_output is not None:
+        #if step_log.llm_output is not None:
+            # Clean up the LLM output
+            llm_output = step_log.llm_output.strip()
+            # Remove any trailing <end_code> and extra backticks, handling multiple possible formats
+            llm_output = re.sub(r'```\s*<end_code>', '```', llm_output)  # handles ```<end_code>
+            llm_output = re.sub(r'<end_code>\s*```', '```', llm_output)  # handles <end_code>```
+            llm_output = re.sub(r'```\s*\n\s*<end_code>', '```', llm_output)  # handles ```\n<end_code>
+            llm_output = llm_output.strip()
+            yield gr.ChatMessage(role="assistant", content=llm_output)
+        
+        # For tool calls, create a parent message
+        if hasattr(step_log, "tool_calls") and step_log.tool_calls is not None:
+        #if step_log.tool_calls is not None:
             first_tool_call = step_log.tool_calls[0]
             used_code = first_tool_call.name == "python_interpreter"
             parent_id = f"call_{len(step_log.tool_calls)}"
             
-            # Calculate token information
-            token_str = ""
-            if hasattr(step_log, "input_token_count") and hasattr(step_log, "output_token_count"):
-                token_str = f"Input-tokens:{step_log.input_token_count:,} Output-tokens:{step_log.output_token_count:,}"
-            
-            step_str = f"Step {step_log.step}" if step_log.step is not None else ""
-            
-            timing_str = " | ".join(filter(None, [step_str, token_str]))
-            
             # Tool call becomes the parent message with timing info
-            content = first_tool_call.arguments
+            content = first_tool_call.arguments.strip()
             if used_code:
-                content = f"```python\n{content}\n```"
+                # Clean up the content by removing any end code tags
+                content = re.sub(r'```.*?\n', '', content)  # Remove existing code blocks
+                content = re.sub(r'\s*<end_code>\s*', '', content)  # Remove end_code tags
+                content = content.strip()
+                if not content.startswith("```python"):
+                    content = f"```python\n{content}\n```"
             
-            parent_message = gr.ChatMessage(
+            parent_message_tool = gr.ChatMessage(
                 role="assistant",
                 content=content,
                 metadata={
-                    "title": f"🛠️ Used tool {first_tool_call.name}" + (f" ({timing_str})" if timing_str else ""),
+                    "title": f"🛠️ Used tool {first_tool_call.name}", # + (f" ({token_str})" if token_str else ""),
                     "id": parent_id,
                     "status": "pending",
-                    "duration": step_log.duration if step_log.duration else None
                 }
             )
-            yield parent_message
+            yield parent_message_tool
 
-            # Nest execution logs under the tool call if they exist
-            if step_log.observations is not None:
-                log_content = step_log.observations
+            # Nesting execution logs under the tool call if they exist
+            if hasattr(step_log, "observations") and (step_log.observations is not None and step_log.observations.strip()): # Only yield execution logs if there's actual content 
+            #if step_log.observations is not None and step_log.observations.strip(): # Only yield execution logs if there's actual content
+                log_content = step_log.observations.strip()
+                log_content = re.sub(r'^Execution logs:\s*', '', log_content)
                 yield gr.ChatMessage(
                     role="assistant",
-                    content=f"Execution logs:\n{log_content}",
+                    content=f"{log_content}",
                     metadata={
                         "title": "📝 Execution Logs",
                         "parent_id": parent_id,
@@ -76,8 +88,9 @@ def pull_messages_from_step(step_log: AgentStepLog, test_mode: bool = True):
                     }
                 )
                 
-            # Nest any errors under the tool call
-            if step_log.error is not None:
+            # Nesting any errors under the tool call
+            if hasattr(step_log, "error") and step_log.error is not None:
+            #if step_log.error is not None:
                 yield gr.ChatMessage(
                     role="assistant", 
                     content=str(step_log.error),
@@ -89,15 +102,26 @@ def pull_messages_from_step(step_log: AgentStepLog, test_mode: bool = True):
                 )
 
             # Update parent message metadata to done status (without yielding a new message)
-            parent_message.metadata["status"] = "done"
+            parent_message_tool.metadata["status"] = "done"
 
         # Handle standalone errors (not from tool calls)
-        elif step_log.error is not None:
+        elif hasattr(step_log, "error") and step_log.error is not None:
             yield gr.ChatMessage(
                 role="assistant",
                 content=str(step_log.error),
                 metadata={"title": "💥 Error"}
             )
+
+        # Calculate token information
+        token_str = ""
+        if hasattr(step_log, "input_token_count") and hasattr(step_log, "output_token_count"):
+            token_str = f" | Input-tokens:{step_log.input_token_count:,} | Output-tokens:{step_log.output_token_count:,}"
+        if hasattr(step_log, "duration"):
+            step_duration = f" | Duration: {round(float(step_log.duration), 2)}" if step_log.duration else None
+        step_footnote = f"{step_num} {step_duration} {token_str}" 
+        step_footnote = f"""<span style="color: #bbbbc2; font-size: 12px;">{step_footnote}</span> """
+        yield gr.ChatMessage(role="assistant", content=f"{step_footnote}") 
+        yield gr.ChatMessage(role="assistant", content=f"-----") 
 
 
 def stream_to_gradio(
@@ -107,6 +131,7 @@ def stream_to_gradio(
     additional_args: Optional[dict] = None,
 ):
     """Runs an agent with the given task and streams the messages from the agent as gradio ChatMessages."""
+    import gradio as gr
     total_input_tokens = 0
     total_output_tokens = 0
 
@@ -121,7 +146,7 @@ def stream_to_gradio(
                 step_log.input_token_count = agent.model.last_input_token_count
                 step_log.output_token_count = agent.model.last_output_token_count
         
-        for message in pull_messages_from_step(step_log, test_mode=test_mode):
+        for message in pull_messages_from_step(step_log,):
             yield message
 
     final_answer = step_log  # Last log is the run's final_answer
@@ -143,7 +168,7 @@ def stream_to_gradio(
             content={"path": final_answer.to_string(), "mime_type": "audio/wav"},
         )
     else:
-        yield gr.ChatMessage(role="assistant", content=str(final_answer))
+        yield gr.ChatMessage(role="assistant", content=f"**Final answer:** {str(final_answer)}")
 
 
 class GradioUI:
@@ -230,6 +255,7 @@ class GradioUI:
         )
 
     def launch(self):
+        import gradio as gr
         with gr.Blocks(fill_height=True) as demo:
             stored_messages = gr.State([])
             file_uploads_log = gr.State([])
