@@ -14,7 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import base64
 import json
 import logging
 import os
@@ -22,7 +21,6 @@ import random
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from enum import Enum
-from io import BytesIO
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from huggingface_hub import InferenceClient
@@ -35,7 +33,7 @@ from transformers import (
 )
 
 from .tools import Tool
-from .utils import _is_package_available
+from .utils import _is_package_available, encode_image_base64, make_image_url
 
 
 if TYPE_CHECKING:
@@ -154,16 +152,6 @@ tool_role_conversions = {
     MessageRole.TOOL_CALL: MessageRole.ASSISTANT,
     MessageRole.TOOL_RESPONSE: MessageRole.USER,
 }
-
-
-def encode_image_base64(image):
-    buffered = BytesIO()
-    image.save(buffered, format="PNG")
-    return base64.b64encode(buffered.getvalue()).decode("utf-8")
-
-
-def make_image_url(base64_image):
-    return f"data:image/png;base64,{base64_image}"
 
 
 def get_tool_json_schema(tool: Tool) -> Dict:
