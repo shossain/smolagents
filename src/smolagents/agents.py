@@ -243,10 +243,13 @@ class MultiStepAgent:
 
         return self.system_prompt
 
-    def write_inner_memory_from_logs(self, summary_mode: Optional[bool] = False) -> List[Dict[str, str]]:
+    def write_inner_memory_from_logs(self, summary_mode: bool = False) -> List[Dict[str, str]]:
         """
         Reads past llm_outputs, actions, and observations or errors from the logs into a series of messages
         that can be used as input to the LLM.
+
+        Args:
+            summary_mode (`bool`): Whether to write a summary of the logs or the full logs.
         """
         memory = []
         for i, step_log in enumerate(self.logs):
