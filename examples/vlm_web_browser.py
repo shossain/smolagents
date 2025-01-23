@@ -93,10 +93,11 @@ def search_item_ctrl_f(text: str, nth_result: int = 1) -> None:
     elements = driver.find_elements(By.XPATH, f"//*[contains(text(), '{text}')]|//*[contains(., '{text}')]")
     if nth_result > len(elements):
         raise Exception(f"Match n°{nth_result} not found ({len(elements)} matches found)")
-    elem = elements[nth_result-1]
+    elem = elements[nth_result - 1]
     driver.execute_script("arguments[0].scrollIntoView(true);", elem)
     driver.execute_script("arguments[0].style.backgroundColor = 'yellow';", elem)
     return f"Focused on element {nth_result} of {len(elements)}"
+
 
 @tool
 def go_back() -> None:
@@ -223,7 +224,4 @@ Can you navigate to the profile for the top author of the top trending repo, and
 pdf_search_request = """
 Please go to the o1 system card at https://cdn.openai.com/o1-system-card.pdf and give me all sentences containing the word "challenges".
 """
-agent.run(
-    pdf_search_request
-    + helium_instructions
-)
+agent.run(pdf_search_request + helium_instructions)
