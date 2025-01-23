@@ -55,10 +55,11 @@ def get_dict_from_nested_dataclasses(obj):
     return convert(obj)
 
 if _is_package_available("vllm"):
-    from vllm.distributed.parallel_state import destroy_distributed_environment, destroy_model_parallel
     import gc
+
     import torch
     from vllm import LLM, SamplingParams
+    from vllm.distributed.parallel_state import destroy_distributed_environment, destroy_model_parallel
     from vllm.transformers_utils.tokenizer import get_tokenizer
 
 
@@ -421,7 +422,7 @@ class VLLMModel(Model):
         if tools_to_call_from is not None:
             prompt = self.tokenizer.apply_chat_template(
                 messages,
-                tools=[get_json_schema(tool) for tool in tools_to_call_from],
+                tools=[get_tool_json_schema(tool) for tool in tools_to_call_from],
                 add_generation_prompt=True,
                 tokenize=False,
             )
