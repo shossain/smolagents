@@ -381,9 +381,16 @@ class MultiStepAgent:
             )
         return rationale.strip(), action.strip()
 
-    def provide_final_answer(self, task, images) -> str:
+    def provide_final_answer(self, task: str, images: list[str]) -> str:
         """
-        This method provides a final answer to the task, based on the logs of the agent's interactions.
+        Provide the final answer to the task, based on the logs of the agent's interactions.
+
+        Args:
+            task (`str`): Task to perform.
+            images (`list[str]`, *optional*): Paths to image(s).
+
+        Returns:
+            `str`: Final answer to the task.
         """
         if images:
             self.input_messages[0]["content"] = {
@@ -472,14 +479,14 @@ class MultiStepAgent:
         additional_args: Optional[Dict] = None,
     ):
         """
-        Runs the agent for the given task.
+        Run the agent for the given task.
 
         Args:
-            task (`str`): The task to perform.
+            task (`str`): Task to perform.
             stream (`bool`): Whether to run in a streaming way.
             reset (`bool`): Whether to reset the conversation or keep it going from previous run.
             single_step (`bool`): Whether to run the agent in one-shot fashion.
-            images (`list`, *optional*): List of paths to image(s).
+            images (`list[str]`, *optional*): Paths to image(s).
             additional_args (`dict`): Any other variables that you want to pass to the agent run, for instance images or dataframes. Give them clear names!
 
         Example:
@@ -540,11 +547,11 @@ You have been provided with these additional arguments, that you can access usin
 
     def _run(self, task: str, images: List[str] | None = None) -> Generator[str, None, None]:
         """
-        Runs the agent in streaming mode and returns a generator of all the steps.
+        Run the agent in streaming mode and returns a generator of all the steps.
 
         Args:
-            task (`str`): The task to perform.
-            images (`List`): List of paths to image(s).
+            task (`str`): Task to perform.
+            images (`list[str]`): Paths to image(s).
         """
         final_answer = None
         self.step_number = 0
@@ -606,7 +613,7 @@ You have been provided with these additional arguments, that you can access usin
         Used periodically by the agent to plan the next steps to reach the objective.
 
         Args:
-            task (`str`): The task to perform
+            task (`str`): Task to perform.
             is_first_step (`bool`): If this step is not the first one, the plan should be an update over a previous plan.
             step (`int`): The number of the current step, used as an indication for the LLM.
         """

@@ -38,6 +38,12 @@ class Monitor:
         self.total_output_token_count = 0
 
     def update_metrics(self, step_log, agent):
+        """Update the metrics of the monitor.
+
+        Args:
+            step_log ([`AgentStepLog`]): Step log to update the monitor with.
+            agent ([`MultiStepAgent`]): Agent that was used to generate the step log.
+        """
         step_duration = step_log.duration
         self.step_durations.append(step_duration)
         console_outputs = f"[Step {len(self.step_durations) - 1}: Duration {step_duration:.2f} seconds"

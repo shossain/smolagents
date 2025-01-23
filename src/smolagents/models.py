@@ -194,6 +194,8 @@ def get_clean_message_list(
 
     Args:
         message_list (`list[dict[str, str]]`): List of chat messages.
+        role_conversions (`dict[MessageRole, MessageRole]`, *optional* ): Mapping to convert roles.
+        convert_images_to_image_urls (`bool`, default `False`): Whether to convert images to image URLs.
         flatten_messages_as_text (`bool`, default `False`): Whether to flatten messages as text.
     """
     final_message_list = []
