@@ -299,7 +299,7 @@ class MultiStepAgent:
                     }
                     memory.append(tool_call_message)
                 if step_log.error is not None:
-                    tool_response_message = {
+                    error_message = {
                         "role": MessageRole.ASSISTANT,
                         "content": [
                             {
@@ -312,6 +312,7 @@ class MultiStepAgent:
                             }
                         ],
                     }
+                    memory.append(error_message)
                 if step_log.observations is not None:
                     if step_log.tool_calls:
                         tool_call_reference = f"Call id: {(step_log.tool_calls[0].id if getattr(step_log.tool_calls[0], 'id') else 'call_0')}\n"
