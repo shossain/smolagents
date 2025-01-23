@@ -33,10 +33,12 @@ from transformers import (
     is_torch_available,
 )
 from transformers.utils.import_utils import _is_package_available
+import numpy as np
 
 import openai
 
 from .tools import Tool
+from .reward_models import RLHFFlow, aggregate_scores
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,13 @@ DEFAULT_CODEAGENT_REGEX_GRAMMAR = {
 
 if _is_package_available("litellm"):
     import litellm
+
+if _is_package_available("vllm"):
+    from vllm.distributed.parallel_state import destroy_distributed_environment, destroy_model_parallel
+    import gc
+    import torch
+    from vllm import LLM, SamplingParams
+    from vllm.transformers_utils.tokenizer import get_tokenizer
 
 
 @dataclass
@@ -285,6 +294,7 @@ class HfApiModel(Model):
         self.last_output_token_count = response.usage.completion_tokens
         return response.choices[0].message
 
+
 class VLLMModel(Model):
     """This engine initializes a model and tokenizer from the given `model_id`.
 
@@ -297,11 +307,6 @@ class VLLMModel(Model):
 
     def __init__(self, model_id: Optional[str] = None, device: Optional[str] = None):
         super().__init__()
-        #if not is_vllm_available():
-        #raise ImportError("Please install torch in order to use TransformersModel.")
-
-        from vllm import LLM, SamplingParams
-        from vllm.transformers_utils.tokenizer import get_tokenizer
 
         default_model_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
         if model_id is None:
@@ -311,9 +316,17 @@ class VLLMModel(Model):
             )
 
         self.model_id = model_id
-        self.sampling_params = SamplingParams(temperature=0.3, top_p=0.95, max_tokens=1024)
         self.model = LLM(model=model_id)
         self.tokenizer = get_tokenizer(model_id)
+
+    def cleanup(self):
+        destroy_model_parallel()
+        if self.model is not None:
+            del self.model.llm_engine.model_executor.driver_worker
+        self.model = None
+        gc.collect()
+        destroy_distributed_environment()
+        torch.cuda.empty_cache()
 
     def __call__(
         self,
@@ -327,28 +340,29 @@ class VLLMModel(Model):
             messages, role_conversions=tool_role_conversions
         )
         if tools_to_call_from is not None:
-            prompt_tensor = self.tokenizer.apply_chat_template(
+            prompt = self.tokenizer.apply_chat_template(
                 messages,
                 tools=[get_json_schema(tool) for tool in tools_to_call_from],
                 add_generation_prompt=True,
                 tokenize=False,
             )
         else:
-            prompt_tensor = self.tokenizer.apply_chat_template(
+            prompt = self.tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
             )
 
-
-        out = self.model.generate(
-            prompt_tensor,
-            sampling_params=self.sampling_params,
+        sampling_params = SamplingParams(
+            n=1, temperature=0.3, max_tokens=1024, stop=stop_sequences
         )
 
+        out = self.model.generate(
+            prompt,
+            sampling_params=sampling_params,
+        )
         output = out[0].outputs[0].text
         count_prompt_tokens = len(out[0].prompt_token_ids)
         count_generated_tokens = len(out[0].outputs[0].token_ids)
-
         self.last_input_token_count = count_prompt_tokens
         self.last_output_token_count = count_generated_tokens
 
@@ -373,7 +387,6 @@ class VLLMModel(Model):
                     )
                 ],
             )
-
 
 
 class TransformersModel(Model):
@@ -405,14 +418,18 @@ class TransformersModel(Model):
         logger.info(f"Using device: {self.device}")
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(model_id)
-            self.model = AutoModelForCausalLM.from_pretrained(model_id, device_map=self.device)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id, device_map=self.device
+            )
         except Exception as e:
             logger.warning(
                 f"Failed to load tokenizer and model for {model_id=}: {e}. Loading default tokenizer and model instead from {default_model_id=}."
             )
             self.model_id = default_model_id
             self.tokenizer = AutoTokenizer.from_pretrained(default_model_id)
-            self.model = AutoModelForCausalLM.from_pretrained(model_id, device_map=self.device)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id, device_map=self.device
+            )
 
     def make_stopping_criteria(self, stop_sequences: List[str]) -> StoppingCriteriaList:
         class StopOnStrings(StoppingCriteria):
