@@ -54,17 +54,11 @@ def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
 
 
 # Initialize driver and agent
-firefox_options = webdriver.FirefoxOptions()
-firefox_options.set_preference("layout.css.devPixelsPerPx", "2.0")  # For scale factor
-firefox_options.add_argument("--width=1000")
-firefox_options.add_argument("--height=1300")
-firefox_options.set_preference("pdfjs.disabled", False)  # Enable built-in PDF viewer
-firefox_options.set_preference("pdfjs.highlightAll", False)  # Disable highlighting
-# chrome_options.add_argument('--disable-plugins-discovery')
-# chrome_options.add_argument('--plugins-enabled')
-# chrome_options.add_argument('--enable-pdf-viewer')
-driver = helium.start_firefox(headless=False, options=firefox_options)
-
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument("--force-device-scale-factor=1")
+chrome_options.add_argument("--window-size=1000,1300")
+chrome_options.add_argument('--disable-pdf-viewer')
+driver = helium.start_chrome(headless=False, options=chrome_options)
 
 @tool
 def search_item_ctrl_f(text: str, nth_result: int = 1) -> None:
@@ -74,29 +68,14 @@ def search_item_ctrl_f(text: str, nth_result: int = 1) -> None:
         text: The text to search for
         nth_result: Which occurrence to jump to (default: 1)
     """
-    # First switch to the PDF plugin
-    from selenium.webdriver.common.by import By
-    # embed = driver.find_element(By.CSS_SELECTOR, 'embed[type="application/pdf"]')
-    # driver.switch_to.frame(embed)
-    # sleep(1.)
-    # subembed = driver.find_element(By.CSS_SELECTOR, 'embed[type="application/pdf"]')
-    # driver.switch_to.frame(subembed)
-
-    # driver.execute_script("window.scrollBy(0, 400);")
-    # quit()
-
-    # Then switch to the nested HTML document inside the plugin
-    # internal_doc = driver.find_element(By.TAG_NAME, 'html')
-    # driver.switch_to.frame(internal_doc)
-
-    # Now you can interact with PDF viewer elements
-    elements = driver.find_elements(By.XPATH, f"//*[contains(text(), '{text}')]|//*[contains(., '{text}')]")
+    elements = driver.find_elements(By.XPATH, f"//*[contains(text(), '{text}')]")
     if nth_result > len(elements):
-        raise Exception(f"Match n°{nth_result} not found ({len(elements)} matches found)")
+        raise Exception(f"Match n°{nth_result} not found (only {len(elements)} matches found)")
+    result = f"Found {len(elements)} matches for '{text}'."
     elem = elements[nth_result-1]
     driver.execute_script("arguments[0].scrollIntoView(true);", elem)
-    driver.execute_script("arguments[0].style.backgroundColor = 'yellow';", elem)
-    return f"Focused on element {nth_result} of {len(elements)}"
+    result += f"Focused on element {nth_result} of {len(elements)}"
+    return result
 
 @tool
 def go_back() -> None:
@@ -208,8 +187,8 @@ final_answer("YOUR_ANSWER_HERE")
 ```<end_code>
 
 If pages seem stuck on loading, you might have to wait, for instance `import time` and run `time.sleep(5.0)`. But don't overuse this!
-To find elements on page, DO NOT try code-based element searches like 'contributors = find_all(S("ol > li"))': just look at the latest screenshot you have and read it visually!
-Of course you can act on buttons like a user would do when navigating.
+To list elements on page, DO NOT try code-based element searches like 'contributors = find_all(S("ol > li"))': just look at the latest screenshot you have and read it visually, or use your tool search_item_ctrl_f.
+Of course, you can act on buttons like a user would do when navigating.
 After each code blob you write, you will be automatically provided with an updated screenshot of the browser and the current browser url.
 But beware that the screenshot will only be taken at the end of the whole action, it won't see intermediate states.
 Don't kill the browser.
@@ -221,7 +200,7 @@ Can you navigate to the profile for the top author of the top trending repo, and
 """
 
 pdf_search_request = """
-Please go to the o1 system card at https://cdn.openai.com/o1-system-card.pdf and give me all sentences containing the word "challenges".
+Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that talks about presidential elections.
 """
 agent.run(
     pdf_search_request
