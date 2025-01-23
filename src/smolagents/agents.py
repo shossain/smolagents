@@ -164,6 +164,20 @@ class MultiStepAgent:
     """
     Agent class that solves the given task step by step, using the ReAct framework:
     While the objective is not reached, the agent will perform a cycle of action (given by the LLM) and observation (obtained from the environment).
+
+    Args:
+        tools (`list[[`Tool`]]`): List of tools that the agent can use.
+        model (Callable[[list[dict[str, str]]], [`ChatMessage`]]): Model that will generate the agent's actions.
+        system_prompt (`str`, *optional*): System prompt that will be used to generate the agent's actions.
+        tool_description_template (`str`, *optional*): Template used to describe the tools in the system prompt.
+        max_steps (`int`, default `6`): Maximum number of steps the agent can take to solve the task.
+        tool_parser (`Callable`, *optional*): Function used to parse the tool calls from the LLM output.
+        add_base_tools (`bool`, default `False`): Whether to add the base tools to the agent's tools.
+        verbosity_level (`int`, default `1`): Level of verbosity of the agent's logs.
+        grammar (`dict[str, str]`, *optional*): Grammar used to parse the LLM output.
+        managed_agents (`list`, *optional*): List of managed agents that the agent can call.
+        step_callbacks (`list[Callable]`, *optional*): List of callbacks that will be called at each step.
+        planning_interval (`int`, *optional*): Interval at which the agent will run a planning step.
     """
 
     def __init__(
@@ -259,23 +273,13 @@ class MultiStepAgent:
                     memory.append(thought_message)
 
             elif isinstance(step_log, TaskStep):
+                task_message = {
+                    "role": MessageRole.USER,
+                    "content": [{"type": "text", "text": f"New task:\n{step_log.task}"}],
+                }
                 if step_log.task_images:
                     for image in step_log.task_images:
-                        task_message = {
-                            "role": MessageRole.USER,
-                            "content": [
-                                {"type": "text", "text": f"New task:\n{step_log.task}"},
-                                {
-                                    "type": "image",
-                                    "image": image,
-                                },
-                            ],
-                        }
-                else:
-                    task_message = {
-                        "role": MessageRole.USER,
-                        "content": [{"type": "text", "text": f"New task:\n{step_log.task}"}],
-                    }
+                        task_message["content"].append({"type": "image", "image": image})
                 memory.append(task_message)
 
             elif isinstance(step_log, ActionStep):
@@ -309,7 +313,7 @@ class MultiStepAgent:
                     }
                     memory.append(tool_call_message)
                 if step_log.error is not None:
-                    tool_response_message = {
+                    error_message = {
                         "role": MessageRole.ASSISTANT,
                         "content": [
                             {
@@ -322,6 +326,7 @@ class MultiStepAgent:
                             }
                         ],
                     }
+                    memory.append(error_message)
                 if step_log.observations is not None:
                     if step_log.tool_calls:
                         tool_call_reference = f"Call id: {(step_log.tool_calls[0].id if getattr(step_log.tool_calls[0], 'id') else 'call_0')}\n"
@@ -460,7 +465,7 @@ class MultiStepAgent:
         stream: bool = False,
         reset: bool = True,
         single_step: bool = False,
-        images: Optional[List[str]] = [],
+        images: Optional[List[str]] = None,
         additional_args: Optional[Dict] = None,
     ):
         """
@@ -471,7 +476,7 @@ class MultiStepAgent:
             stream (`bool`): Whether to run in a streaming way.
             reset (`bool`): Whether to reset the conversation or keep it going from previous run.
             single_step (`bool`): Whether to run the agent in one-shot fashion.
-            images (`List`): List of paths to image(s).
+            images (`list`, *optional*): List of paths to image(s).
             additional_args (`dict`): Any other variables that you want to pass to the agent run, for instance images or dataframes. Give them clear names!
 
         Example:

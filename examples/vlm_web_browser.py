@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from PIL import Image
 from selenium import webdriver
 
-from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, TransformersModel, tool
+from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, TransformersModel, tool  # noqa: F401
 from smolagents.agents import ActionStep
 
 
