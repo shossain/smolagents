@@ -21,10 +21,8 @@ import inspect
 import json
 import re
 import types
-from dataclasses import dataclass
-from enum import IntEnum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Tuple, Union
 
 
 if TYPE_CHECKING:
@@ -60,19 +58,16 @@ BASE_BUILTIN_MODULES = [
 ]
 
 
-class LogLevel(IntEnum):
-    ERROR = 0  # Only errors
-    INFO = 1  # Normal output (default)
-    DEBUG = 2  # Detailed output
-
-
 class AgentError(Exception):
     """Base class for other agent-related exceptions"""
 
     def __init__(self, message, logger: "AgentLogger"):
         super().__init__(message)
         self.message = message
-        logger.log(f"[bold red]{message}[/bold red]", level=LogLevel.ERROR)
+        logger.log(f"[bold red]{message}[/bold red]", level="ERROR")
+
+    def dict(self) -> Dict[str, str]:
+        return {"type": self.__class__.__name__, "message": str(self.message)}
 
 
 class AgentParsingError(AgentError):
@@ -99,45 +94,29 @@ class AgentGenerationError(AgentError):
     pass
 
 
-@dataclass
-class ToolCall:
-    name: str
-    arguments: Any
-    id: str
-
-
-class AgentStepLog:
-    pass
-
-
-@dataclass
-class ActionStep(AgentStepLog):
-    agent_memory: List[Dict[str, str]] | None = None
-    tool_calls: List[ToolCall] | None = None
-    start_time: float | None = None
-    end_time: float | None = None
-    step: int | None = None
-    error: AgentError | None = None
-    duration: float | None = None
-    llm_output: str | None = None
-    observations: str | None = None
-    action_output: Any = None
-
-
-@dataclass
-class PlanningStep(AgentStepLog):
-    plan: str
-    facts: str
-
-
-@dataclass
-class TaskStep(AgentStepLog):
-    task: str
-
-
-@dataclass
-class SystemPromptStep(AgentStepLog):
-    system_prompt: str
+def make_json_serializable(obj: Any) -> Any:
+    if obj is None:
+        return None
+    elif isinstance(obj, (str, int, float, bool)):
+        # Try to parse string as JSON if it looks like a JSON object/array
+        if isinstance(obj, str):
+            try:
+                if (obj.startswith("{") and obj.endswith("}")) or (obj.startswith("[") and obj.endswith("]")):
+                    parsed = json.loads(obj)
+                    return make_json_serializable(parsed)
+            except json.JSONDecodeError:
+                pass
+        return obj
+    elif isinstance(obj, (list, tuple)):
+        return [make_json_serializable(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {str(k): make_json_serializable(v) for k, v in obj.items()}
+    elif hasattr(obj, "__dict__"):
+        # For custom objects, convert their __dict__ to a serializable format
+        return {"_type": obj.__class__.__name__, **{k: make_json_serializable(v) for k, v in obj.__dict__.items()}}
+    else:
+        # For any other type, convert to string
+        return str(obj)
 
 
 def parse_json_blob(json_blob: str) -> Dict[str, str]:

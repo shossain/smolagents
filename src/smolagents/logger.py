@@ -1,15 +1,175 @@
 import json
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from enum import IntEnum
+from typing import Any, Dict, List, Optional
 
 from rich.console import Console
 from rich.rule import Rule
 from rich.syntax import Syntax
 
 from smolagents.models import MessageRole
-from smolagents.utils import ActionStep, LogLevel, PlanningStep, SystemPromptStep, TaskStep
+from smolagents.utils import AgentError, make_json_serializable
 
 
 console = Console()
+
+
+class AgentStepLog:
+    pass
+
+    def dict(self):
+        raise NotImplementedError
+
+    def to_memory(self, **kwargs) -> List[Dict[str, Any]]:
+        raise NotImplementedError
+
+
+@dataclass
+class ToolCall:
+    name: str
+    arguments: Any
+    id: str
+
+    def dict(self) -> str:
+        return {
+            "id": self.id,
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "arguments": make_json_serializable(self.arguments),
+            },
+        }
+
+
+@dataclass
+class ActionStep(AgentStepLog):
+    agent_memory: List[Dict[str, str]] | None = None
+    tool_calls: List[ToolCall] | None = None
+    start_time: float | None = None
+    end_time: float | None = None
+    step: int | None = None
+    error: AgentError | None = None
+    duration: float | None = None
+    llm_output: str | None = None
+    observations: str | None = None
+    action_output: Any = None
+
+    def dict(self):
+        return {
+            "agent_memory": self.agent_memory,
+            "tool_calls": [tc.dict() for tc in self.tool_calls],
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "step": self.step,
+            "error": self.error.dict(),
+            "duration": self.duration,
+            "llm_output": self.llm_output,
+            "observations": self.observations,
+            "action_output": make_json_serializable(self.action_output),
+        }
+
+    def to_memory(self, summary_mode: bool, return_memory: bool) -> List[Dict[str, Any]]:
+        memory = []
+        if self.agent_memory is not None and return_memory:
+            thought_message = {
+                "role": MessageRole.SYSTEM,
+                "content": self.agent_memory,
+            }
+            memory.append(thought_message)
+        if self.llm_output is not None and not summary_mode:
+            thought_message = {
+                "role": MessageRole.ASSISTANT,
+                "content": self.llm_output.strip(),
+            }
+            memory.append(thought_message)
+
+        if self.tool_calls is not None:
+            tool_call_message = {
+                "role": MessageRole.ASSISTANT,
+                "content": str([tc.dict() for tc in self.tool_calls]),
+            }
+            memory.append(tool_call_message)
+
+        if self.error is not None:
+            message_content = (
+                "Error:\n"
+                + str(self.error)
+                + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
+            )
+            if self.tool_calls is None:
+                tool_response_message = {
+                    "role": MessageRole.ASSISTANT,
+                    "content": message_content,
+                }
+            else:
+                tool_response_message = {
+                    "role": MessageRole.TOOL_RESPONSE,
+                    "content": f"Call id: {self.tool_calls[0].id}\n{message_content}",
+                }
+            memory.append(tool_response_message)
+        else:
+            if self.observations is not None and self.tool_calls is not None:
+                tool_response_message = {
+                    "role": MessageRole.TOOL_RESPONSE,
+                    "content": f"Call id: {self.tool_calls[0].id}\nObservation:\n{self.observations}",
+                }
+                memory.append(tool_response_message)
+        return memory
+
+
+@dataclass
+class PlanningStep(AgentStepLog):
+    plan: str
+    facts: str
+
+    def dict(self, **kwargs):
+        return {"plan": self.plan, "facts": self.facts}
+
+    def to_memory(self, summary_mode: bool) -> List[Dict[str, str]]:
+        memory = []
+        thought_message = {
+            "role": MessageRole.ASSISTANT,
+            "content": f"[FACTS LIST]:\n{self.facts.strip()}",
+        }
+        memory.append(thought_message)
+
+        if not summary_mode:
+            thought_message = {
+                "role": MessageRole.ASSISTANT,
+                "content": f"[PLAN]:\n{self.plan.strip()}",
+            }
+            memory.append(thought_message)
+        return memory
+
+
+@dataclass
+class TaskStep(AgentStepLog):
+    task: str
+
+    def dict(self):
+        return {"task": self.task}
+
+    def to_memory(self, summary_mode: bool) -> List[Dict[str, str]]:
+        return [{"role": MessageRole.USER, "content": f"New task:\n{self.task}"}]
+
+
+@dataclass
+class SystemPromptStep(AgentStepLog):
+    system_prompt: str
+
+    def dict(self):
+        return {"system_prompt": self.system_prompt}
+
+    def to_memory(self, summary_mode: bool) -> List[Dict[str, str]]:
+        if not summary_mode:
+            return [{"role": MessageRole.SYSTEM, "content": self.system_prompt}]
+        return []
+
+
+class LogLevel(IntEnum):
+    ERROR = 0  # Only errors
+    INFO = 1  # Normal output (default)
+    DEBUG = 2  # Detailed output
 
 
 class AgentLogger:
@@ -22,16 +182,18 @@ class AgentLogger:
         # - group agent logs and user logs
         # - add log configurations details
 
-    def log(self, *args, level: LogLevel = LogLevel.INFO, **kwargs):
+    def log(self, *args, level: str | LogLevel = LogLevel.INFO, **kwargs):
         """Logs a message to the console.
 
         Args:
             level (LogLevel, optional): Defaults to LogLevel.INFO.
         """
+        if isinstance(level, str):
+            level = LogLevel[level.upper()]
         if level <= self.level:
             self.console.print(*args, **kwargs)
 
-    def log_step(self, step, position: int = None):
+    def log_step(self, step: AgentStepLog, position: int = None):
         """Logs an agent execution step for ulterior processing.
 
         Args:
@@ -62,96 +224,9 @@ class AgentLogger:
         that can be used as input to the LLM. Adds a number of keywords (such as PLAN, error, etc) to help
         the LLM.
         """
-        # todo: we might want to homogeneize all keywords?
         memory = []
-        for i, step_log in enumerate(self.steps):
-            if isinstance(step_log, SystemPromptStep):
-                if not summary_mode:
-                    thought_message = {
-                        "role": MessageRole.SYSTEM,
-                        "content": step_log.system_prompt.strip(),
-                    }
-                    memory.append(thought_message)
-
-            elif isinstance(step_log, PlanningStep):
-                thought_message = {
-                    "role": MessageRole.ASSISTANT,
-                    "content": "[FACTS LIST]:\n" + step_log.facts.strip(),
-                }
-                memory.append(thought_message)
-
-                if not summary_mode:
-                    thought_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": "[PLAN]:\n" + step_log.plan.strip(),
-                    }
-                    memory.append(thought_message)
-
-            elif isinstance(step_log, TaskStep):
-                task_message = {
-                    "role": MessageRole.USER,
-                    "content": "New task:\n" + step_log.task,
-                }
-                memory.append(task_message)
-
-            elif isinstance(step_log, ActionStep):
-                if step_log.agent_memory is not None and return_memory:
-                    thought_message = {
-                        "role": MessageRole.SYSTEM,
-                        "content": step_log.agent_memory,
-                    }
-                    memory.append(thought_message)
-                if step_log.llm_output is not None and not summary_mode:
-                    thought_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": step_log.llm_output.strip(),
-                    }
-                    memory.append(thought_message)
-
-                if step_log.tool_calls is not None:
-                    tool_call_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": str(
-                            [
-                                {
-                                    "id": tool_call.id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": tool_call.name,
-                                        "arguments": tool_call.arguments,
-                                    },
-                                }
-                                for tool_call in step_log.tool_calls
-                            ]
-                        ),
-                    }
-                    memory.append(tool_call_message)
-
-                if step_log.error is not None:
-                    message_content = (
-                        "Error:\n"
-                        + str(step_log.error)
-                        + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
-                    )
-                    if step_log.tool_calls is None:
-                        tool_response_message = {
-                            "role": MessageRole.ASSISTANT,
-                            "content": message_content,
-                        }
-                    else:
-                        tool_response_message = {
-                            "role": MessageRole.TOOL_RESPONSE,
-                            "content": f"Call id: {step_log.tool_calls[0].id}\n{message_content}",
-                        }
-                    memory.append(tool_response_message)
-                else:
-                    if step_log.observations is not None and step_log.tool_calls is not None:
-                        tool_response_message = {
-                            "role": MessageRole.TOOL_RESPONSE,
-                            "content": f"Call id: {step_log.tool_calls[0].id}\nObservation:\n{step_log.observations}",
-                        }
-                        memory.append(tool_response_message)
-
+        for step_log in self.steps:
+            memory.extend(step_log.to_memory(summary_mode=summary_mode, return_memory=return_memory))
         return memory
 
     def replay(self, with_memory: bool = False):
