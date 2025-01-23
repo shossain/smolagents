@@ -57,8 +57,9 @@ def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
 chrome_options = webdriver.ChromeOptions()
 chrome_options.add_argument("--force-device-scale-factor=1")
 chrome_options.add_argument("--window-size=1000,1300")
-chrome_options.add_argument('--disable-pdf-viewer')
+chrome_options.add_argument("--disable-pdf-viewer")
 driver = helium.start_chrome(headless=False, options=chrome_options)
+
 
 @tool
 def search_item_ctrl_f(text: str, nth_result: int = 1) -> None:
@@ -72,7 +73,7 @@ def search_item_ctrl_f(text: str, nth_result: int = 1) -> None:
     if nth_result > len(elements):
         raise Exception(f"Match n°{nth_result} not found (only {len(elements)} matches found)")
     result = f"Found {len(elements)} matches for '{text}'."
-    elem = elements[nth_result-1]
+    elem = elements[nth_result - 1]
     driver.execute_script("arguments[0].scrollIntoView(true);", elem)
     result += f"Focused on element {nth_result} of {len(elements)}"
     return result
