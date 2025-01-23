@@ -41,9 +41,6 @@ else:
     _file = globals()["__file__"]
     import_structure = define_import_structure(_file)
     import_structure[""] = {"__version__": __version__}
-    print(__name__)
-    print(_file)
-    print(import_structure)
     sys.modules[__name__] = _LazyModule(
         __name__,
         _file,
@@ -51,5 +48,3 @@ else:
         module_spec=__spec__,
         extra_objects={"__version__": __version__},
     )
-    print("Hello World")
-

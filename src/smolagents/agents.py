@@ -37,7 +37,7 @@ from .local_python_executor import (
 from .models import MessageRole
 from .monitoring import Monitor
 from .prompts import (
-    CODE_SYSTEM_PROMPT_2,
+    CODE_SYSTEM_PROMPT,
     MANAGED_AGENT_PROMPT,
     PLAN_UPDATE_FINAL_PLAN_REDACTION,
     SYSTEM_PROMPT_FACTS,
@@ -66,7 +66,7 @@ from .utils import (
     parse_json_tool_call,
     truncate_content,
 )
-
+from dataclasses import field
 
 @dataclass
 class ToolCall:
@@ -86,7 +86,7 @@ class ActionStep(AgentStep):
     start_time: float | None = None
     end_time: float | None = None
     step: int | None = None
-    error: AgentError | None = None
+    error: AgentError | None = field(default=None, metadata={"include_in_dict":False})
     duration: float | None = None
     llm_output: str | None = None
     observations: str | None = None
@@ -204,7 +204,7 @@ class MultiStepAgent:
         planning_interval: Optional[int] = None,
     ):
         if system_prompt is None:
-            system_prompt = CODE_SYSTEM_PROMPT_2
+            system_prompt = CODE_SYSTEM_PROMPT
         if tool_parser is None:
             tool_parser = parse_json_tool_call
         self.agent_name = self.__class__.__name__
@@ -894,7 +894,7 @@ class CodeAgent(MultiStepAgent):
         **kwargs,
     ):
         if system_prompt is None:
-            system_prompt = CODE_SYSTEM_PROMPT_2
+            system_prompt = CODE_SYSTEM_PROMPT
         super().__init__(
             tools=tools,
             model=model,

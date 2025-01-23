@@ -33,12 +33,10 @@ from transformers import (
     is_torch_available,
 )
 from transformers.utils.import_utils import _is_package_available
-import numpy as np
 
 import openai
 
 from .tools import Tool
-from .reward_models import RLHFFlow, aggregate_scores
 
 logger = logging.getLogger(__name__)
 

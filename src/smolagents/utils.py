@@ -134,7 +134,6 @@ Code:
 # Your python code here
 ```<end_code>""".strip()
         )
-    return matches[-1].strip()
     return "\n\n".join(match.strip() for match in matches)
 
 
