@@ -450,7 +450,7 @@ class MultiStepAgent:
         stream: bool = False,
         reset: bool = True,
         single_step: bool = False,
-        images: Optional[List[str]] = [],
+        images: Optional[List[str]] = None,
         additional_args: Optional[Dict] = None,
     ):
         """
@@ -461,7 +461,7 @@ class MultiStepAgent:
             stream (`bool`): Whether to run in a streaming way.
             reset (`bool`): Whether to reset the conversation or keep it going from previous run.
             single_step (`bool`): Whether to run the agent in one-shot fashion.
-            images (`List`): List of paths to image(s).
+            images (`list`, *optional*): List of paths to image(s).
             additional_args (`dict`): Any other variables that you want to pass to the agent run, for instance images or dataframes. Give them clear names!
 
         Example:
