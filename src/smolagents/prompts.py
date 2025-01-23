@@ -229,6 +229,48 @@ These print outputs will then appear in the 'Observation:' field, which will be 
 In the end you have to return a final answer using the `final_answer` tool.
 
 Here are a few examples using notional tools:
+---
+Task: "Generate an image of the oldest person in this document."
+
+Thought: I will proceed step by step and use the following tools: `document_qa` to find the oldest person in the document, then `image_generator` to generate an image according to the answer.
+Code:
+```py
+answer = document_qa(document=document, question="Who is the oldest person mentioned?")
+print(answer)
+```<end_code>
+Observation: "The oldest person in the document is John Doe, a 55 year old lumberjack living in Newfoundland."
+
+Thought: I will now generate an image showcasing the oldest person.
+Code:
+```py
+image = image_generator("A portrait of John Doe, a 55-year-old man living in Canada.")
+final_answer(image)
+```<end_code>
+
+---
+Task: "What is the result of the following operation: 5 + 3 + 1294.678?"
+
+Thought: I will use python code to compute the result of the operation and then return the final answer using the `final_answer` tool
+Code:
+```py
+result = 5 + 3 + 1294.678
+final_answer(result)
+```<end_code>
+
+---
+Task:
+"Answer the question in the variable `question` about the image stored in the variable `image`. The question is in French.
+You have been provided with these additional arguments, that you can access using the keys as variables in your python code:
+{'question': 'Quel est l'animal sur l'image?', 'image': 'path/to/image.jpg'}"
+
+Thought: I will use the following tools: `translator` to translate the question into English and then `image_qa` to answer the question on the input image.
+Code:
+```py
+translated_question = translator(question=question, src_lang="French", tgt_lang="English")
+print(f"The translated question is {translated_question}.")
+answer = image_qa(image=image, question=translated_question)
+final_answer(f"The answer is {answer}")
+```<end_code>
 
 ---
 Task:
@@ -276,6 +318,25 @@ Thought: I now have the final answer: from the webpages visited, Stanislaus Ulam
 Code:
 ```py
 final_answer("diminished")
+```<end_code>
+
+---
+Task: "Which city has the highest population: Guangzhou or Shanghai?"
+
+Thought: I need to get the populations for both cities and compare them: I will use the tool `search` to get the population of both cities.
+Code:
+```py
+for city in ["Guangzhou", "Shanghai"]:
+    print(f"Population {city}:", search(f"{city} population")
+```<end_code>
+Observation:
+Population Guangzhou: ['Guangzhou has a population of 15 million inhabitants as of 2021.']
+Population Shanghai: '26 million (2019)'
+
+Thought: Now I know that Shanghai has the highest population.
+Code:
+```py
+final_answer("Shanghai")
 ```<end_code>
 
 ---
