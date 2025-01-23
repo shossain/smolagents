@@ -432,7 +432,7 @@ class VLLMModel(Model):
             )
 
         sampling_params = SamplingParams(
-            n=1, temperature=0.3, max_tokens=1024, stop=stop_sequences
+            n=1, temperature=0.3, max_tokens=max_tokens, stop=stop_sequences
         )
 
         out = self.model.generate(
