@@ -54,11 +54,49 @@ def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
 
 
 # Initialize driver and agent
-chrome_options = webdriver.ChromeOptions()
-chrome_options.add_argument("--force-device-scale-factor=1")
-chrome_options.add_argument("--window-size=1000,1300")
-driver = helium.start_chrome(headless=False, options=chrome_options)
+firefox_options = webdriver.FirefoxOptions()
+firefox_options.set_preference("layout.css.devPixelsPerPx", "2.0")  # For scale factor
+firefox_options.add_argument("--width=1000")
+firefox_options.add_argument("--height=1300")
+firefox_options.set_preference("pdfjs.disabled", False)  # Enable built-in PDF viewer
+firefox_options.set_preference("pdfjs.highlightAll", False)  # Disable highlighting
+# chrome_options.add_argument('--disable-plugins-discovery')
+# chrome_options.add_argument('--plugins-enabled')
+# chrome_options.add_argument('--enable-pdf-viewer')
+driver = helium.start_firefox(headless=False, options=firefox_options)
 
+
+@tool
+def search_item_ctrl_f(text: str, nth_result: int = 1) -> None:
+    """
+    Searches for text on the current page via Ctrl + F and jumps to the nth occurrence.
+    Args:
+        text: The text to search for
+        nth_result: Which occurrence to jump to (default: 1)
+    """
+    # First switch to the PDF plugin
+    from selenium.webdriver.common.by import By
+    # embed = driver.find_element(By.CSS_SELECTOR, 'embed[type="application/pdf"]')
+    # driver.switch_to.frame(embed)
+    # sleep(1.)
+    # subembed = driver.find_element(By.CSS_SELECTOR, 'embed[type="application/pdf"]')
+    # driver.switch_to.frame(subembed)
+
+    # driver.execute_script("window.scrollBy(0, 400);")
+    # quit()
+
+    # Then switch to the nested HTML document inside the plugin
+    # internal_doc = driver.find_element(By.TAG_NAME, 'html')
+    # driver.switch_to.frame(internal_doc)
+
+    # Now you can interact with PDF viewer elements
+    elements = driver.find_elements(By.XPATH, f"//*[contains(text(), '{text}')]|//*[contains(., '{text}')]")
+    if nth_result > len(elements):
+        raise Exception(f"Match n°{nth_result} not found ({len(elements)} matches found)")
+    elem = elements[nth_result-1]
+    driver.execute_script("arguments[0].scrollIntoView(true);", elem)
+    driver.execute_script("arguments[0].style.backgroundColor = 'yellow';", elem)
+    return f"Focused on element {nth_result} of {len(elements)}"
 
 @tool
 def go_back() -> None:
@@ -110,7 +148,7 @@ def close_popups() -> None:
 
 
 agent = CodeAgent(
-    tools=[go_back, close_popups],
+    tools=[go_back, close_popups, search_item_ctrl_f],
     model=model,
     additional_authorized_imports=["helium"],
     step_callbacks=[save_screenshot],
@@ -146,7 +184,7 @@ Never try to login in a page.
 To scroll up or down, use scroll_down or scrol_up with as an argument the number of pixels to scroll from.
 Code:
 ```py
-scroll_down(num_pixels=100000) # This will probably scroll all the way down
+scroll_down(num_pixels=1200) # This will scroll one viewport down
 ```<end_code>
 When you have pop-ups with a cross icon to close, don't try to click the close icon by finding its element or targeting an 'X' element (this most often fails).
 Just use your built-in tool `close_popups` to close them:
@@ -172,12 +210,20 @@ final_answer("YOUR_ANSWER_HERE")
 If pages seem stuck on loading, you might have to wait, for instance `import time` and run `time.sleep(5.0)`. But don't overuse this!
 To find elements on page, DO NOT try code-based element searches like 'contributors = find_all(S("ol > li"))': just look at the latest screenshot you have and read it visually!
 Of course you can act on buttons like a user would do when navigating.
-After each code blob you write, you will be automatically provided with an updated screenshot of the browser and the current browser url. Don't kill the browser.
+After each code blob you write, you will be automatically provided with an updated screenshot of the browser and the current browser url.
+But beware that the screenshot will only be taken at the end of the whole action, it won't see intermediate states.
+Don't kill the browser.
 """
-agent.run(
-    """
+
+github_request = """
 I'm trying to find how hard I have to work to get a repo in github.com/trending.
 Can you navigate to the profile for the top author of the top trending repo, and give me their total number of commits over the last year?
 """
+
+pdf_search_request = """
+Please go to the o1 system card at https://cdn.openai.com/o1-system-card.pdf and give me all sentences containing the word "challenges".
+"""
+agent.run(
+    pdf_search_request
     + helium_instructions
 )
