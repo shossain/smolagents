@@ -381,11 +381,9 @@ class VLLMModel(Model):
     Parameters:
         model_id (`str`, *optional*, defaults to `"HuggingFaceTB/SmolLM2-1.7B-Instruct"`):
             The Hugging Face model ID to be used for inference. This can be a path or model identifier from the Hugging Face model hub.
-        device (`str`, optional, defaults to `"cuda"` if available, else `"cpu"`.):
-            The device to load the model on (`"cpu"` or `"cuda"`).
     """
 
-    def __init__(self, model_id: Optional[str] = None, device: Optional[str] = None):
+    def __init__(self, model_id: Optional[str] = None):
         super().__init__()
 
         default_model_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
