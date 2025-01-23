@@ -77,6 +77,7 @@ def search_item_ctrl_f(text: str, nth_result: int = 1) -> None:
     result += f"Focused on element {nth_result} of {len(elements)}"
     return result
 
+
 @tool
 def go_back() -> None:
     """Goes back to previous page."""
@@ -202,7 +203,4 @@ Can you navigate to the profile for the top author of the top trending repo, and
 pdf_search_request = """
 Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that talks about presidential elections.
 """
-agent.run(
-    pdf_search_request
-    + helium_instructions
-)
+agent.run(pdf_search_request + helium_instructions)

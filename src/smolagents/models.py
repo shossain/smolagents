@@ -205,7 +205,8 @@ def get_clean_message_list(
     Subsequent messages with the same role will be concatenated to a single message.
 
     Args:
-        message_list (`List[Dict[str, str]]`): List of chat messages.
+        message_list (`list[dict[str, str]]`): List of chat messages.
+        flatten_messages_as_text (`bool`, default `False`): Whether to flatten messages as text.
     """
     final_message_list = []
     message_list = deepcopy(message_list)  # Avoid modifying the original list
@@ -430,6 +431,7 @@ class TransformersModel(Model):
             The torch_dtype to initialize your model with.
         trust_remote_code (bool):
             Some models on the Hub require running remote code: for this model, you would have to set this flag to True.
+        flatten_messages_as_text (`bool`, default `True`): Whether to flatten messages as text.
         kwargs (dict, *optional*):
             Any additional keyword arguments that you want to use in model.generate(), for instance `max_new_tokens` or `device`.
     Raises:
@@ -497,6 +499,7 @@ class TransformersModel(Model):
             self.model_id = default_model_id
             self.tokenizer = AutoTokenizer.from_pretrained(default_model_id)
             self.model = AutoModelForCausalLM.from_pretrained(model_id, device_map=device_map, torch_dtype=torch_dtype)
+        self.flatten_messages_as_text = flatten_messages_as_text
 
     def make_stopping_criteria(self, stop_sequences: List[str], tokenizer) -> "StoppingCriteriaList":
         from transformers import StoppingCriteria, StoppingCriteriaList
@@ -533,7 +536,7 @@ class TransformersModel(Model):
             stop_sequences=stop_sequences,
             grammar=grammar,
             tools_to_call_from=tools_to_call_from,
-            flatten_messages_as_text=getattr(self, "flatten_messages_as_text", True),
+            flatten_messages_as_text=self.flatten_messages_as_text,
             **kwargs,
         )
 
