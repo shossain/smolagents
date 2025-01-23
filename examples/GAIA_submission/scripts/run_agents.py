@@ -35,10 +35,12 @@ def run_agent(
             print(e)
             final_result = result
         output= str(final_result)
+        for log in agent.logs:
+            log.agent_memory = None
         intermediate_steps = [
-                {key: value for key, value in log.items() if key != "agent_memory"}
-                for log in agent.logs
-            ]
+            str(log)
+            for log in agent.logs
+        ]
         # check for parsing errors which indicate the LLM failed to follow the ReACT format
         # this could be due to an issue with the tool calling format or ReACT formatting (i.e. Thought, Action, Observation, etc.)
         parsing_error = (
@@ -225,7 +227,7 @@ def answer_questions(
                     json.dump(d, f, default=serialize_agent_error)
                     f.write('\n')  # add a newline for JSONL format
         except Exception as e:
-            if "ould not read" in str(e): # ignore broken files for now
+            if "can't decode byte" in str(e): # ignore broken files for now
                 print(e)
             else:
                 raise Exception from e

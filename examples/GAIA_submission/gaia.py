@@ -128,7 +128,7 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
                 "content": question,
             },
         ]
-        return websurfer_model(messages)
+        return websurfer_model(messages).content
 
     def forward(self, file_path, question: Optional[str] = None) -> str:
 
@@ -162,7 +162,7 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
                 + question,
             },
         ]
-        return websurfer_model(messages)
+        return websurfer_model(messages).content
 
 
 surfer_agent = ToolCallingAgent(
