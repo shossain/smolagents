@@ -46,10 +46,10 @@ DEFAULT_CODEAGENT_REGEX_GRAMMAR = {
 }
 
 
-def get_dict_from_nested_dataclasses(obj):
+def get_dict_from_nested_dataclasses(obj, ignore_key=None):
     def convert(obj):
         if hasattr(obj, "__dataclass_fields__"):
-            return {k: convert(v) for k, v in asdict(obj).items()}
+            return {k: convert(v) for k, v in asdict(obj).items() if k != ignore_key}
         return obj
 
     return convert(obj)
@@ -77,7 +77,7 @@ class ChatMessageToolCall:
     type: str
 
     @classmethod
-    def from_hf_api(cls, tool_call) -> "ChatMessageToolCall":
+    def from_hf_api(cls, tool_call, raw) -> "ChatMessageToolCall":
         return cls(
             function=ChatMessageToolCallDefinition.from_hf_api(tool_call.function),
             id=tool_call.id,
@@ -90,16 +90,17 @@ class ChatMessage:
     role: str
     content: Optional[str] = None
     tool_calls: Optional[List[ChatMessageToolCall]] = None
+    raw: Optional[Any] = None  # Stores the raw output from the API
 
     def model_dump_json(self):
-        return json.dumps(get_dict_from_nested_dataclasses(self))
+        return json.dumps(get_dict_from_nested_dataclasses(self, ignore_key="raw"))
 
     @classmethod
-    def from_hf_api(cls, message) -> "ChatMessage":
+    def from_hf_api(cls, message, raw) -> "ChatMessage":
         tool_calls = None
         if getattr(message, "tool_calls", None) is not None:
             tool_calls = [ChatMessageToolCall.from_hf_api(tool_call) for tool_call in message.tool_calls]
-        return cls(role=message.role, content=message.content, tool_calls=tool_calls)
+        return cls(role=message.role, content=message.content, tool_calls=tool_calls, raw=raw)
 
 
 def parse_json_if_needed(arguments: Union[str, dict]) -> Union[str, dict]:
@@ -307,7 +308,7 @@ class HfApiModel(Model):
             )
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
-        message = ChatMessage.from_hf_api(response.choices[0].message)
+        message = ChatMessage.from_hf_api(response.choices[0].message, raw=response)
         if tools_to_call_from is not None:
             return parse_tool_args_if_needed(message)
         return message
@@ -539,7 +540,8 @@ class LiteLLMModel(Model):
             )
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
-        message = response.choices[0].message
+        message: ChatMessage = response.choices[0].message
+        message.raw = response
         if tools_to_call_from is not None:
             return parse_tool_args_if_needed(message)
         return message
@@ -614,7 +616,8 @@ class OpenAIServerModel(Model):
             )
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
-        message = response.choices[0].message
+        message: ChatMessage = response.choices[0].message
+        message.raw = response
         if tools_to_call_from is not None:
             return parse_tool_args_if_needed(message)
         return message

@@ -20,8 +20,17 @@ class AgentStepLog:
     def dict(self):
         raise NotImplementedError
 
-    def to_memory(self, **kwargs) -> List[Dict[str, Any]]:
+    def to_messages(self, **kwargs) -> List[Dict[str, Any]]:
         raise NotImplementedError
+
+
+@dataclass
+class Message:
+    role: MessageRole
+    content: str
+
+    def dict(self):
+        return {"role": self.role, "content": self.content}
 
 
 @dataclass
@@ -57,38 +66,29 @@ class ActionStep(AgentStepLog):
     def dict(self):
         return {
             "agent_memory": self.agent_memory,
-            "tool_calls": [tc.dict() for tc in self.tool_calls],
+            "tool_calls": [tc.dict() for tc in self.tool_calls] if self.tool_calls else [],
             "start_time": self.start_time,
             "end_time": self.end_time,
             "step": self.step,
-            "error": self.error.dict(),
+            "error": self.error.dict() if self.error else None,
             "duration": self.duration,
             "llm_output": self.llm_output,
             "observations": self.observations,
             "action_output": make_json_serializable(self.action_output),
         }
 
-    def to_memory(self, summary_mode: bool, return_memory: bool) -> List[Dict[str, Any]]:
+    def to_messages(self, summary_mode: bool, return_memory: bool) -> List[Dict[str, Any]]:
         memory = []
         if self.agent_memory is not None and return_memory:
-            thought_message = {
-                "role": MessageRole.SYSTEM,
-                "content": self.agent_memory,
-            }
-            memory.append(thought_message)
+            message = Message(MessageRole.SYSTEM, self.agent_memory)
+            memory.append(message.dict())
         if self.llm_output is not None and not summary_mode:
-            thought_message = {
-                "role": MessageRole.ASSISTANT,
-                "content": self.llm_output.strip(),
-            }
-            memory.append(thought_message)
+            message = Message(MessageRole.ASSISTANT, self.llm_output.strip())
+            memory.append(message.dict())
 
         if self.tool_calls is not None:
-            tool_call_message = {
-                "role": MessageRole.ASSISTANT,
-                "content": str([tc.dict() for tc in self.tool_calls]),
-            }
-            memory.append(tool_call_message)
+            message = Message(MessageRole.ASSISTANT, str([tc.dict() for tc in self.tool_calls]))
+            memory.append(message.dict())
 
         if self.error is not None:
             message_content = (
@@ -97,23 +97,20 @@ class ActionStep(AgentStepLog):
                 + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
             )
             if self.tool_calls is None:
-                tool_response_message = {
-                    "role": MessageRole.ASSISTANT,
-                    "content": message_content,
-                }
+                tool_response_message = Message(MessageRole.ASSISTANT, message_content)
             else:
-                tool_response_message = {
-                    "role": MessageRole.TOOL_RESPONSE,
-                    "content": f"Call id: {self.tool_calls[0].id}\n{message_content}",
-                }
-            memory.append(tool_response_message)
+                tool_response_message = Message(
+                    MessageRole.TOOL_RESPONSE, f"Call id: {self.tool_calls[0].id}\n{message_content}"
+                )
+
+            memory.append(tool_response_message.dict())
         else:
             if self.observations is not None and self.tool_calls is not None:
-                tool_response_message = {
-                    "role": MessageRole.TOOL_RESPONSE,
-                    "content": f"Call id: {self.tool_calls[0].id}\nObservation:\n{self.observations}",
-                }
-                memory.append(tool_response_message)
+                tool_response_message = Message(
+                    MessageRole.TOOL_RESPONSE,
+                    f"Call id: {self.tool_calls[0].id}\nObservation:\n{self.observations}",
+                )
+                memory.append(tool_response_message.dict())
         return memory
 
 
@@ -125,20 +122,14 @@ class PlanningStep(AgentStepLog):
     def dict(self, **kwargs):
         return {"plan": self.plan, "facts": self.facts}
 
-    def to_memory(self, summary_mode: bool) -> List[Dict[str, str]]:
+    def to_messages(self, summary_mode: bool, **kwargs) -> List[Dict[str, str]]:
         memory = []
-        thought_message = {
-            "role": MessageRole.ASSISTANT,
-            "content": f"[FACTS LIST]:\n{self.facts.strip()}",
-        }
-        memory.append(thought_message)
+        thought_message = Message(MessageRole.ASSISTANT, f"[FACTS LIST]:\n{self.facts.strip()}")
+        memory.append(thought_message.dict())
 
         if not summary_mode:
-            thought_message = {
-                "role": MessageRole.ASSISTANT,
-                "content": f"[PLAN]:\n{self.plan.strip()}",
-            }
-            memory.append(thought_message)
+            thought_message = Message(MessageRole.ASSISTANT, f"[PLAN]:\n{self.plan.strip()}")
+            memory.append(thought_message.dict())
         return memory
 
 
@@ -149,8 +140,9 @@ class TaskStep(AgentStepLog):
     def dict(self):
         return {"task": self.task}
 
-    def to_memory(self, summary_mode: bool) -> List[Dict[str, str]]:
-        return [{"role": MessageRole.USER, "content": f"New task:\n{self.task}"}]
+    def to_messages(self, summary_mode: bool, **kwargs) -> List[Dict[str, str]]:
+        message = Message(MessageRole.USER, f"New task:\n{self.task}")
+        return [message.dict()]
 
 
 @dataclass
@@ -160,9 +152,10 @@ class SystemPromptStep(AgentStepLog):
     def dict(self):
         return {"system_prompt": self.system_prompt}
 
-    def to_memory(self, summary_mode: bool) -> List[Dict[str, str]]:
+    def to_messages(self, summary_mode: bool, **kwargs) -> List[Dict[str, str]]:
         if not summary_mode:
-            return [{"role": MessageRole.SYSTEM, "content": self.system_prompt}]
+            message = Message(MessageRole.SYSTEM, self.system_prompt)
+            return [message.dict()]
         return []
 
 
@@ -226,8 +219,11 @@ class AgentLogger:
         """
         memory = []
         for step_log in self.steps:
-            memory.extend(step_log.to_memory(summary_mode=summary_mode, return_memory=return_memory))
+            memory.extend(step_log.to_messages(summary_mode=summary_mode, return_memory=return_memory))
         return memory
+
+    def dict(self):
+        return [step.dict() for step in self.steps]
 
     def replay(self, with_memory: bool = False):
         """Prints a replay of the agent's steps.

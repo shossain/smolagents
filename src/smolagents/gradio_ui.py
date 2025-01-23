@@ -19,9 +19,10 @@ import re
 import shutil
 from typing import Optional
 
-from .agents import ActionStep, MultiStepAgent
-from .types import AgentAudio, AgentImage, AgentText, handle_agent_output_types
-from .utils import AgentStepLog, _is_package_available
+from smolagents.agents import ActionStep, MultiStepAgent
+from smolagents.logger import AgentStepLog
+from smolagents.types import AgentAudio, AgentImage, AgentText, handle_agent_output_types
+from smolagents.utils import _is_package_available
 
 
 def pull_messages_from_step(step_log: AgentStepLog):

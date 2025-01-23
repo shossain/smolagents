@@ -25,6 +25,19 @@ from rich.rule import Rule
 from rich.syntax import Syntax
 from rich.text import Text
 
+from smolagents.logger import ActionStep, PlanningStep, SystemPromptStep, TaskStep, ToolCall
+from smolagents.types import AgentAudio, AgentImage, handle_agent_output_types
+from smolagents.utils import (
+    AgentError,
+    AgentExecutionError,
+    AgentGenerationError,
+    AgentMaxStepsError,
+    AgentParsingError,
+    parse_code_blobs,
+    parse_json_tool_call,
+    truncate_content,
+)
+
 from .default_tools import TOOL_MAPPING, FinalAnswerTool
 from .e2b_executor import E2BExecutor
 from .local_python_executor import (
@@ -58,22 +71,6 @@ from .tools import (
     DEFAULT_TOOL_DESCRIPTION_TEMPLATE,
     Tool,
     get_tool_description_with_args,
-)
-from .types import AgentAudio, AgentImage, handle_agent_output_types
-from .utils import (
-    ActionStep,
-    AgentError,
-    AgentExecutionError,
-    AgentGenerationError,
-    AgentMaxStepsError,
-    AgentParsingError,
-    PlanningStep,
-    SystemPromptStep,
-    TaskStep,
-    ToolCall,
-    parse_code_blobs,
-    parse_json_tool_call,
-    truncate_content,
 )
 
 
