@@ -497,6 +497,7 @@ class TransformersModel(Model):
             self.model_id = default_model_id
             self.tokenizer = AutoTokenizer.from_pretrained(default_model_id)
             self.model = AutoModelForCausalLM.from_pretrained(model_id, device_map=device_map, torch_dtype=torch_dtype)
+        self.flatten_messages_as_text = flatten_messages_as_text
 
     def make_stopping_criteria(self, stop_sequences: List[str], tokenizer) -> "StoppingCriteriaList":
         from transformers import StoppingCriteria, StoppingCriteriaList
@@ -533,7 +534,7 @@ class TransformersModel(Model):
             stop_sequences=stop_sequences,
             grammar=grammar,
             tools_to_call_from=tools_to_call_from,
-            flatten_messages_as_text=getattr(self, "flatten_messages_as_text", True),
+            flatten_messages_as_text=self.flatten_messages_as_text,
             **kwargs,
         )
 
