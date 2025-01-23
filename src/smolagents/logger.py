@@ -1,23 +1,9 @@
-import importlib
 import json
 from typing import Dict, List, Optional
 
 from rich.console import Console
 from rich.rule import Rule
 from rich.syntax import Syntax
-
-
-if importlib.util.find_spec("opentelemetry") is not None:
-    from openinference.instrumentation.smolagents import SmolagentsInstrumentor
-    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
-    endpoint = "http://0.0.0.0:6006/v1/traces"
-    trace_provider = TracerProvider()
-    trace_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-
-    SmolagentsInstrumentor().instrument(tracer_provider=trace_provider)
 
 from smolagents.models import MessageRole
 from smolagents.utils import ActionStep, LogLevel, PlanningStep, SystemPromptStep, TaskStep
@@ -141,33 +127,30 @@ class AgentLogger:
                     }
                     memory.append(tool_call_message)
 
-                if step_log.tool_calls is None and step_log.error is not None:
+                if step_log.error is not None:
                     message_content = (
                         "Error:\n"
                         + str(step_log.error)
                         + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
                     )
-                    tool_response_message = {
-                        "role": MessageRole.ASSISTANT,
-                        "content": message_content,
-                    }
-                if step_log.tool_calls is not None and (
-                    step_log.error is not None or step_log.observations is not None
-                ):
-                    if step_log.error is not None:
-                        message_content = (
-                            "Error:\n"
-                            + str(step_log.error)
-                            + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
-                        )
-                    elif step_log.observations is not None:
-                        message_content = f"Observation:\n{step_log.observations}"
-                    tool_response_message = {
-                        "role": MessageRole.TOOL_RESPONSE,
-                        "content": f"Call id: {(step_log.tool_calls[0].id if getattr(step_log.tool_calls[0], 'id') else 'call_0')}\n"
-                        + message_content,
-                    }
+                    if step_log.tool_calls is None:
+                        tool_response_message = {
+                            "role": MessageRole.ASSISTANT,
+                            "content": message_content,
+                        }
+                    else:
+                        tool_response_message = {
+                            "role": MessageRole.TOOL_RESPONSE,
+                            "content": f"Call id: {step_log.tool_calls[0].id}\n{message_content}",
+                        }
                     memory.append(tool_response_message)
+                else:
+                    if step_log.observations is not None and step_log.tool_calls is not None:
+                        tool_response_message = {
+                            "role": MessageRole.TOOL_RESPONSE,
+                            "content": f"Call id: {step_log.tool_calls[0].id}\nObservation:\n{step_log.observations}",
+                        }
+                        memory.append(tool_response_message)
 
         return memory
 
