@@ -381,7 +381,7 @@ class MultiStepAgent:
             )
         return rationale.strip(), action.strip()
 
-    def provide_final_answer(self, task: str, images: list[str]) -> str:
+    def provide_final_answer(self, task: str, images: Optional[list[str]]) -> str:
         """
         Provide the final answer to the task, based on the logs of the agent's interactions.
 
