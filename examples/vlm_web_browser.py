@@ -66,9 +66,6 @@ chrome_options.add_argument("--force-device-scale-factor=1")
 chrome_options.add_argument("--window-size=1000,1300")
 chrome_options.add_argument("--disable-pdf-viewer")
 
-# Add a unique user data directory
-chrome_options.add_argument("--user-data-dir=./")
-
 driver = helium.start_chrome(headless=False, options=chrome_options)
 
 # Initialize tools
