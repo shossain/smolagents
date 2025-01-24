@@ -243,7 +243,7 @@ class MultiStepAgent:
         ]
         try:
             chat_message: ChatMessage = self.model(self.input_messages)
-            self.lofger.log_chat_messages(chat_message)
+            self.logger.log_chat_messages(chat_message)
             return chat_message.content
         except Exception as e:
             return f"Error in generating final LLM output:\n{e}"

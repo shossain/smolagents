@@ -164,13 +164,12 @@ class LogLevel(IntEnum):
 class AgentLogger:
     def __init__(self, level: LogLevel = LogLevel.INFO):
         self.level = level
-        self.steps = []
-        self.chat_messages = []
+        self.steps: List[ActionStep] = []
+        self.chat_messages: List[ChatMessage] = []
         self.console = Console()
-        # todos:
-        # - add a way to save/load logs to/from a file
-        # - group agent logs and user logs
-        # - add log configurations details
+
+    def reset(self):
+        self.steps = []
 
     def log(self, *args, level: str | LogLevel = LogLevel.INFO, **kwargs):
         """Logs a message to the console.
@@ -187,7 +186,7 @@ class AgentLogger:
         """Logs an agent execution step for ulterior processing.
 
         Args:
-            step (_type_): _description_
+            step (AgentStepLog)
             position (int, optional): Position at which to insert the item.
                 Defaults to None, in which case item is added to the end of the list.
                 Should only be used to insert the system prompt at the start of the list.
@@ -198,14 +197,18 @@ class AgentLogger:
             assert position == 0, "Position should only be 0 for system prompt."
             self.steps = [step] + self.steps[1:]  # we replace the system prompt
 
-    def log_chat_messages(self, step: "ChatMessage"):
-        self.chat_messages.append(step)
-
-    def reset(self):
-        self.steps = []
+    def log_chat_messages(self, msg: "ChatMessage"):
+        """Logs all raw model outputs throughout the run, for debugging purposes."""
+        self.chat_messages.append(msg)
 
     def get_succinct_logs(self):
         return [{key: value for key, value in log.items() if key != "agent_memory"} for log in self.steps]
+
+    def get_extended_logs(self) -> list[dict]:
+        return {
+            "steps": [step.dict() for step in self.steps],
+            "chat_messages": [msg.dict() for msg in self.chat_messages],
+        }
 
     def write_inner_memory_from_logs(
         self,
@@ -222,11 +225,8 @@ class AgentLogger:
             memory.extend(step_log.to_messages(summary_mode=summary_mode, return_memory=return_memory))
         return memory
 
-    def dict(self):
-        return [step.dict() for step in self.steps]
-
     def replay(self, with_memory: bool = False):
-        """Prints a replay of the agent's steps.
+        """Prints a pretty replay of the agent's steps.
 
         Args:
             with_memory (bool, optional): If True, also displays the memory at each step. Defaults to False.
