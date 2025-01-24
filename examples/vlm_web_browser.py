@@ -14,16 +14,16 @@ import os
 
 
 # You could use an open model via an inference provider like Fireworks AI
-# model = OpenAIServerModel(
-#     api_key=os.getenv("FIREWORKS_API_KEY"),
-#     api_base="https://api.fireworks.ai/inference/v1",
-#     model_id="accounts/fireworks/models/qwen2-vl-72b-instruct",
-# )
-
-model = LiteLLMModel(
-    model_id="anthropic/claude-3-5-sonnet-latest",
-    api_key=os.getenv("ANTHROPIC_API_KEY"),
+model = OpenAIServerModel(
+    api_key=os.getenv("FIREWORKS_API_KEY"),
+    api_base="https://api.fireworks.ai/inference/v1",
+    model_id="accounts/fireworks/models/qwen2-vl-72b-instruct",
 )
+
+# model = LiteLLMModel(
+#     model_id="anthropic/claude-3-5-sonnet-latest",
+#     api_key=os.getenv("ANTHROPIC_API_KEY"),
+# )
 # model = TransformersModel(model_id="Qwen/Qwen2-VL-7B-Instruct")
 
 from io import BytesIO
@@ -201,6 +201,6 @@ Can you navigate to the profile for the top author of the top trending repo, and
 """
 
 pdf_search_request = """
-Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that talks about presidential elections.
+Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that talks about a constrution accident.
 """
 agent.run(pdf_search_request + helium_instructions)
