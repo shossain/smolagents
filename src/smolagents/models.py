@@ -191,6 +191,7 @@ def get_clean_message_list(
 ) -> List[Dict[str, str]]:
     """
     Subsequent messages with the same role will be concatenated to a single message.
+    output_message_list is a list of messages that will be used to generate the final message that is chat template compatible with transformers LLM chat template.
 
     Args:
         message_list (`list[dict[str, str]]`): List of chat messages.
@@ -198,7 +199,7 @@ def get_clean_message_list(
         convert_images_to_image_urls (`bool`, default `False`): Whether to convert images to image URLs.
         flatten_messages_as_text (`bool`, default `False`): Whether to flatten messages as text.
     """
-    final_message_list = []
+    output_message_list = []
     message_list = deepcopy(message_list)  # Avoid modifying the original list
 
     for message in message_list:
@@ -221,19 +222,19 @@ def get_clean_message_list(
                     else:
                         message["content"][i]["image"] = encode_image_base64(element["image"])
 
-        if len(final_message_list) > 0 and message["role"] == final_message_list[-1]["role"]:
+        if len(output_message_list) > 0 and message["role"] == output_message_list[-1]["role"]:
             assert isinstance(message["content"], list), "Error: wrong content:" + str(message["content"])
             if flatten_messages_as_text:
-                final_message_list[-1]["content"] += message["content"][0]["text"]
+                output_message_list[-1]["content"] += message["content"][0]["text"]
             else:
-                final_message_list[-1]["content"] += message["content"]
+                output_message_list[-1]["content"] += message["content"]
         else:
             if flatten_messages_as_text:
                 content = message["content"][0]["text"]
             else:
                 content = message["content"]
-            final_message_list.append({"role": message["role"], "content": content})
-    return final_message_list
+            output_message_list.append({"role": message["role"], "content": content})
+    return output_message_list
 
 
 class Model:

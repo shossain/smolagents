@@ -42,13 +42,13 @@ class ModelTests(unittest.TestCase):
         )
 
     def test_chatmessage_has_model_dumps_json(self):
-        message = ChatMessage("user", {"type": "text", "text": "Hello!"})
+        message = ChatMessage("user", [{"type": "text", "text": "Hello!"}])
         data = json.loads(message.model_dump_json())
-        assert data["content"] ==  {"type": "text", "text": "Hello!"}
+        assert data["content"] == [{"type": "text", "text": "Hello!"}]
 
     def test_get_hfapi_message_no_tool(self):
         model = HfApiModel(max_tokens=10)
-        messages = [{"role": "user", "content": {"type": "text", "text": "Hello!"}}]
+        messages = [{"role": "user", "content": [{"type": "text", "text": "Hello!"}]}]
         model(messages, stop_sequences=["great"])
 
     def test_transformers_message_no_tool(self):
@@ -59,7 +59,7 @@ class ModelTests(unittest.TestCase):
             do_sample=False,
             flatten_messages_as_text=True,
         )
-        messages = [{"role": "user", "content": {"type": "text", "text": "Hello!"}}]
+        messages = [{"role": "user", "content": [{"type": "text", "text": "Hello!"}]}]
         output = model(messages, stop_sequences=["great"]).content
         assert output == "assistant\nHello"
 
