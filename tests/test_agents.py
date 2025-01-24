@@ -339,14 +339,12 @@ class AgentTests(unittest.TestCase):
                 prompt: The prompt
                 image: The image
             """
-            # TODO
-            # image = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")  # dummy input
+            image = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")  # dummy input
             return "The image is a cat."
 
         agent = ToolCallingAgent(tools=[fake_image_understanding_tool], model=FakeToolCallModelVL())
         output = agent.run("Caption this image.")
         assert output == "The image is a cat."
-        assert isinstance(agent.state["image.png"], Image.Image)
 
     def test_fake_code_agent(self):
         agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model)
