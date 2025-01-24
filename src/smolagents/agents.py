@@ -14,6 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import inspect
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -166,8 +167,8 @@ class MultiStepAgent:
     While the objective is not reached, the agent will perform a cycle of action (given by the LLM) and observation (obtained from the environment).
 
     Args:
-        tools (`list[[`Tool`]]`): List of tools that the agent can use.
-        model (Callable[[list[dict[str, str]]], [`ChatMessage`]]): Model that will generate the agent's actions.
+        tools (`list[Tool]`): [`Tool`]s that the agent can use.
+        model (`Callable[[list[dict[str, str]]], ChatMessage]`): Model that will generate the agent's actions.
         system_prompt (`str`, *optional*): System prompt that will be used to generate the agent's actions.
         tool_description_template (`str`, *optional*): Template used to describe the tools in the system prompt.
         max_steps (`int`, default `6`): Maximum number of steps the agent can take to solve the task.
@@ -175,8 +176,8 @@ class MultiStepAgent:
         add_base_tools (`bool`, default `False`): Whether to add the base tools to the agent's tools.
         verbosity_level (`int`, default `1`): Level of verbosity of the agent's logs.
         grammar (`dict[str, str]`, *optional*): Grammar used to parse the LLM output.
-        managed_agents (`list`, *optional*): List of managed agents that the agent can call.
-        step_callbacks (`list[Callable]`, *optional*): List of callbacks that will be called at each step.
+        managed_agents (`list`, *optional*): Managed agents that the agent can call.
+        step_callbacks (`list[Callable]`, *optional*): Callbacks that will be called at each step.
         planning_interval (`int`, *optional*): Interval at which the agent will run a planning step.
     """
 
@@ -243,10 +244,13 @@ class MultiStepAgent:
 
         return self.system_prompt
 
-    def write_inner_memory_from_logs(self, summary_mode: Optional[bool] = False) -> List[Dict[str, str]]:
+    def write_inner_memory_from_logs(self, summary_mode: bool = False) -> List[Dict[str, str]]:
         """
         Reads past llm_outputs, actions, and observations or errors from the logs into a series of messages
         that can be used as input to the LLM.
+
+        Args:
+            summary_mode (`bool`): Whether to write a summary of the logs or the full logs.
         """
         memory = []
         for i, step_log in enumerate(self.logs):
@@ -378,9 +382,16 @@ class MultiStepAgent:
             )
         return rationale.strip(), action.strip()
 
-    def provide_final_answer(self, task, images) -> str:
+    def provide_final_answer(self, task: str, images: Optional[list[str]]) -> str:
         """
-        This method provides a final answer to the task, based on the logs of the agent's interactions.
+        Provide the final answer to the task, based on the logs of the agent's interactions.
+
+        Args:
+            task (`str`): Task to perform.
+            images (`list[str]`, *optional*): Paths to image(s).
+
+        Returns:
+            `str`: Final answer to the task.
         """
         if images:
             self.input_messages[0]["content"] = {
@@ -469,14 +480,14 @@ class MultiStepAgent:
         additional_args: Optional[Dict] = None,
     ):
         """
-        Runs the agent for the given task.
+        Run the agent for the given task.
 
         Args:
-            task (`str`): The task to perform.
+            task (`str`): Task to perform.
             stream (`bool`): Whether to run in a streaming way.
             reset (`bool`): Whether to reset the conversation or keep it going from previous run.
             single_step (`bool`): Whether to run the agent in one-shot fashion.
-            images (`list`, *optional*): List of paths to image(s).
+            images (`list[str]`, *optional*): Paths to image(s).
             additional_args (`dict`): Any other variables that you want to pass to the agent run, for instance images or dataframes. Give them clear names!
 
         Example:
@@ -537,11 +548,11 @@ You have been provided with these additional arguments, that you can access usin
 
     def _run(self, task: str, images: List[str] | None = None) -> Generator[str, None, None]:
         """
-        Runs the agent in streaming mode and returns a generator of all the steps.
+        Run the agent in streaming mode and returns a generator of all the steps.
 
         Args:
-            task (`str`): The task to perform.
-            images (`List`): List of paths to image(s).
+            task (`str`): Task to perform.
+            images (`list[str]`): Paths to image(s).
         """
         final_answer = None
         self.step_number = 0
@@ -577,7 +588,11 @@ You have been provided with these additional arguments, that you can access usin
                 step_log.duration = step_log.end_time - step_start_time
                 self.logs.append(step_log)
                 for callback in self.step_callbacks:
-                    callback(step_log, self)
+                    # For compatibility with old callbacks that don't take the agent as an argument
+                    if len(inspect.signature(callback).parameters) == 1:
+                        callback(step_log)
+                    else:
+                        callback(step_log=step_log, agent=self)
                 self.step_number += 1
                 yield step_log
 
@@ -593,7 +608,11 @@ You have been provided with these additional arguments, that you can access usin
             final_step_log.end_time = time.time()
             final_step_log.duration = step_log.end_time - step_start_time
             for callback in self.step_callbacks:
-                callback(final_step_log, self)
+                # For compatibility with old callbacks that don't take the agent as an argument
+                if len(inspect.signature(callback).parameters) == 1:
+                    callback(final_step_log)
+                else:
+                    callback(step_log=final_step_log, agent=self)
             yield final_step_log
 
         yield handle_agent_output_types(final_answer)
@@ -603,7 +622,7 @@ You have been provided with these additional arguments, that you can access usin
         Used periodically by the agent to plan the next steps to reach the objective.
 
         Args:
-            task (`str`): The task to perform
+            task (`str`): Task to perform.
             is_first_step (`bool`): If this step is not the first one, the plan should be an update over a previous plan.
             step (`int`): The number of the current step, used as an indication for the LLM.
         """
