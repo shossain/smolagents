@@ -57,7 +57,7 @@ telemetry = [
   "arize-phoenix",
   "opentelemetry-sdk", 
   "opentelemetry-exporter-otlp",
-  "openinference-instrumentation-smolagents"
+  "openinference-instrumentation-smolagents>=0.1.1"
 ]
 quality = [
   "ruff>=0.9.0",
