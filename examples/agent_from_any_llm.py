@@ -1,6 +1,6 @@
 from typing import Optional
 
-from smolagents import LiteLLMModel, TransformersModel, HfApiModel, tool
+from smolagents import HfApiModel, LiteLLMModel, TransformersModel, tool
 from smolagents.agents import CodeAgent, ToolCallingAgent
 
 
@@ -15,11 +15,7 @@ if chosen_inference == "hf_api":
     model = HfApiModel(model_id="meta-llama/Llama-3.3-70B-Instruct")
 
 elif chosen_inference == "transformers":
-    model = TransformersModel(
-        model_id="HuggingFaceTB/SmolLM2-1.7B-Instruct",
-        device_map="auto",
-        max_new_tokens=1000
-    )
+    model = TransformersModel(model_id="HuggingFaceTB/SmolLM2-1.7B-Instruct", device_map="auto", max_new_tokens=1000)
 
 elif chosen_inference == "ollama":
     model = LiteLLMModel(
