@@ -154,7 +154,7 @@ class SystemPromptStep(AgentStepLog):
 
     def to_messages(self, summary_mode: bool, **kwargs) -> List[Dict[str, str]]:
         if not summary_mode:
-            message = Message(MessageRole.SYSTEM, self.system_prompt)
+            message = Message(MessageRole.SYSTEM, self.system_prompt.strip())
             return [message.dict()]
         return []
 
