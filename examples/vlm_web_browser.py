@@ -33,6 +33,12 @@ model = OpenAIServerModel(
 #     api_key=os.getenv("OPENAI_API_KEY"),
 # )
 
+# locally a good candidate is Qwen2-VL-7B-Instruct
+# model = TransformersModel(
+#     model_id="Qwen/Qwen2-VL-7B-Instruct",
+#     device_map = "auto",
+# )
+
 
 # Prepare callback
 def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
@@ -59,6 +65,10 @@ chrome_options = webdriver.ChromeOptions()
 chrome_options.add_argument("--force-device-scale-factor=1")
 chrome_options.add_argument("--window-size=1000,1300")
 chrome_options.add_argument("--disable-pdf-viewer")
+
+# Add a unique user data directory
+chrome_options.add_argument("--user-data-dir=./")
+
 driver = helium.start_chrome(headless=False, options=chrome_options)
 
 # Initialize tools
