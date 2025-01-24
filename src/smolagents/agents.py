@@ -464,7 +464,7 @@ You have been provided with these additional arguments, that you can access usin
             final_step_log = ActionStep(
                 step_number=self.step_number, error=AgentMaxStepsError(error_message, self.logger)
             )
-            self.logger.log.append(final_step_log)
+            self.logger.log(final_step_log)
             final_step_log = ActionStep(error=AgentMaxStepsError(error_message, self.logger))
             final_step_log.action_output = final_answer
             final_step_log.end_time = time.time()

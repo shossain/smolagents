@@ -385,8 +385,8 @@ class AgentTests(unittest.TestCase):
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, AgentText)
         assert output == "got an error"
-        assert "Code execution failed at line 'error_function()'" in str(agent.logs[2].error)
-        assert "ValueError" in str(agent.logs)
+        assert "Code execution failed at line 'error_function()'" in str(agent.logger.steps[2].error)
+        assert "ValueError" in str(agent.logger.steps)
 
     def test_code_agent_syntax_error_show_offending_lines(self):
         agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model_syntax_error)
