@@ -394,26 +394,44 @@ class MultiStepAgent:
             `str`: Final answer to the task.
         """
         if images:
-            self.input_messages[0]["content"] = {
-                "type": "text",
-                "text": "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:",
-            }
+            self.input_messages[0]["content"] = [
+                {
+                    "type": "text",
+                    "text": "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:",
+                }
+            ]
             self.input_messages[0]["content"].append({"type": "image"})
             self.input_messages += self.write_inner_memory_from_logs()[1:]
             self.input_messages += [
                 {
                     "role": MessageRole.USER,
-                    "content": f"Based on the above, please provide an answer to the following user request:\n{task}",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"Based on the above, please provide an answer to the following user request:\n{task}",
+                        }
+                    ],
                 }
             ]
         else:
-            self.input_messages[0]["content"] = (
-                "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:"
-            )
+            self.input_messages[0]["content"] = [
+                {
+                    "type": "text",
+                    "text": "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:",
+                }
+            ]
             self.input_messages += self.write_inner_memory_from_logs()[1:]
-            self.input_messages += {
-                "content": f"Based on the above, please provide an answer to the following user request:\n{task}"
-            }
+            self.input_messages += [
+                {
+                    "role": MessageRole.USER,
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"Based on the above, please provide an answer to the following user request:\n{task}",
+                        }
+                    ],
+                }
+            ]
         try:
             return self.model(self.input_messages).content
         except Exception as e:

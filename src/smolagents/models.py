@@ -201,7 +201,6 @@ def get_clean_message_list(
     """
     output_message_list = []
     message_list = deepcopy(message_list)  # Avoid modifying the original list
-
     for message in message_list:
         role = message["role"]
         if role not in MessageRole.roles():
