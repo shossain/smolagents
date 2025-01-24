@@ -29,13 +29,12 @@ def pull_messages_from_step(step_log: AgentStepLog,):
     import gradio as gr
 
     if isinstance(step_log, ActionStep):
-        # log the Step number first 
+        # Output the step number
         step_num = f"Step {step_log.step}" if step_log.step is not None else ""
         yield gr.ChatMessage(role="assistant", content=f"**{step_num}**")
         
         # First yield the thought/reasoning from the LLM
         if hasattr(step_log, "llm_output") and step_log.llm_output is not None:
-        #if step_log.llm_output is not None:
             # Clean up the LLM output
             llm_output = step_log.llm_output.strip()
             # Remove any trailing <end_code> and extra backticks, handling multiple possible formats
@@ -47,13 +46,18 @@ def pull_messages_from_step(step_log: AgentStepLog,):
         
         # For tool calls, create a parent message
         if hasattr(step_log, "tool_calls") and step_log.tool_calls is not None:
-        #if step_log.tool_calls is not None:
             first_tool_call = step_log.tool_calls[0]
             used_code = first_tool_call.name == "python_interpreter"
             parent_id = f"call_{len(step_log.tool_calls)}"
             
             # Tool call becomes the parent message with timing info
-            content = first_tool_call.arguments.strip()
+            # First we will handle arguments based on type
+            args = first_tool_call.arguments
+            if isinstance(args, dict):
+                content = str(args.get('answer', str(args)))
+            else:
+                content = str(args).strip()
+
             if used_code:
                 # Clean up the content by removing any end code tags
                 content = re.sub(r'```.*?\n', '', content)  # Remove existing code blocks
@@ -66,7 +70,7 @@ def pull_messages_from_step(step_log: AgentStepLog,):
                 role="assistant",
                 content=content,
                 metadata={
-                    "title": f"🛠️ Used tool {first_tool_call.name}", # + (f" ({token_str})" if token_str else ""),
+                    "title": f"🛠️ Used tool {first_tool_call.name}",
                     "id": parent_id,
                     "status": "pending",
                 }
@@ -74,25 +78,24 @@ def pull_messages_from_step(step_log: AgentStepLog,):
             yield parent_message_tool
 
             # Nesting execution logs under the tool call if they exist
-            if hasattr(step_log, "observations") and (step_log.observations is not None and step_log.observations.strip()): # Only yield execution logs if there's actual content 
-            #if step_log.observations is not None and step_log.observations.strip(): # Only yield execution logs if there's actual content
+            if hasattr(step_log, "observations") and (step_log.observations is not None and step_log.observations.strip()): # Only yield execution logs if there's actual content
                 log_content = step_log.observations.strip()
-                log_content = re.sub(r'^Execution logs:\s*', '', log_content)
-                yield gr.ChatMessage(
-                    role="assistant",
-                    content=f"{log_content}",
-                    metadata={
-                        "title": "📝 Execution Logs",
-                        "parent_id": parent_id,
-                        "status": "done"
-                    }
-                )
+                if log_content:
+                    log_content = re.sub(r'^Execution logs:\s*', '', log_content)
+                    yield gr.ChatMessage(
+                        role="assistant",
+                        content=f"{log_content}",
+                        metadata={
+                            "title": "📝 Execution Logs",
+                            "parent_id": parent_id,
+                            "status": "done"
+                        }
+                    )
                 
             # Nesting any errors under the tool call
             if hasattr(step_log, "error") and step_log.error is not None:
-            #if step_log.error is not None:
                 yield gr.ChatMessage(
-                    role="assistant", 
+                    role="assistant",
                     content=str(step_log.error),
                     metadata={
                         "title": "💥 Error",
@@ -101,10 +104,10 @@ def pull_messages_from_step(step_log: AgentStepLog,):
                     }
                 )
 
-            # Update parent message metadata to done status (without yielding a new message)
+            # Update parent message metadata to done status without yielding a new message
             parent_message_tool.metadata["status"] = "done"
 
-        # Handle standalone errors (not from tool calls)
+        # Handle standalone errors but not from tool calls
         elif hasattr(step_log, "error") and step_log.error is not None:
             yield gr.ChatMessage(
                 role="assistant",
@@ -112,16 +115,17 @@ def pull_messages_from_step(step_log: AgentStepLog,):
                 metadata={"title": "💥 Error"}
             )
 
-        # Calculate token information
-        token_str = ""
+        # Calculate duration and token information
+        step_footnote = f"{step_num}"
         if hasattr(step_log, "input_token_count") and hasattr(step_log, "output_token_count"):
             token_str = f" | Input-tokens:{step_log.input_token_count:,} | Output-tokens:{step_log.output_token_count:,}"
+            step_footnote += token_str
         if hasattr(step_log, "duration"):
             step_duration = f" | Duration: {round(float(step_log.duration), 2)}" if step_log.duration else None
-        step_footnote = f"{step_num} {step_duration} {token_str}" 
+            step_footnote += step_duration
         step_footnote = f"""<span style="color: #bbbbc2; font-size: 12px;">{step_footnote}</span> """
-        yield gr.ChatMessage(role="assistant", content=f"{step_footnote}") 
-        yield gr.ChatMessage(role="assistant", content=f"-----") 
+        yield gr.ChatMessage(role="assistant", content=f"{step_footnote}")
+        yield gr.ChatMessage(role="assistant", content="-----")
 
 
 def stream_to_gradio(
