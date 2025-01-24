@@ -60,7 +60,7 @@ class ActionStep(AgentStepLog):
     tool_calls: List[ToolCall] | None = None
     start_time: float | None = None
     end_time: float | None = None
-    step: int | None = None
+    step_number: int | None = None
     error: AgentError | None = None
     duration: float | None = None
     llm_output: str | None = None
@@ -75,7 +75,7 @@ class ActionStep(AgentStepLog):
             "tool_calls": [tc.dict() for tc in self.tool_calls] if self.tool_calls else [],
             "start_time": self.start_time,
             "end_time": self.end_time,
-            "step": self.step,
+            "step": self.step_number,
             "error": self.error.dict() if self.error else None,
             "duration": self.duration,
             "llm_output": self.llm_output,
