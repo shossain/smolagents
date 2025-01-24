@@ -592,7 +592,7 @@ You have been provided with these additional arguments, that you can access usin
                     if len(inspect.signature(callback).parameters) == 1:
                         callback(step_log)
                     else:
-                        callback(step_log, self)
+                        callback(step_log=step_log, agent=self)
                 self.step_number += 1
                 yield step_log
 
@@ -612,7 +612,7 @@ You have been provided with these additional arguments, that you can access usin
                 if len(inspect.signature(callback).parameters) == 1:
                     callback(final_step_log)
                 else:
-                    callback(final_step_log, self)
+                    callback(step_log=final_step_log, agent=self)
             yield final_step_log
 
         yield handle_agent_output_types(final_answer)
