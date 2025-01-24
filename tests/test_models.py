@@ -44,7 +44,7 @@ class ModelTests(unittest.TestCase):
     def test_chatmessage_has_model_dumps_json(self):
         message = ChatMessage("user", {"type": "text", "text": "Hello!"})
         data = json.loads(message.model_dump_json())
-        assert data["content"] ==  {"type": "text", "text": "Hello!"}
+        assert data["content"] == {"type": "text", "text": "Hello!"}
 
     def test_get_hfapi_message_no_tool(self):
         model = HfApiModel(max_tokens=10)
