@@ -14,6 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import inspect
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -587,7 +588,11 @@ You have been provided with these additional arguments, that you can access usin
                 step_log.duration = step_log.end_time - step_start_time
                 self.logs.append(step_log)
                 for callback in self.step_callbacks:
-                    callback(step_log, self)
+                    # For compatibility with old callbacks that don't take the agent as an argument
+                    if len(inspect.signature(callback).parameters) == 1:
+                        callback(step_log)
+                    else:
+                        callback(step_log, self)
                 self.step_number += 1
                 yield step_log
 
@@ -603,7 +608,11 @@ You have been provided with these additional arguments, that you can access usin
             final_step_log.end_time = time.time()
             final_step_log.duration = step_log.end_time - step_start_time
             for callback in self.step_callbacks:
-                callback(final_step_log, self)
+                # For compatibility with old callbacks that don't take the agent as an argument
+                if len(inspect.signature(callback).parameters) == 1:
+                    callback(final_step_log)
+                else:
+                    callback(final_step_log, self)
             yield final_step_log
 
         yield handle_agent_output_types(final_answer)
