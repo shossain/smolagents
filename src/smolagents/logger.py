@@ -83,7 +83,7 @@ class ActionStep(AgentStepLog):
             "action_output": make_json_serializable(self.action_output),
         }
 
-    def to_messages(self, summary_mode: bool, return_memory: bool) -> List[Dict[str, Any]]:
+    def to_messages(self, summary_mode: bool = False, return_memory: bool = False) -> List[Dict[str, Any]]:
         memory = []
         if self.agent_memory is not None and return_memory:
             message = Message(MessageRole.SYSTEM, self.agent_memory)
