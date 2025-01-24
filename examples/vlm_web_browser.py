@@ -162,11 +162,12 @@ If you try to interact with an element and it's not found, you'll get a LookupEr
 In general stop your action after each button click to see what happens on your screenshot.
 Never try to login in a page.
 
-To scroll up or down, use scroll_down or scrol_up with as an argument the number of pixels to scroll from.
+To scroll up or down, use scroll_down or scroll_up with as an argument the number of pixels to scroll from.
 Code:
 ```py
 scroll_down(num_pixels=1200) # This will scroll one viewport down
 ```<end_code>
+
 When you have pop-ups with a cross icon to close, don't try to click the close icon by finding its element or targeting an 'X' element (this most often fails).
 Just use your built-in tool `close_popups` to close them:
 Code:
