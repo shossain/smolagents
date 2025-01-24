@@ -21,7 +21,7 @@ console = Console()
 @dataclass
 class Message:
     role: MessageRole
-    content: str
+    content: str | list[dict]
 
     def dict(self):
         return asdict(self)
@@ -65,6 +65,7 @@ class ActionStep(AgentStepLog):
     duration: float | None = None
     llm_output: str | None = None
     observations: str | None = None
+    observations_images: List[str] | None = None
     action_output: Any = None
 
     def dict(self):
@@ -88,11 +89,13 @@ class ActionStep(AgentStepLog):
             message = Message(MessageRole.SYSTEM, self.agent_memory)
             memory.append(message.dict())
         if self.llm_output is not None and not summary_mode:
-            message = Message(MessageRole.ASSISTANT, self.llm_output.strip())
+            message = Message(MessageRole.ASSISTANT, [{"type": "text", "text": self.llm_output.strip()}])
             memory.append(message.dict())
 
         if self.tool_calls is not None:
-            message = Message(MessageRole.ASSISTANT, str([tc.dict() for tc in self.tool_calls]))
+            message = Message(
+                MessageRole.ASSISTANT, [{"type": "text", "text": str([tc.dict() for tc in self.tool_calls])}]
+            )
             memory.append(message.dict())
 
         if self.error is not None:
@@ -102,7 +105,7 @@ class ActionStep(AgentStepLog):
                 + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
             )
             if self.tool_calls is None:
-                tool_response_message = Message(MessageRole.ASSISTANT, message_content)
+                tool_response_message = Message(MessageRole.ASSISTANT, [{"type": "text", "text": message_content}])
             else:
                 tool_response_message = Message(
                     MessageRole.TOOL_RESPONSE, f"Call id: {self.tool_calls[0].id}\n{message_content}"
@@ -116,6 +119,19 @@ class ActionStep(AgentStepLog):
                     f"Call id: {self.tool_calls[0].id}\nObservation:\n{self.observations}",
                 )
                 memory.append(tool_response_message.dict())
+        if self.observations_images:
+            thought_message_image = Message(
+                MessageRole.USER,
+                [{"type": "text", "text": "Here are the observed images:"}]
+                + [
+                    {
+                        "type": "image",
+                        "image": image,
+                    }
+                    for image in self.observations_images
+                ],
+            )
+            memory.append(thought_message_image.dict())
         return memory
 
 
@@ -138,9 +154,15 @@ class PlanningStep(AgentStepLog):
 @dataclass
 class TaskStep(AgentStepLog):
     task: str
+    task_images: List[str] | None = None
 
     def to_messages(self, summary_mode: bool, **kwargs) -> List[Dict[str, str]]:
-        message = Message(MessageRole.USER, f"New task:\n{self.task}")
+        content = [{"type": "text", "text": f"New task:\n{self.task}"}]
+        if self.task_images:
+            for image in self.task_images:
+                content.append({"type": "image", "image": image})
+
+        message = Message(MessageRole.USER, content)
         return [message.dict()]
 
 
@@ -150,7 +172,7 @@ class SystemPromptStep(AgentStepLog):
 
     def to_messages(self, summary_mode: bool, **kwargs) -> List[Dict[str, str]]:
         if not summary_mode:
-            message = Message(MessageRole.SYSTEM, self.system_prompt.strip())
+            message = Message(MessageRole.SYSTEM, [{"type": "text", "text": self.system_prompt.strip()}])
             return [message.dict()]
         return []
 
