@@ -1,7 +1,7 @@
 import json
 from dataclasses import asdict, dataclass
 from enum import IntEnum
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from rich.console import Console
 from rich.rule import Rule
@@ -9,6 +9,10 @@ from rich.syntax import Syntax
 
 from smolagents.models import MessageRole
 from smolagents.utils import AgentError, make_json_serializable
+
+
+if TYPE_CHECKING:
+    from smolagents.models import ChatMessage
 
 
 console = Console()
@@ -161,6 +165,7 @@ class AgentLogger:
     def __init__(self, level: LogLevel = LogLevel.INFO):
         self.level = level
         self.steps = []
+        self.chat_messages = []
         self.console = Console()
         # todos:
         # - add a way to save/load logs to/from a file
@@ -192,6 +197,9 @@ class AgentLogger:
         else:
             assert position == 0, "Position should only be 0 for system prompt."
             self.steps = [step] + self.steps[1:]  # we replace the system prompt
+
+    def log_chat_messages(self, step: "ChatMessage"):
+        self.chat_messages.append(step)
 
     def reset(self):
         self.steps = []

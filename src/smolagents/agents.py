@@ -242,7 +242,9 @@ class MultiStepAgent:
             }
         ]
         try:
-            return self.model(self.input_messages)
+            chat_message: ChatMessage = self.model(self.input_messages)
+            self.lofger.log_chat_messages(chat_message)
+            return chat_message.content
         except Exception as e:
             return f"Error in generating final LLM output:\n{e}"
 
@@ -448,8 +450,9 @@ You have been provided with these additional arguments, that you can access usin
 Now begin!""",
             }
 
-            model_output = self.model([message_prompt_facts, message_prompt_task])
-            answer_facts = model_output.content
+            chat_message: ChatMessage = self.model([message_prompt_facts, message_prompt_task])
+            self.logger.log_chat_messages(chat_message)
+            answer_facts = chat_message.content
 
             message_system_prompt_plan = {
                 "role": MessageRole.SYSTEM,
@@ -464,10 +467,12 @@ Now begin!""",
                     answer_facts=answer_facts,
                 ),
             }
-            answer_plan = self.model(
+            chat_message_plan: ChatMessage = self.model(
                 [message_system_prompt_plan, message_user_prompt_plan],
                 stop_sequences=["<end_plan>"],
-            ).content
+            )
+            self.logger.log_chat_messages(chat_message_plan)
+            answer_plan = chat_message_plan.content
 
             final_plan_redaction = f"""Here is the plan of action that I will follow to solve the task:
 ```
@@ -497,7 +502,11 @@ Now begin!""",
                 "role": MessageRole.USER,
                 "content": USER_PROMPT_FACTS_UPDATE,
             }
-            facts_update = self.model([facts_update_system_prompt] + agent_memory + [facts_update_message]).content
+            chat_message: ChatMessage = self.model(
+                [facts_update_system_prompt] + agent_memory + [facts_update_message]
+            )
+            self.logger.log_chat_messages(chat_message)
+            facts_update = chat_message.content
 
             # Redact updated plan
             plan_update_message = {
@@ -514,10 +523,12 @@ Now begin!""",
                     remaining_steps=(self.max_steps - step),
                 ),
             }
-            plan_update = self.model(
+            chat_message: ChatMessage = self.model(
                 [plan_update_message] + agent_memory + [plan_update_message_user],
                 stop_sequences=["<end_plan>"],
-            ).content
+            )
+            self.logger.log_chat_messages(chat_message)
+            plan_update = chat_message.content
 
             # Log final facts and plan
             final_plan_redaction = PLAN_UPDATE_FINAL_PLAN_REDACTION.format(task=task, plan_update=plan_update)
@@ -569,11 +580,12 @@ class ToolCallingAgent(MultiStepAgent):
         log_entry.agent_memory = agent_memory.copy()
 
         try:
-            model_message = self.model(
+            model_message: ChatMessage = self.model(
                 self.input_messages,
                 tools_to_call_from=list(self.tools.values()),
                 stop_sequences=["Observation:"],
             )
+            self.logger.log_chat_messages(model_message)
             if model_message.tool_calls is None or len(model_message.tool_calls) == 0:
                 raise Exception("Model did not call any tools. Call `final_answer` tool to return a final answer.")
             tool_call = model_message.tool_calls[0]
@@ -720,11 +732,13 @@ class CodeAgent(MultiStepAgent):
 
         try:
             additional_args = {"grammar": self.grammar} if self.grammar is not None else {}
-            llm_output = self.model(
+            chat_message: ChatMessage = self.model(
                 self.input_messages,
                 stop_sequences=["<end_code>", "Observation:"],
                 **additional_args,
-            ).content
+            )
+            self.logger.log_chat_messages(chat_message)
+            llm_output = chat_message.content
             log_entry.llm_output = llm_output
         except Exception as e:
             raise AgentGenerationError(f"Error in generating model output:\n{e}", self.logger)
