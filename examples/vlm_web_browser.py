@@ -37,6 +37,7 @@ model = OpenAIServerModel(
 # model = TransformersModel(
 #     model_id="Qwen/Qwen2-VL-7B-Instruct",
 #     device_map = "auto",
+#     flatten_messages_as_text=False
 # )
 
 
