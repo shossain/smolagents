@@ -62,7 +62,7 @@ driver = helium.start_chrome(headless=False, options=chrome_options)
 
 
 @tool
-def search_item_ctrl_f(text: str, nth_result: int = 1) -> None:
+def search_item_ctrl_f(text: str, nth_result: int = 1) -> str:
     """
     Searches for text on the current page via Ctrl + F and jumps to the nth occurrence.
     Args:
@@ -86,7 +86,7 @@ def go_back() -> None:
 
 
 @tool
-def close_popups() -> None:
+def close_popups() -> str:
     """
     Closes any visible modal or pop-up on the page. Use this to dismiss pop-up windows! This does not work on cookie consent banners.
     """
