@@ -549,11 +549,6 @@ class TransformersModel(Model):
         if max_new_tokens:
             completion_kwargs["max_new_tokens"] = max_new_tokens
 
-        if stop_sequences:
-            completion_kwargs["stopping_criteria"] = self.make_stopping_criteria(
-                stop_sequences, tokenizer=self.processor if hasattr(self, "processor") else self.tokenizer
-            )
-
         if hasattr(self, "processor"):
             images = [Image.open(image) for image in images] if images else None
             prompt_tensor = self.processor.apply_chat_template(
@@ -576,7 +571,12 @@ class TransformersModel(Model):
 
         prompt_tensor = prompt_tensor.to(self.model.device)
         count_prompt_tokens = prompt_tensor["input_ids"].shape[1]
-        out = self.model.generate(**prompt_tensor, **completion_kwargs)
+
+        out = self.model.generate(
+            **prompt_tensor,
+            stopping_criteria=(self.make_stopping_criteria(stop_sequences) if stop_sequences else None),
+            **completion_kwargs,
+        )
         generated_tokens = out[0, count_prompt_tokens:]
         if hasattr(self, "processor"):
             output = self.processor.decode(generated_tokens, skip_special_tokens=True)
