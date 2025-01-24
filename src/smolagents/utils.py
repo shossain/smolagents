@@ -101,6 +101,7 @@ class AgentGenerationError(AgentError):
 
 
 def make_json_serializable(obj: Any) -> Any:
+    """Recursive function to make objects JSON serializable"""
     if obj is None:
         return None
     elif isinstance(obj, (str, int, float, bool)):
