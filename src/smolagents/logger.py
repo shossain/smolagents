@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import IntEnum
 from typing import Any, Dict, List, Optional
 
@@ -15,10 +15,8 @@ console = Console()
 
 
 class AgentStepLog:
-    pass
-
     def dict(self):
-        raise NotImplementedError
+        return asdict(self)
 
     def to_messages(self, **kwargs) -> List[Dict[str, Any]]:
         raise NotImplementedError
@@ -30,7 +28,7 @@ class Message:
     content: str
 
     def dict(self):
-        return {"role": self.role, "content": self.content}
+        return asdict(self)
 
 
 @dataclass
@@ -39,7 +37,7 @@ class ToolCall:
     arguments: Any
     id: str
 
-    def dict(self) -> str:
+    def dict(self):
         return {
             "id": self.id,
             "type": "function",
@@ -64,6 +62,7 @@ class ActionStep(AgentStepLog):
     action_output: Any = None
 
     def dict(self):
+        # We overwrite the method to parse the tool_calls and action_output manually
         return {
             "agent_memory": self.agent_memory,
             "tool_calls": [tc.dict() for tc in self.tool_calls] if self.tool_calls else [],
@@ -119,9 +118,6 @@ class PlanningStep(AgentStepLog):
     plan: str
     facts: str
 
-    def dict(self, **kwargs):
-        return {"plan": self.plan, "facts": self.facts}
-
     def to_messages(self, summary_mode: bool, **kwargs) -> List[Dict[str, str]]:
         memory = []
         thought_message = Message(MessageRole.ASSISTANT, f"[FACTS LIST]:\n{self.facts.strip()}")
@@ -137,9 +133,6 @@ class PlanningStep(AgentStepLog):
 class TaskStep(AgentStepLog):
     task: str
 
-    def dict(self):
-        return {"task": self.task}
-
     def to_messages(self, summary_mode: bool, **kwargs) -> List[Dict[str, str]]:
         message = Message(MessageRole.USER, f"New task:\n{self.task}")
         return [message.dict()]
@@ -148,9 +141,6 @@ class TaskStep(AgentStepLog):
 @dataclass
 class SystemPromptStep(AgentStepLog):
     system_prompt: str
-
-    def dict(self):
-        return {"system_prompt": self.system_prompt}
 
     def to_messages(self, summary_mode: bool, **kwargs) -> List[Dict[str, str]]:
         if not summary_mode:
