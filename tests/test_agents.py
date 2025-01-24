@@ -331,6 +331,8 @@ class AgentTests(unittest.TestCase):
     def test_toolcalling_agent_handles_image_inputs(self):
         from PIL import Image
 
+        image = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")  # dummy input
+
         @tool
         def fake_image_understanding_tool(prompt: str, image: Image.Image) -> str:
             """Tool that creates a caption for an image.
@@ -339,11 +341,10 @@ class AgentTests(unittest.TestCase):
                 prompt: The prompt
                 image: The image
             """
-            image = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png")  # dummy input
             return "The image is a cat."
 
         agent = ToolCallingAgent(tools=[fake_image_understanding_tool], model=FakeToolCallModelVL())
-        output = agent.run("Caption this image.")
+        output = agent.run("Caption this image.", images=[image])
         assert output == "The image is a cat."
 
     def test_fake_code_agent(self):
