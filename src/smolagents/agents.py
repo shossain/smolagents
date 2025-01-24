@@ -203,8 +203,19 @@ class MultiStepAgent:
 
         return self.system_prompt
 
-    def write_inner_memory_from_logs(self, summary_mode: Optional[bool] = False) -> List[Dict[str, str]]:
-        return self.logger.write_inner_memory_from_logs(summary_mode=summary_mode)
+    def write_inner_memory_from_logs(
+        self,
+        summary_mode: Optional[bool] = False,
+    ) -> List[Dict[str, str]]:
+        """
+        Reads past llm_outputs, actions, and observations or errors from the logs into a series of messages
+        that can be used as input to the LLM. Adds a number of keywords (such as PLAN, error, etc) to help
+        the LLM.
+        """
+        memory = []
+        for step_log in self.logger.steps:
+            memory.extend(step_log.to_messages(summary_mode=summary_mode))
+        return memory
 
     def extract_action(self, llm_output: str, split_token: str) -> Tuple[str, str]:
         """

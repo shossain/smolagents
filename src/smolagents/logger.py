@@ -1,7 +1,7 @@
 import json
 from dataclasses import asdict, dataclass
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from rich.console import Console
 from rich.rule import Rule
@@ -232,21 +232,6 @@ class AgentLogger:
             "chat_messages": [msg.dict() for msg in self.chat_messages],
         }
 
-    def write_inner_memory_from_logs(
-        self,
-        summary_mode: Optional[bool] = False,
-        return_memory: Optional[bool] = False,
-    ) -> List[Dict[str, str]]:
-        """
-        Reads past llm_outputs, actions, and observations or errors from the logs into a series of messages
-        that can be used as input to the LLM. Adds a number of keywords (such as PLAN, error, etc) to help
-        the LLM.
-        """
-        memory = []
-        for step_log in self.steps:
-            memory.extend(step_log.to_messages(summary_mode=summary_mode, return_memory=return_memory))
-        return memory
-
     def replay(self, with_memory: bool = False):
         """Prints a pretty replay of the agent's steps.
 
@@ -254,7 +239,10 @@ class AgentLogger:
             with_memory (bool, optional): If True, also displays the memory at each step. Defaults to False.
                 Careful: will increase log length exponentially. Use only for debugging.
         """
-        memory = self.write_inner_memory_from_logs(return_memory=with_memory)
+        memory = []
+        for step_log in self.logger.steps:
+            memory.extend(step_log.to_messages(return_memory=with_memory))
+
         self.console.log("Replaying the agent's steps:")
         ix = 0
         for step in memory:
