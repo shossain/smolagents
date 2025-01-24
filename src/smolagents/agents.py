@@ -242,7 +242,7 @@ class MultiStepAgent:
             }
         ]
         try:
-            return self.model(self.input_messages).content
+            return self.model(self.input_messages)
         except Exception as e:
             return f"Error in generating final LLM output:\n{e}"
 
@@ -448,7 +448,8 @@ You have been provided with these additional arguments, that you can access usin
 Now begin!""",
             }
 
-            answer_facts = self.model([message_prompt_facts, message_prompt_task]).content
+            model_output = self.model([message_prompt_facts, message_prompt_task])
+            answer_facts = model_output.content
 
             message_system_prompt_plan = {
                 "role": MessageRole.SYSTEM,

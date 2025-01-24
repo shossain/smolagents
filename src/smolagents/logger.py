@@ -14,14 +14,6 @@ from smolagents.utils import AgentError, make_json_serializable
 console = Console()
 
 
-class AgentStepLog:
-    def dict(self):
-        return asdict(self)
-
-    def to_messages(self, **kwargs) -> List[Dict[str, Any]]:
-        raise NotImplementedError
-
-
 @dataclass
 class Message:
     role: MessageRole
@@ -46,6 +38,16 @@ class ToolCall:
                 "arguments": make_json_serializable(self.arguments),
             },
         }
+
+
+class AgentStepLog:
+    raw: Any  # This is a placeholder for the raw data that the agent logs
+
+    def dict(self):
+        return asdict(self)
+
+    def to_messages(self, **kwargs) -> List[Dict[str, Any]]:
+        raise NotImplementedError
 
 
 @dataclass
