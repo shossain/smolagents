@@ -220,7 +220,7 @@ def get_clean_message_list(
                         }
                     else:
                         message["content"][i]["image"] = encode_image_base64(element["image"])
-
+        breakpoint()
         if len(final_message_list) > 0 and message["role"] == final_message_list[-1]["role"]:
             assert isinstance(message["content"], list), "Error: wrong content:" + str(message["content"])
             if flatten_messages_as_text:
@@ -228,7 +228,7 @@ def get_clean_message_list(
             else:
                 final_message_list[-1]["content"] += message["content"]
         else:
-            if flatten_messages_as_text:
+            if flatten_messages_as_text and len(final_message_list) > 0:
                 content = message["content"][0]["text"]
             else:
                 content = message["content"]
