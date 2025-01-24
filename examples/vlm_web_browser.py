@@ -1,9 +1,14 @@
+from io import BytesIO
 from time import sleep
 
 import helium
 from dotenv import load_dotenv
 from PIL import Image
 from selenium import webdriver
+from selenium.common.exceptions import ElementNotInteractableException, TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, TransformersModel, tool  # noqa: F401
 from smolagents.agents import ActionStep
@@ -13,27 +18,22 @@ load_dotenv()
 import os
 
 
-# You could use an open model via an inference provider like Fireworks AI
+# Let's use Qwen-2VL-72B via an inference provider like Fireworks AI
+
 model = OpenAIServerModel(
     api_key=os.getenv("FIREWORKS_API_KEY"),
     api_base="https://api.fireworks.ai/inference/v1",
     model_id="accounts/fireworks/models/qwen2-vl-72b-instruct",
 )
 
+# You can also use a close model
+
 # model = LiteLLMModel(
-#     model_id="anthropic/claude-3-5-sonnet-latest",
-#     api_key=os.getenv("ANTHROPIC_API_KEY"),
+#     model_id="gpt-4o",
+#     api_key=os.getenv("OPENAI_API_KEY"),
 # )
-# model = TransformersModel(model_id="Qwen/Qwen2-VL-7B-Instruct")
 
-from io import BytesIO
-
-from selenium.common.exceptions import ElementNotInteractableException, TimeoutException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-
-
+# Prepare callback
 def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
     sleep(1.0)  # Let JavaScript animations happen before taking the screenshot
     driver = helium.get_driver()
@@ -60,6 +60,7 @@ chrome_options.add_argument("--window-size=1000,1300")
 chrome_options.add_argument("--disable-pdf-viewer")
 driver = helium.start_chrome(headless=False, options=chrome_options)
 
+# Initialize tools
 
 @tool
 def search_item_ctrl_f(text: str, nth_result: int = 1) -> str:
@@ -197,12 +198,15 @@ But beware that the screenshot will only be taken at the end of the whole action
 Don't kill the browser.
 """
 
+# Run the agent!
+
 github_request = """
 I'm trying to find how hard I have to work to get a repo in github.com/trending.
 Can you navigate to the profile for the top author of the top trending repo, and give me their total number of commits over the last year?
+""" # The agent is able to achieve this request only when powered by GPT-4o or Claude-3.5-sonnet.
+
+search_request = """
+Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that mentions a construction accident.
 """
 
-pdf_search_request = """
-Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that talks about a constrution accident.
-"""
-agent.run(pdf_search_request + helium_instructions)
+agent.run(search_request + helium_instructions)
