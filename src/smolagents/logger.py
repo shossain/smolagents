@@ -240,8 +240,8 @@ class AgentLogger:
                 Careful: will increase log length exponentially. Use only for debugging.
         """
         memory = []
-        for step_log in self.logger.steps:
-            memory.extend(step_log.to_messages(return_memory=with_memory))
+        for step_log in self.steps:
+            memory.extend(step_log.to_messages(return_memory=with_memory, summary_mode=False))
 
         self.console.log("Replaying the agent's steps:")
         ix = 0
