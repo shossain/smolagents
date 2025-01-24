@@ -162,6 +162,20 @@ class MultiStepAgent:
     """
     Agent class that solves the given task step by step, using the ReAct framework:
     While the objective is not reached, the agent will perform a cycle of action (given by the LLM) and observation (obtained from the environment).
+
+    Args:
+        tools (`list[Tool]`): [`Tool`]s that the agent can use.
+        model (`Callable[[list[dict[str, str]]], ChatMessage]`): Model that will generate the agent's actions.
+        system_prompt (`str`, *optional*): System prompt that will be used to generate the agent's actions.
+        tool_description_template (`str`, *optional*): Template used to describe the tools in the system prompt.
+        max_steps (`int`, default `6`): Maximum number of steps the agent can take to solve the task.
+        tool_parser (`Callable`, *optional*): Function used to parse the tool calls from the LLM output.
+        add_base_tools (`bool`, default `False`): Whether to add the base tools to the agent's tools.
+        verbosity_level (`int`, default `1`): Level of verbosity of the agent's logs.
+        grammar (`dict[str, str]`, *optional*): Grammar used to parse the LLM output.
+        managed_agents (`list`, *optional*): Managed agents that the agent can call.
+        step_callbacks (`list[Callable]`, *optional*): Callbacks that will be called at each step.
+        planning_interval (`int`, *optional*): Interval at which the agent will run a planning step.
     """
 
     def __init__(
@@ -294,10 +308,11 @@ class MultiStepAgent:
                         + str(step_log.error)
                         + "\nNow let's retry: take care not to repeat previous errors! If you have retried several times, try a completely different approach.\n"
                     )
-                    tool_response_message = {
+                    error_message = {
                         "role": MessageRole.ASSISTANT,
                         "content": message_content,
                     }
+                    memory.append(error_message)
                 if step_log.tool_calls is not None and (
                     step_log.error is not None or step_log.observations is not None
                 ):
@@ -655,6 +670,14 @@ Now begin!""",
 class ToolCallingAgent(MultiStepAgent):
     """
     This agent uses JSON-like tool calls, using method `model.get_tool_call` to leverage the LLM engine's tool calling capabilities.
+
+    Args:
+        tools (`list[Tool]`): [`Tool`]s that the agent can use.
+        model (`Callable[[list[dict[str, str]]], ChatMessage]`): Model that will generate the agent's actions.
+        system_prompt (`str`, *optional*): System prompt that will be used to generate the agent's actions.
+        planning_interval (`int`, *optional*): Interval at which the agent will run a planning step.
+        **kwargs: Additional keyword arguments.
+
     """
 
     def __init__(
@@ -761,6 +784,18 @@ class ToolCallingAgent(MultiStepAgent):
 class CodeAgent(MultiStepAgent):
     """
     In this agent, the tool calls will be formulated by the LLM in code format, then parsed and executed.
+
+    Args:
+        tools (`list[Tool]`): [`Tool`]s that the agent can use.
+        model (`Callable[[list[dict[str, str]]], ChatMessage]`): Model that will generate the agent's actions.
+        system_prompt (`str`, *optional*): System prompt that will be used to generate the agent's actions.
+        grammar (`dict[str, str]`, *optional*): Grammar used to parse the LLM output.
+        additional_authorized_imports (`list[str]`, *optional*): Additional authorized imports for the agent.
+        planning_interval (`int`, *optional*): Interval at which the agent will run a planning step.
+        use_e2b_executor (`bool`, default `False`): Whether to use the E2B executor for remote code execution.
+        max_print_outputs_length (`int`, *optional*): Maximum length of the print outputs.
+        **kwargs: Additional keyword arguments.
+
     """
 
     def __init__(
@@ -819,9 +854,11 @@ class CodeAgent(MultiStepAgent):
         super().initialize_system_prompt()
         self.system_prompt = self.system_prompt.replace(
             "{{authorized_imports}}",
-            "You can import from any package you want."
-            if "*" in self.authorized_imports
-            else str(self.authorized_imports),
+            (
+                "You can import from any package you want."
+                if "*" in self.authorized_imports
+                else str(self.authorized_imports)
+            ),
         )
         return self.system_prompt
 
@@ -934,6 +971,19 @@ class CodeAgent(MultiStepAgent):
 
 
 class ManagedAgent:
+    """
+    ManagedAgent class that manages an agent and provides additional prompting and run summaries.
+
+    Args:
+        agent (`object`): The agent to be managed.
+        name (`str`): The name of the managed agent.
+        description (`str`): A description of the managed agent.
+        additional_prompting (`Optional[str]`, *optional*): Additional prompting for the managed agent. Defaults to None.
+        provide_run_summary (`bool`, *optional*): Whether to provide a run summary after the agent completes its task. Defaults to False.
+        managed_agent_prompt (`Optional[str]`, *optional*): Custom prompt for the managed agent. Defaults to None.
+
+    """
+
     def __init__(
         self,
         agent,

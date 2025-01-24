@@ -101,6 +101,18 @@ class ChatMessage:
             tool_calls = [ChatMessageToolCall.from_hf_api(tool_call) for tool_call in message.tool_calls]
         return cls(role=message.role, content=message.content, tool_calls=tool_calls)
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "ChatMessage":
+        if data.get("tool_calls"):
+            tool_calls = [
+                ChatMessageToolCall(
+                    function=ChatMessageToolCallDefinition(**tc["function"]), id=tc["id"], type=tc["type"]
+                )
+                for tc in data["tool_calls"]
+            ]
+            data["tool_calls"] = tool_calls
+        return cls(**data)
+
 
 def parse_json_if_needed(arguments: Union[str, dict]) -> Union[str, dict]:
     if isinstance(arguments, dict):
@@ -136,7 +148,7 @@ tool_role_conversions = {
 }
 
 
-def get_json_schema(tool: Tool) -> Dict:
+def get_tool_json_schema(tool: Tool) -> Dict:
     properties = deepcopy(tool.inputs)
     required = []
     for key, value in properties.items():
@@ -200,7 +212,6 @@ class Model:
         self.last_input_token_count = None
         self.last_output_token_count = None
         # Set default values for common parameters
-        kwargs.setdefault("temperature", 0.5)
         kwargs.setdefault("max_tokens", 4096)
         self.kwargs = kwargs
 
@@ -240,7 +251,7 @@ class Model:
         if tools_to_call_from:
             completion_kwargs.update(
                 {
-                    "tools": [get_json_schema(tool) for tool in tools_to_call_from],
+                    "tools": [get_tool_json_schema(tool) for tool in tools_to_call_from],
                     "tool_choice": "required",
                 }
             )
@@ -298,6 +309,8 @@ class HfApiModel(Model):
             If not provided, the class will try to use environment variable 'HF_TOKEN', else use the token stored in the Hugging Face CLI configuration.
         timeout (`int`, *optional*, defaults to 120):
             Timeout for the API request, in seconds.
+        **kwargs:
+            Additional keyword arguments to pass to the Hugging Face API.
 
     Raises:
         ValueError:
@@ -371,10 +384,10 @@ class TransformersModel(Model):
             The device_map to initialize your model with.
         torch_dtype (`str`, *optional*):
             The torch_dtype to initialize your model with.
-        trust_remote_code (bool):
+        trust_remote_code (bool, default `False`):
             Some models on the Hub require running remote code: for this model, you would have to set this flag to True.
-        kwargs (dict, *optional*):
-            Any additional keyword arguments that you want to use in model.generate(), for instance `max_new_tokens` or `device`.
+        **kwargs:
+            Additional keyword arguments to pass to `model.generate()`, for instance `max_new_tokens` or `device`.
     Raises:
         ValueError:
             If the model name is not provided.
@@ -486,7 +499,7 @@ class TransformersModel(Model):
         if tools_to_call_from is not None:
             prompt_tensor = self.tokenizer.apply_chat_template(
                 messages,
-                tools=[get_json_schema(tool) for tool in tools_to_call_from],
+                tools=[get_tool_json_schema(tool) for tool in tools_to_call_from],
                 return_tensors="pt",
                 return_dict=True,
                 add_generation_prompt=True,
@@ -541,9 +554,9 @@ class LiteLLMModel(Model):
     Parameters:
         model_id (`str`):
             The model identifier to use on the server (e.g. "gpt-3.5-turbo").
-        api_base (`str`):
+        api_base (`str`, *optional*):
             The base URL of the OpenAI-compatible API server.
-        api_key (`str`):
+        api_key (`str`, *optional*):
             The API key to use for authentication.
         **kwargs:
             Additional keyword arguments to pass to the OpenAI API.
@@ -596,7 +609,9 @@ class LiteLLMModel(Model):
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
 
-        message = ChatMessage(**response.choices[0].message.model_dump(include={"role", "content", "tool_calls"}))
+        message = ChatMessage.from_dict(
+            response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
+        )
 
         if tools_to_call_from is not None:
             return parse_tool_args_if_needed(message)
@@ -613,7 +628,7 @@ class OpenAIServerModel(Model):
             The base URL of the OpenAI-compatible API server.
         api_key (`str`, *optional*):
             The API key to use for authentication.
-        custom_role_conversions (`Dict{str, str]`, *optional*):
+        custom_role_conversions (`dict[str, str]`, *optional*):
             Custom role conversion mapping to convert message roles in others.
             Useful for specific models that do not support specific message roles like "system".
         **kwargs:
@@ -665,7 +680,9 @@ class OpenAIServerModel(Model):
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
 
-        message = ChatMessage(**response.choices[0].message.model_dump(include={"role", "content", "tool_calls"}))
+        message = ChatMessage.from_dict(
+            response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
+        )
         if tools_to_call_from is not None:
             return parse_tool_args_if_needed(message)
         return message
@@ -683,7 +700,7 @@ class AzureOpenAIServerModel(OpenAIServerModel):
             The API key to use for authentication. If not provided, it will be inferred from the `AZURE_OPENAI_API_KEY` environment variable.
         api_version (`str`, *optional*):
             The API version to use. If not provided, it will be inferred from the `OPENAI_API_VERSION` environment variable.
-        custom_role_conversions (`Dict[str, str]`, *optional*):
+        custom_role_conversions (`dict[str, str]`, *optional*):
             Custom role conversion mapping to convert message roles in others.
             Useful for specific models that do not support specific message roles like "system".
         **kwargs:
