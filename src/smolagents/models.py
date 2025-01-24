@@ -527,7 +527,11 @@ class TransformersModel(Model):
             output = remove_stop_sequences(output, stop_sequences)
 
         if tools_to_call_from is None:
-            return ChatMessage(role="assistant", content=output)
+            return ChatMessage(
+                role="assistant",
+                content=output,
+                raw={"out": out, "completion_kwargs": completion_kwargs},
+            )
         else:
             if "Action:" in output:
                 output = output.split("Action:", 1)[1].strip()
@@ -544,6 +548,7 @@ class TransformersModel(Model):
                         function=ChatMessageToolCallDefinition(name=tool_name, arguments=tool_arguments),
                     )
                 ],
+                raw={"out": out, "completion_kwargs": completion_kwargs},
             )
 
 
