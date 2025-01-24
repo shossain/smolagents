@@ -572,9 +572,16 @@ class TransformersModel(Model):
         prompt_tensor = prompt_tensor.to(self.model.device)
         count_prompt_tokens = prompt_tensor["input_ids"].shape[1]
 
+        if stop_sequences:
+            stopping_criteria = self.make_stopping_criteria(
+                stop_sequences, tokenizer=self.processor if hasattr(self, "processor") else self.tokenizer
+            )
+        else:
+            stopping_criteria = None
+
         out = self.model.generate(
             **prompt_tensor,
-            stopping_criteria=(self.make_stopping_criteria(stop_sequences) if stop_sequences else None),
+            stopping_criteria=stopping_criteria,
             **completion_kwargs,
         )
         generated_tokens = out[0, count_prompt_tokens:]
