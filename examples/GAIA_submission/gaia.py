@@ -174,9 +174,10 @@ surfer_agent = ToolCallingAgent(
     planning_interval=4,
 )
 
+from scripts.vlm_web_browser import vision_browser_agent
 
 search_agent = ManagedAgent(
-    surfer_agent,
+    vision_browser_agent,
     "web_search",
     description="""A team member that will browse the internet to answer your question.
 Ask him for all your web-search related questions, but he's unable to do problem-solving.
@@ -239,7 +240,7 @@ manager_agent = CodeAgent(
 results = answer_questions(
     eval_ds,
     manager_agent,
-    "code_gpt4o_22-01_managedagent-summary_planning",
+    "code_o1_25-01_visioon",
     output_folder=f"{OUTPUT_DIR}/{SET}",
     visual_inspection_tool = VisualQAGPT4Tool(),
     text_inspector_tool = ti_tool,
