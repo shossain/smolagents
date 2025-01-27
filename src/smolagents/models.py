@@ -279,7 +279,7 @@ class Model:
             completion_kwargs["grammar"] = grammar
 
         # Handle tools parameter
-        if tools_to_call_from and len(tools_to_call_from) > 0:
+        if tools_to_call_from:
             completion_kwargs.update(
                 {
                     "tools": [get_tool_json_schema(tool) for tool in tools_to_call_from],
@@ -465,7 +465,7 @@ class TransformersModel(Model):
         if device_map is None:
             device_map = "cuda" if torch.cuda.is_available() else "cpu"
         logger.info(f"Using device: {device_map}")
-        self.is_vlm = False
+        self._is_vlm = False
         try:
             self.model = AutoModelForCausalLM.from_pretrained(
                 model_id,
@@ -478,7 +478,7 @@ class TransformersModel(Model):
             if "Unrecognized configuration class" in str(e):
                 self.model = AutoModelForImageTextToText.from_pretrained(model_id, device_map=device_map)
                 self.processor = AutoProcessor.from_pretrained(model_id)
-                self.is_vlm = True
+                self._is_vlm = True
             else:
                 raise e
         except Exception as e:
@@ -523,7 +523,7 @@ class TransformersModel(Model):
             messages=messages,
             stop_sequences=stop_sequences,
             grammar=grammar,
-            flatten_messages_as_text=(not self.is_vlm),
+            flatten_messages_as_text=(not self._is_vlm),
             **kwargs,
         )
 
