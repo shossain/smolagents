@@ -591,7 +591,6 @@ class TransformersModel(Model):
         else:
             if "Action:" in output:
                 output = output.split("Action:", 1)[1].strip()
-            print(output, type(output))
             try:
                 start_index = output.index("{")
                 end_index = output.rindex("}")
