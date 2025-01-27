@@ -34,7 +34,7 @@ Your team then worked diligently to address that request. Read below a transcrip
     messages.append(
         {
             "role": MessageRole.USER,
-            "content": f"""
+            "content": [{"type": "text", "text": f"""
 Read the above conversation and output a FINAL ANSWER to the question. The question is repeated here for convenience:
 
 {original_task}
@@ -46,7 +46,7 @@ If you are asked for a number, express it numerically (i.e., with digits rather 
 If you are asked for a string, don't use articles or abbreviations (e.g. for cities), unless specified otherwise. Don't output any final sentence punctuation such as '.', '!', or '?'.
 If you are asked for a comma separated list, apply the above rules depending on whether the elements are numbers or strings.
 If you are unable to determine the final answer, output 'FINAL ANSWER: Unable to determine'
-""",
+"""}],
         }
     )
 
@@ -57,7 +57,7 @@ If you are unable to determine the final answer, output 'FINAL ANSWER: Unable to
 
     if "unable to determine" in final_answer.lower():
         messages.append({"role": MessageRole.ASSISTANT, "content": response })
-        messages.append({"role": MessageRole.USER, "content": """
+        messages.append({"role": MessageRole.USER, "content": [{"type": "text", "text": """
 I understand that a definitive answer could not be determined. Please make a well-informed EDUCATED GUESS based on the conversation.
 
 To output the educated guess, use the following template: EDUCATED GUESS: [YOUR EDUCATED GUESS]
@@ -66,7 +66,7 @@ ADDITIONALLY, your EDUCATED GUESS MUST adhere to any formatting instructions spe
 If you are asked for a number, express it numerically (i.e., with digits rather than words), don't use commas, and don't include units such as $ or percent signs unless specified otherwise.
 If you are asked for a string, don't use articles or abbreviations (e.g. for cities), unless specified otherwise. Don't output any final sentence punctuation such as '.', '!', or '?'.
 If you are asked for a comma separated list, apply the above rules depending on whether the elements are numbers or strings.
-""".strip()})
+""".strip()}]})
 
         response = model(messages).content
         print("\n>>>Making an educated guess.\n", response)

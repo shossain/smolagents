@@ -174,7 +174,7 @@ surfer_agent = ToolCallingAgent(
     planning_interval=4,
 )
 
-from scripts.vlm_web_browser import vision_browser_agent
+from scripts.vlm_web_browser import vision_browser_agent, helium_instructions
 
 search_agent = ManagedAgent(
     vision_browser_agent,
@@ -183,7 +183,7 @@ search_agent = ManagedAgent(
 Ask him for all your web-search related questions, but he's unable to do problem-solving.
 Provide him as much context as possible, in particular if you need to search on a specific timeframe!
 And don't hesitate to provide him with a complex search task, like finding a difference between two webpages.""",
-    additional_prompting="""You can navigate to .txt or .pdf online files using your 'visit_page' tool.
+    additional_prompting= helium_instructions + """You can navigate to .txt or .pdf online files.
 If it's another format, you can return the url of the file, and your manager will handle the download and inspection from there.
 Additionally, if after some searching you find out that you need more information to answer the question, you can use `final_answer` with your request for clarification as argument to request for more information.""",
     provide_run_summary=True
