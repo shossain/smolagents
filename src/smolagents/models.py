@@ -279,7 +279,7 @@ class Model:
             completion_kwargs["grammar"] = grammar
 
         # Handle tools parameter
-        if tools_to_call_from:
+        if tools_to_call_from and len(tools_to_call_from) > 0:
             completion_kwargs.update(
                 {
                     "tools": [get_tool_json_schema(tool) for tool in tools_to_call_from],
@@ -418,9 +418,6 @@ class TransformersModel(Model):
             The torch_dtype to initialize your model with.
         trust_remote_code (bool, default `False`):
             Some models on the Hub require running remote code: for this model, you would have to set this flag to True.
-        flatten_messages_as_text (`bool`, default `True`):
-            Whether to flatten messages as text: this must be sent to False to use VLMs (as opposed to LLMs for which this flag can be ignored).
-            Caution: this parameter is experimental and will be removed in an upcoming PR as we auto-detect VLMs.
         kwargs (dict, *optional*):
             Any additional keyword arguments that you want to use in model.generate(), for instance `max_new_tokens` or `device`.
         **kwargs:
@@ -526,7 +523,6 @@ class TransformersModel(Model):
             messages=messages,
             stop_sequences=stop_sequences,
             grammar=grammar,
-            tools_to_call_from=tools_to_call_from,
             flatten_messages_as_text=(not self.is_vlm),
             **kwargs,
         )
@@ -595,9 +591,20 @@ class TransformersModel(Model):
         else:
             if "Action:" in output:
                 output = output.split("Action:", 1)[1].strip()
-            parsed_output = json.loads(output)
-            tool_name = parsed_output.get("tool_name")
-            tool_arguments = parsed_output.get("tool_arguments")
+            print(output, type(output))
+            try:
+                start_index = output.index("{")
+                end_index = output.rindex("}")
+                output = output[start_index : end_index + 1]
+            except Exception as e:
+                raise Exception("No json blob found in output!") from e
+
+            try:
+                parsed_output = json.loads(output)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Tool call '{output}' has an invalid JSON structure: {e}")
+            tool_name = parsed_output.get("name")
+            tool_arguments = parsed_output.get("arguments")
             return ChatMessage(
                 role="assistant",
                 content="",
