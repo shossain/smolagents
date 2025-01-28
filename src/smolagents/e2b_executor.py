@@ -14,9 +14,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import re
 import base64
 import pickle
+import re
 import textwrap
 from io import BytesIO
 from typing import Any, List, Tuple
@@ -47,7 +47,7 @@ class E2BExecutor:
 
         self.custom_tools = {}
         self.final_answer = False
-        self.final_answer_pattern = re.compile(r'^final_answer\((.*)\)$')
+        self.final_answer_pattern = re.compile(r"^final_answer\((.*)\)$")
         self.sbx = Sandbox()  # "qywp2ctmu2q7jzprcf4j")
         # TODO: validate installing agents package or not
         # print("Installing agents package on remote executor...")

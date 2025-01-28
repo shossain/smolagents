@@ -25,9 +25,7 @@ class MethodChecker(ast.NodeVisitor):
         self.class_attributes = class_attributes
         self.errors = []
         self.check_imports = check_imports
-        self.typing_names = {
-            'Any'
-        }
+        self.typing_names = {"Any"}
 
     def visit_arguments(self, node):
         """Collect function arguments"""
