@@ -638,4 +638,4 @@ nested_answer()
         )
         agent = ToolCallingAgent(model=model, tools=[get_weather], max_steps=1)
         agent.run("What's the weather in Paris?")
-        assert agent.logs[2].tool_calls[0].name == "get_weather"
+        assert agent.memory.steps[2].tool_calls[0].name == "get_weather"
