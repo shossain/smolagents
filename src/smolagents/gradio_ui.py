@@ -20,7 +20,7 @@ import shutil
 from typing import Optional
 
 from smolagents.agents import ActionStep, MultiStepAgent
-from smolagents.logger import AgentStepLog
+from smolagents.memory import AgentStepLog
 from smolagents.types import AgentAudio, AgentImage, AgentText, handle_agent_output_types
 from smolagents.utils import _is_package_available
 
