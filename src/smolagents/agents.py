@@ -17,6 +17,7 @@
 import inspect
 import time
 from collections import deque
+from logging import getLogger
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from rich import box
@@ -73,6 +74,9 @@ from .tools import (
     Tool,
     get_tool_description_with_args,
 )
+
+
+logger = getLogger(__name__)
 
 
 def get_tool_descriptions(tools: Dict[str, Tool], tool_description_template: str) -> str:
@@ -194,6 +198,11 @@ class MultiStepAgent:
         self.step_callbacks = step_callbacks if step_callbacks is not None else []
         self.step_callbacks.append(self.monitor.update_metrics)
 
+    @property
+    def logs(self):
+        logger.warning("The 'logs' attribute is deprecated. Please use 'self.memory.steps' instead.")
+        return self.memory.steps
+
     def initialize_system_prompt(self):
         self.system_prompt = format_prompt_with_tools(
             self.tools,
@@ -291,7 +300,7 @@ class MultiStepAgent:
             ]
         try:
             chat_message: ChatMessage = self.model(self.input_messages)
-            self.memory.log_chat_messages(chat_message)
+            self.memory.save_chat_messages(chat_message)
             return chat_message.content
         except Exception as e:
             return f"Error in generating final LLM output:\n{e}"
@@ -387,10 +396,8 @@ You have been provided with these additional arguments, that you can access usin
 
         if reset:
             self.memory.reset()
-            self.memory.log_step(system_prompt_step, position=0)
             self.monitor.reset()
-        else:
-            self.memory.log_step(system_prompt_step, position=0)
+        self.memory.save_step(system_prompt_step)
 
         self.logger.log(
             Panel(
@@ -403,7 +410,7 @@ You have been provided with these additional arguments, that you can access usin
             level=LogLevel.INFO,
         )
 
-        self.memory.log_step(TaskStep(task=self.task, task_images=images))
+        self.memory.save_step(TaskStep(task=self.task, task_images=images))
         if single_step:
             step_start_time = time.time()
             step_log = ActionStep(start_time=step_start_time, observations_images=images)
@@ -460,7 +467,7 @@ You have been provided with these additional arguments, that you can access usin
             finally:
                 step_log.end_time = time.time()
                 step_log.duration = step_log.end_time - step_start_time
-                self.memory.log_step(step_log)
+                self.memory.save_step(step_log)
                 for callback in self.step_callbacks:
                     # For compatibility with old callbacks that don't take the agent as an argument
                     if len(inspect.signature(callback).parameters) == 1:
@@ -481,7 +488,7 @@ You have been provided with these additional arguments, that you can access usin
             final_step_log.action_output = final_answer
             final_step_log.end_time = time.time()
             final_step_log.duration = step_log.end_time - step_start_time
-            self.memory.log_step(final_step_log)
+            self.memory.save_step(final_step_log)
             for callback in self.step_callbacks:
                 # For compatibility with old callbacks that don't take the agent as an argument
                 if len(inspect.signature(callback).parameters) == 1:
@@ -516,7 +523,7 @@ Now begin!""",
             }
 
             chat_message: ChatMessage = self.model([message_prompt_facts, message_prompt_task])
-            self.memory.log_chat_messages(chat_message)
+            self.memory.save_chat_messages(chat_message)
             answer_facts = chat_message.content
 
             message_system_prompt_plan = {
@@ -536,7 +543,7 @@ Now begin!""",
                 [message_system_prompt_plan, message_user_prompt_plan],
                 stop_sequences=["<end_plan>"],
             )
-            self.memory.log_chat_messages(chat_message_plan)
+            self.memory.save_chat_messages(chat_message_plan)
             answer_plan = chat_message_plan.content
 
             final_plan_redaction = f"""Here is the plan of action that I will follow to solve the task:
@@ -547,7 +554,7 @@ Now begin!""",
 ```
 {answer_facts}
 ```""".strip()
-            self.memory.log_step(PlanningStep(plan=final_plan_redaction, facts=final_facts_redaction))
+            self.memory.save_step(PlanningStep(plan=final_plan_redaction, facts=final_facts_redaction))
             self.logger.log(
                 Rule("[bold]Initial plan", style="orange"),
                 Text(final_plan_redaction),
@@ -570,7 +577,7 @@ Now begin!""",
             chat_message: ChatMessage = self.model(
                 [facts_update_system_prompt] + agent_memory + [facts_update_message]
             )
-            self.memory.log_chat_messages(chat_message)
+            self.memory.save_chat_messages(chat_message)
             facts_update = chat_message.content
 
             # Redact updated plan
@@ -597,7 +604,7 @@ Now begin!""",
                 [plan_update_message] + agent_memory + [plan_update_message_user],
                 stop_sequences=["<end_plan>"],
             )
-            self.memory.log_chat_messages(chat_message)
+            self.memory.save_chat_messages(chat_message)
             plan_update = chat_message.content
 
             # Log final facts and plan
@@ -606,7 +613,7 @@ Now begin!""",
 ```
 {facts_update}
 ```"""
-            self.memory.log_step(PlanningStep(plan=final_plan_redaction, facts=final_facts_redaction))
+            self.memory.save_step(PlanningStep(plan=final_plan_redaction, facts=final_facts_redaction))
             self.logger.log(
                 Rule("[bold]Updated plan", style="orange"),
                 Text(final_plan_redaction),
@@ -663,7 +670,7 @@ class ToolCallingAgent(MultiStepAgent):
                 tools_to_call_from=list(self.tools.values()),
                 stop_sequences=["Observation:"],
             )
-            self.memory.log_chat_messages(model_message)
+            self.memory.save_chat_messages(model_message)
             if model_message.tool_calls is None or len(model_message.tool_calls) == 0:
                 raise Exception("Model did not call any tools. Call `final_answer` tool to return a final answer.")
             tool_call = model_message.tool_calls[0]
@@ -828,7 +835,7 @@ class CodeAgent(MultiStepAgent):
                 stop_sequences=["<end_code>", "Observation:"],
                 **additional_args,
             )
-            self.memory.log_chat_messages(chat_message)
+            self.memory.save_chat_messages(chat_message)
             llm_output = chat_message.content
             log_entry.llm_output = llm_output
         except Exception as e:

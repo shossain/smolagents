@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass
+from logging import getLogger
 from typing import TYPE_CHECKING, Any, Dict, List, TypedDict
 
 from smolagents.models import MessageRole
@@ -7,6 +8,9 @@ from smolagents.utils import AgentError, make_json_serializable
 
 if TYPE_CHECKING:
     from smolagents.models import ChatMessage
+
+
+logger = getLogger(__name__)
 
 
 class Message(TypedDict):
@@ -168,13 +172,14 @@ class SystemPromptStep(AgentStepLog):
 
 class AgentMemory:
     def __init__(self):
+        self.system: SystemPromptStep = None
         self.steps: List[ActionStep] = []
         self.chat_messages: List[ChatMessage] = []
 
     def reset(self):
         self.steps = []
 
-    def log_step(self, step: AgentStepLog, position: int = None):
+    def save_step(self, step: AgentStepLog):
         """Logs an agent execution step for ulterior processing.
 
         Args:
@@ -183,13 +188,14 @@ class AgentMemory:
                 Defaults to None, in which case item is added to the end of the list.
                 Should only be used to insert the system prompt at the start of the list.
         """
-        if position is None:
-            self.steps.append(step)
+        if isinstance(step, SystemPromptStep):
+            if self.system is not None:
+                logger.warning("System prompt already exists. Replacing with the new system prompt.")
+            self.system = step
         else:
-            assert position == 0, "Position should only be 0 for system prompt."
-            self.steps = [step] + self.steps[1:]  # we replace the system prompt
+            self.steps.append(step)
 
-    def log_chat_messages(self, msg: "ChatMessage"):
+    def save_chat_messages(self, msg: "ChatMessage"):
         """Logs all raw model outputs throughout the run, for debugging purposes."""
         self.chat_messages.append(msg)
 
