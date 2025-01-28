@@ -106,8 +106,8 @@ class DuckDuckGoSearchTool(Tool):
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
 
-    def __init__(self, *args, max_results=10, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, max_results=10):
+        super().__init__()
         self.max_results = max_results
         try:
             from duckduckgo_search import DDGS
