@@ -129,6 +129,10 @@ def stream_to_gradio(
     additional_args: Optional[dict] = None,
 ):
     """Runs an agent with the given task and streams the messages from the agent as gradio ChatMessages."""
+    if not _is_package_available("gradio"):
+        raise ModuleNotFoundError(
+            "Please install 'gradio' extra to use the GradioUI: `pip install 'smolagents[gradio]'`"
+        )
     import gradio as gr
 
     total_input_tokens = 0
