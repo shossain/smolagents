@@ -106,7 +106,8 @@ def answer_questions(
     output_folder: str = "output",
     visual_inspection_tool: Tool = None,
     text_inspector_tool: Tool = None,
-    skip_hard_questions: bool = False
+    skip_hard_questions: bool = False,
+    postprompt: str = "",
 ) -> List[Dict[str, Any]]:
     """
     Evaluates the agent on a given dataset.
@@ -204,7 +205,7 @@ def answer_questions(
             example['augmented_question'] = """It is paramount that you complete this task and provide a correct answer.
     Give it all you can: I know for a fact that you have access to all the relevant tools to solve it. Failure or 'I cannot answer' will not be tolerated, success will be rewarded.
     Here is the task:
-    """ + example['question'] + prompt_use_files
+    """ + example['question'] + prompt_use_files + postprompt
 
             # run agent
             result = run_agent(
