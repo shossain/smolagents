@@ -340,6 +340,8 @@ class HfApiModel(Model):
             If not provided, the class will try to use environment variable 'HF_TOKEN', else use the token stored in the Hugging Face CLI configuration.
         timeout (`int`, *optional*, defaults to 120):
             Timeout for the API request, in seconds.
+        provider: (`str`, *optional*):
+            The Inference provider to use for the model through Hugging Face Hub. You can choose "together" or "sambanova", and the model you choose needs to be supported by them. See here for more info https://huggingface.co/blog/inference-providers.
         **kwargs:
             Additional keyword arguments to pass to the Hugging Face API.
 
@@ -366,13 +368,14 @@ class HfApiModel(Model):
         model_id: str = "Qwen/Qwen2.5-Coder-32B-Instruct",
         token: Optional[str] = None,
         timeout: Optional[int] = 120,
+        provider: str = "",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.model_id = model_id
         if token is None:
             token = os.getenv("HF_TOKEN")
-        self.client = InferenceClient(self.model_id, token=token, timeout=timeout)
+        self.client = InferenceClient(self.model_id, token=token, provider=provider, timeout=timeout)
 
     def __call__(
         self,
