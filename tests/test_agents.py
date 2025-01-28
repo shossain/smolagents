@@ -303,9 +303,9 @@ class AgentTests(unittest.TestCase):
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, str)
         assert "7.2904" in output
-        assert agent.memory.steps[0].task == "What is 2 multiplied by 3.6452?"
+        assert agent.memory.steps[1].task == "What is 2 multiplied by 3.6452?"
         assert "7.2904" in agent.memory.steps[2].observations
-        assert agent.memory.steps[2].llm_output is None
+        assert agent.memory.steps[3].llm_output is None
 
     def test_toolcalling_agent_handles_image_tool_outputs(self):
         from PIL import Image
@@ -348,8 +348,8 @@ class AgentTests(unittest.TestCase):
         output = agent.run("What is 2 multiplied by 3.6452?")
         assert isinstance(output, float)
         assert output == 7.2904
-        assert agent.memory.steps[0].task == "What is 2 multiplied by 3.6452?"
-        assert agent.memory.steps[2].tool_calls == [
+        assert agent.memory.steps[1].task == "What is 2 multiplied by 3.6452?"
+        assert agent.memory.steps[3].tool_calls == [
             ToolCall(name="python_interpreter", arguments="final_answer(7.2904)", id="call_3")
         ]
 
@@ -638,4 +638,4 @@ nested_answer()
         )
         agent = ToolCallingAgent(model=model, tools=[get_weather], max_steps=1)
         agent.run("What's the weather in Paris?")
-        assert agent.memory.steps[1].tool_calls[0].name == "get_weather"
+        assert agent.memory.steps[2].tool_calls[0].name == "get_weather"

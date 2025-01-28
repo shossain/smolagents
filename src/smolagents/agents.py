@@ -222,7 +222,7 @@ class MultiStepAgent:
         that can be used as input to the LLM. Adds a number of keywords (such as PLAN, error, etc) to help
         the LLM.
         """
-        memory = []
+        memory = [self.memory.system.to_messages(summary_mode=summary_mode)[0]]
         for step_log in self.memory.steps:
             memory.extend(step_log.to_messages(summary_mode=summary_mode))
         return memory
