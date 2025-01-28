@@ -32,8 +32,8 @@ def pull_messages_from_step(
 
     if isinstance(step_log, ActionStep):
         # Output the step number
-        step_num = f"Step {step_log.step}" if step_log.step is not None else ""
-        yield gr.ChatMessage(role="assistant", content=f"**{step_num}**")
+        step_number = f"Step {step_log.step_number}" if step_log.step_number is not None else ""
+        yield gr.ChatMessage(role="assistant", content=f"**{step_number}**")
 
         # First yield the thought/reasoning from the LLM
         if hasattr(step_log, "llm_output") and step_log.llm_output is not None:
@@ -108,7 +108,7 @@ def pull_messages_from_step(
             yield gr.ChatMessage(role="assistant", content=str(step_log.error), metadata={"title": "💥 Error"})
 
         # Calculate duration and token information
-        step_footnote = f"{step_num}"
+        step_footnote = f"{step_number}"
         if hasattr(step_log, "input_token_count") and hasattr(step_log, "output_token_count"):
             token_str = (
                 f" | Input-tokens:{step_log.input_token_count:,} | Output-tokens:{step_log.output_token_count:,}"
