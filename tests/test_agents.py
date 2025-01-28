@@ -350,7 +350,7 @@ class AgentTests(unittest.TestCase):
         assert output == 7.2904
         assert agent.memory.steps[0].task == "What is 2 multiplied by 3.6452?"
         assert agent.memory.steps[2].tool_calls == [
-            ToolCall(name="python_interpreter", arguments="final_answer(7.2904)", id="call_3")
+            ToolCall(name="python_interpreter", arguments="final_answer(7.2904)", id="call_2")
         ]
 
     def test_additional_args_added_to_task(self):
