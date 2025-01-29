@@ -192,7 +192,7 @@ class MultiStepAgent:
         self.system_prompt = self.initialize_system_prompt()
         self.input_messages = None
         self.task = None
-        self.memory = AgentMemory()
+        self.memory = AgentMemory(system_prompt)
         self.logger = AgentLogger(level=verbosity_level)
         self.monitor = Monitor(self.model, self.logger)
         self.step_callbacks = step_callbacks if step_callbacks is not None else []
@@ -204,46 +204,44 @@ class MultiStepAgent:
         return self.memory.steps
 
     def initialize_system_prompt(self):
-        self.system_prompt = format_prompt_with_tools(
+        system_prompt = format_prompt_with_tools(
             self.tools,
             self.system_prompt_template,
             self.tool_description_template,
         )
-        self.system_prompt = format_prompt_with_managed_agents_descriptions(self.system_prompt, self.managed_agents)
+        return format_prompt_with_managed_agents_descriptions(system_prompt, self.managed_agents)
 
-        return self.system_prompt
-
-    def write_inner_memory_from_logs(
+    def write_memory_to_messages(
         self,
         summary_mode: Optional[bool] = False,
     ) -> List[Dict[str, str]]:
         """
-        Reads past llm_outputs, actions, and observations or errors from the logs into a series of messages
+        Reads past llm_outputs, actions, and observations or errors from the memory into a series of messages
         that can be used as input to the LLM. Adds a number of keywords (such as PLAN, error, etc) to help
         the LLM.
         """
-        memory = [self.memory.system.to_messages(summary_mode=summary_mode)[0]]
+        messages = self.memory.system_prompt.to_messages(summary_mode=summary_mode)
         for step_log in self.memory.steps:
-            memory.extend(step_log.to_messages(summary_mode=summary_mode))
-        return memory
+            messages.extend(step_log.to_messages(summary_mode=summary_mode))
+        return messages
 
-    def extract_action(self, llm_output: str, split_token: str) -> Tuple[str, str]:
+    def extract_action(self, model_output: str, split_token: str) -> Tuple[str, str]:
         """
         Parse action from the LLM output
 
         Args:
-            llm_output (`str`): Output of the LLM
+            model_output (`str`): Output of the LLM
             split_token (`str`): Separator for the action. Should match the example in the system prompt.
         """
         try:
-            split = llm_output.split(split_token)
+            split = model_output.split(split_token)
             rationale, action = (
                 split[-2],
                 split[-1],
             )  # NOTE: using indexes starting from the end solves for when you have more than one split_token in the output
         except Exception:
             raise AgentParsingError(
-                f"No '{split_token}' token provided in your output.\nYour output:\n{llm_output}\n. Be sure to include an action, prefaced with '{split_token}'!",
+                f"No '{split_token}' token provided in your output.\nYour output:\n{model_output}\n. Be sure to include an action, prefaced with '{split_token}'!",
                 self.logger,
             )
         return rationale.strip(), action.strip()
@@ -259,16 +257,17 @@ class MultiStepAgent:
         Returns:
             `str`: Final answer to the task.
         """
+        messages = [{"role": MessageRole.SYSTEM, "content": []}]
         if images:
-            self.input_messages[0]["content"] = [
+            messages[0]["content"] = [
                 {
                     "type": "text",
                     "text": "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:",
                 }
             ]
-            self.input_messages[0]["content"].append({"type": "image"})
-            self.input_messages += self.write_inner_memory_from_logs()[1:]
-            self.input_messages += [
+            messages[0]["content"].append({"type": "image"})
+            messages += self.write_memory_to_messages()[1:]
+            messages += [
                 {
                     "role": MessageRole.USER,
                     "content": [
@@ -280,14 +279,14 @@ class MultiStepAgent:
                 }
             ]
         else:
-            self.input_messages[0]["content"] = [
+            messages[0]["content"] = [
                 {
                     "type": "text",
                     "text": "An agent tried to answer a user query but it got stuck and failed to do so. You are tasked with providing an answer instead. Here is the agent's memory:",
                 }
             ]
-            self.input_messages += self.write_inner_memory_from_logs()[1:]
-            self.input_messages += [
+            messages += self.write_memory_to_messages()[1:]
+            messages += [
                 {
                     "role": MessageRole.USER,
                     "content": [
@@ -299,8 +298,7 @@ class MultiStepAgent:
                 }
             ]
         try:
-            chat_message: ChatMessage = self.model(self.input_messages)
-            self.memory.save_chat_messages(chat_message)
+            chat_message: ChatMessage = self.model(messages)
             return chat_message.content
         except Exception as e:
             return f"Error in generating final LLM output:\n{e}"
@@ -391,13 +389,11 @@ class MultiStepAgent:
 You have been provided with these additional arguments, that you can access using the keys as variables in your python code:
 {str(additional_args)}."""
 
-        self.initialize_system_prompt()
-        system_prompt_step = SystemPromptStep(system_prompt=self.system_prompt)
-
+        system_prompt = self.initialize_system_prompt()
+        self.memory.system_prompt = SystemPromptStep(system_prompt=system_prompt)
         if reset:
             self.memory.reset()
             self.monitor.reset()
-        self.memory.save_step(system_prompt_step)
 
         self.logger.log(
             Panel(
@@ -410,7 +406,7 @@ You have been provided with these additional arguments, that you can access usin
             level=LogLevel.INFO,
         )
 
-        self.memory.save_step(TaskStep(task=self.task, task_images=images))
+        self.memory.steps.append(TaskStep(task=self.task, task_images=images))
         if single_step:
             step_start_time = time.time()
             step_log = ActionStep(start_time=step_start_time, observations_images=images)
@@ -467,7 +463,7 @@ You have been provided with these additional arguments, that you can access usin
             finally:
                 step_log.end_time = time.time()
                 step_log.duration = step_log.end_time - step_start_time
-                self.memory.save_step(step_log)
+                self.memory.steps.append(step_log)
                 for callback in self.step_callbacks:
                     # For compatibility with old callbacks that don't take the agent as an argument
                     if len(inspect.signature(callback).parameters) == 1:
@@ -488,7 +484,7 @@ You have been provided with these additional arguments, that you can access usin
             final_step_log.action_output = final_answer
             final_step_log.end_time = time.time()
             final_step_log.duration = step_log.end_time - step_start_time
-            self.memory.save_step(final_step_log)
+            self.memory.steps.append(final_step_log)
             for callback in self.step_callbacks:
                 # For compatibility with old callbacks that don't take the agent as an argument
                 if len(inspect.signature(callback).parameters) == 1:
@@ -522,9 +518,8 @@ You have been provided with these additional arguments, that you can access usin
 Now begin!""",
             }
 
-            chat_message: ChatMessage = self.model([message_prompt_facts, message_prompt_task])
-            self.memory.save_chat_messages(chat_message)
-            answer_facts = chat_message.content
+            chat_message_facts: ChatMessage = self.model([message_prompt_facts, message_prompt_task])
+            answer_facts = chat_message_facts.content
 
             message_system_prompt_plan = {
                 "role": MessageRole.SYSTEM,
@@ -543,7 +538,6 @@ Now begin!""",
                 [message_system_prompt_plan, message_user_prompt_plan],
                 stop_sequences=["<end_plan>"],
             )
-            self.memory.save_chat_messages(chat_message_plan)
             answer_plan = chat_message_plan.content
 
             final_plan_redaction = f"""Here is the plan of action that I will follow to solve the task:
@@ -554,14 +548,21 @@ Now begin!""",
 ```
 {answer_facts}
 ```""".strip()
-            self.memory.save_step(PlanningStep(plan=final_plan_redaction, facts=final_facts_redaction))
+            self.memory.steps.append(
+                PlanningStep(
+                    plan=final_plan_redaction,
+                    facts=final_facts_redaction,
+                    model_output_message_plan=chat_message_plan,
+                    model_output_message_facts=chat_message_facts,
+                )
+            )
             self.logger.log(
                 Rule("[bold]Initial plan", style="orange"),
                 Text(final_plan_redaction),
                 level=LogLevel.INFO,
             )
         else:  # update plan
-            agent_memory = self.write_inner_memory_from_logs(
+            memory_messages = self.write_memory_to_messages(
                 summary_mode=False
             )  # This will not log the plan but will log facts
 
@@ -574,11 +575,10 @@ Now begin!""",
                 "role": MessageRole.USER,
                 "content": [{"type": "text", "text": USER_PROMPT_FACTS_UPDATE}],
             }
-            chat_message: ChatMessage = self.model(
-                [facts_update_system_prompt] + agent_memory + [facts_update_message]
+            chat_message_facts: ChatMessage = self.model(
+                [facts_update_system_prompt] + memory_messages + [facts_update_message]
             )
-            self.memory.save_chat_messages(chat_message)
-            facts_update = chat_message.content
+            facts_update = chat_message_facts.content
 
             # Redact updated plan
             plan_update_message = {
@@ -600,20 +600,27 @@ Now begin!""",
                     }
                 ],
             }
-            chat_message: ChatMessage = self.model(
-                [plan_update_message] + agent_memory + [plan_update_message_user],
+            chat_message_plan: ChatMessage = self.model(
+                [plan_update_message] + memory_messages + [plan_update_message_user],
                 stop_sequences=["<end_plan>"],
             )
-            self.memory.save_chat_messages(chat_message)
-            plan_update = chat_message.content
 
             # Log final facts and plan
-            final_plan_redaction = PLAN_UPDATE_FINAL_PLAN_REDACTION.format(task=task, plan_update=plan_update)
+            final_plan_redaction = PLAN_UPDATE_FINAL_PLAN_REDACTION.format(
+                task=task, plan_update=chat_message_plan.content
+            )
             final_facts_redaction = f"""Here is the updated list of the facts that I know:
 ```
 {facts_update}
 ```"""
-            self.memory.save_step(PlanningStep(plan=final_plan_redaction, facts=final_facts_redaction))
+            self.memory.steps.append(
+                PlanningStep(
+                    plan=final_plan_redaction,
+                    facts=final_facts_redaction,
+                    model_output_message_plan=chat_message_plan,
+                    model_output_message_facts=chat_message_facts,
+                )
+            )
             self.logger.log(
                 Rule("[bold]Updated plan", style="orange"),
                 Text(final_plan_redaction),
@@ -657,20 +664,20 @@ class ToolCallingAgent(MultiStepAgent):
         Perform one step in the ReAct framework: the agent thinks, acts, and observes the result.
         Returns None if the step is not final.
         """
-        agent_memory = self.write_inner_memory_from_logs()
+        memory_messages = self.write_memory_to_messages()
 
-        self.input_messages = agent_memory
+        self.input_messages = memory_messages
 
         # Add new step in logs
-        log_entry.agent_memory = agent_memory.copy()
+        log_entry.model_input_messages = memory_messages.copy()
 
         try:
             model_message: ChatMessage = self.model(
-                self.input_messages,
+                memory_messages,
                 tools_to_call_from=list(self.tools.values()),
                 stop_sequences=["Observation:"],
             )
-            self.memory.save_chat_messages(model_message)
+            log_entry.model_output_message = model_message
             if model_message.tool_calls is None or len(model_message.tool_calls) == 0:
                 raise Exception("Model did not call any tools. Call `final_answer` tool to return a final answer.")
             tool_call = model_message.tool_calls[0]
@@ -822,12 +829,12 @@ class CodeAgent(MultiStepAgent):
         Perform one step in the ReAct framework: the agent thinks, acts, and observes the result.
         Returns None if the step is not final.
         """
-        agent_memory = self.write_inner_memory_from_logs()
+        memory_messages = self.write_memory_to_messages()
 
-        self.input_messages = agent_memory.copy()
+        self.input_messages = memory_messages.copy()
 
         # Add new step in logs
-        log_entry.agent_memory = agent_memory.copy()
+        log_entry.model_input_messages = memory_messages.copy()
         try:
             additional_args = {"grammar": self.grammar} if self.grammar is not None else {}
             chat_message: ChatMessage = self.model(
@@ -835,9 +842,9 @@ class CodeAgent(MultiStepAgent):
                 stop_sequences=["<end_code>", "Observation:"],
                 **additional_args,
             )
-            self.memory.save_chat_messages(chat_message)
-            llm_output = chat_message.content
-            log_entry.llm_output = llm_output
+            log_entry.model_output_message = chat_message
+            model_output = chat_message.content
+            log_entry.model_output = model_output
         except Exception as e:
             raise AgentGenerationError(f"Error in generating model output:\n{e}", self.logger) from e
 
@@ -849,7 +856,7 @@ class CodeAgent(MultiStepAgent):
                     style="orange",
                 ),
                 Syntax(
-                    llm_output,
+                    model_output,
                     lexer="markdown",
                     theme="github-dark",
                     word_wrap=True,
@@ -860,7 +867,7 @@ class CodeAgent(MultiStepAgent):
 
         # Parse
         try:
-            code_action = fix_final_answer_code(parse_code_blobs(llm_output))
+            code_action = fix_final_answer_code(parse_code_blobs(model_output))
         except Exception as e:
             error_msg = f"Error in code parsing:\n{e}\nMake sure to provide correct code blobs."
             raise AgentParsingError(error_msg, self.logger)
@@ -972,7 +979,7 @@ class ManagedAgent:
             answer = f"Here is the final answer from your managed agent '{self.name}':\n"
             answer += str(output)
             answer += f"\n\nFor more detail, find below a summary of this agent's work:\nSUMMARY OF WORK FROM AGENT '{self.name}':\n"
-            for message in self.agent.write_inner_memory_from_logs(summary_mode=True):
+            for message in self.agent.write_memory_to_messages(summary_mode=True):
                 content = message["content"]
                 answer += "\n" + truncate_content(str(content)) + "\n---"
             answer += f"\nEND OF SUMMARY OF WORK FROM AGENT '{self.name}'."

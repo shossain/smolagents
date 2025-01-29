@@ -42,7 +42,7 @@ class AgentLogger:
         """
         memory = []
         for step_log in agent_memory.steps:
-            memory.extend(step_log.to_messages(return_memory=full))
+            memory.extend(step_log.to_messages(show_model_input_messages=full))
 
         self.console.log("Replaying the agent's steps:")
         ix = 0
