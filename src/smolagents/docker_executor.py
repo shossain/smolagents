@@ -164,9 +164,6 @@ class DockerExecutor:
 
         # Parse output for final answer or specific results
         result = self._parse_output(stdout)
-        print("Result", result)
-        print("Execution logs", execution_logs)
-        print("Final answer", self.final_answer)
         return result, execution_logs, self.final_answer
 
     def _parse_output(self, stdout: str) -> Any:
