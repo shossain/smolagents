@@ -209,7 +209,8 @@ class MultiStepAgent:
             self.system_prompt_template,
             self.tool_description_template,
         )
-        return format_prompt_with_managed_agents_descriptions(system_prompt, self.managed_agents)
+        system_prompt = format_prompt_with_managed_agents_descriptions(system_prompt, self.managed_agents)
+        return system_prompt
 
     def write_memory_to_messages(
         self,
@@ -389,8 +390,8 @@ class MultiStepAgent:
 You have been provided with these additional arguments, that you can access using the keys as variables in your python code:
 {str(additional_args)}."""
 
-        system_prompt = self.initialize_system_prompt()
-        self.memory.system_prompt = SystemPromptStep(system_prompt=system_prompt)
+        self.system_prompt = self.initialize_system_prompt()
+        self.memory.system_prompt = SystemPromptStep(system_prompt=self.system_prompt)
         if reset:
             self.memory.reset()
             self.monitor.reset()
@@ -813,7 +814,7 @@ class CodeAgent(MultiStepAgent):
             )
 
     def initialize_system_prompt(self):
-        super().initialize_system_prompt()
+        self.system_prompt = super().initialize_system_prompt()
         self.system_prompt = self.system_prompt.replace(
             "{{authorized_imports}}",
             (
