@@ -20,18 +20,17 @@ from collections import deque
 from logging import getLogger
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
-from rich import box
 from rich.console import Group
 from rich.panel import Panel
 from rich.rule import Rule
-from rich.syntax import Syntax
 from rich.text import Text
 
-from smolagents.logger import (
+from smolagents.memory import ActionStep, AgentMemory, PlanningStep, SystemPromptStep, TaskStep, ToolCall
+from smolagents.monitoring import (
+    YELLOW_HEX,
     AgentLogger,
     LogLevel,
 )
-from smolagents.memory import ActionStep, AgentMemory, PlanningStep, SystemPromptStep, TaskStep, ToolCall
 from smolagents.types import AgentAudio, AgentImage, handle_agent_output_types
 from smolagents.utils import (
     AgentError,
@@ -121,9 +120,6 @@ def format_prompt_with_managed_agents_descriptions(
         return prompt_template.replace(agent_descriptions_placeholder, show_agents_descriptions(managed_agents))
     else:
         return prompt_template.replace(agent_descriptions_placeholder, "")
-
-
-YELLOW_HEX = "#d4b702"
 
 
 class MultiStepAgent:
@@ -399,14 +395,9 @@ You have been provided with these additional arguments, that you can access usin
             self.memory.reset()
             self.monitor.reset()
 
-        self.logger.log(
-            Panel(
-                f"\n[bold]{self.task.strip()}\n",
-                title="[bold]New run",
-                subtitle=f"{type(self.model).__name__} - {(self.model.model_id if hasattr(self.model, 'model_id') else '')}",
-                border_style=YELLOW_HEX,
-                subtitle_align="left",
-            ),
+        self.logger.log_task(
+            content=self.task.strip(),
+            subtitle=f"{type(self.model).__name__} - {(self.model.model_id if hasattr(self.model, 'model_id') else '')}",
             level=LogLevel.INFO,
         )
 
@@ -451,14 +442,7 @@ You have been provided with these additional arguments, that you can access usin
                         is_first_step=(self.step_number == 0),
                         step=self.step_number,
                     )
-                self.logger.log(
-                    Rule(
-                        f"[bold]Step {self.step_number}",
-                        characters="━",
-                        style=YELLOW_HEX,
-                    ),
-                    level=LogLevel.INFO,
-                )
+                self.logger.log_rule(f"Step {self.step_number}", level=LogLevel.INFO)
 
                 # Run one step!
                 final_answer = self.step(step_log)
@@ -521,8 +505,9 @@ You have been provided with these additional arguments, that you can access usin
 ```
 Now begin!""",
             }
+            input_messages = [message_prompt_facts, message_prompt_task]
 
-            chat_message_facts: ChatMessage = self.model([message_prompt_facts, message_prompt_task])
+            chat_message_facts: ChatMessage = self.model(input_messages)
             answer_facts = chat_message_facts.content
 
             message_system_prompt_plan = {
@@ -554,6 +539,7 @@ Now begin!""",
 ```""".strip()
             self.memory.steps.append(
                 PlanningStep(
+                    model_input_messages=input_messages,
                     plan=final_plan_redaction,
                     facts=final_facts_redaction,
                     model_output_message_plan=chat_message_plan,
@@ -579,9 +565,8 @@ Now begin!""",
                 "role": MessageRole.USER,
                 "content": [{"type": "text", "text": USER_PROMPT_FACTS_UPDATE}],
             }
-            chat_message_facts: ChatMessage = self.model(
-                [facts_update_system_prompt] + memory_messages + [facts_update_message]
-            )
+            input_messages = [facts_update_system_prompt] + memory_messages + [facts_update_message]
+            chat_message_facts: ChatMessage = self.model(input_messages)
             facts_update = chat_message_facts.content
 
             # Redact updated plan
@@ -619,6 +604,7 @@ Now begin!""",
 ```"""
             self.memory.steps.append(
                 PlanningStep(
+                    model_input_messages=input_messages,
                     plan=final_plan_redaction,
                     facts=final_facts_redaction,
                     model_output_message_plan=chat_message_plan,
@@ -630,6 +616,15 @@ Now begin!""",
                 Text(final_plan_redaction),
                 level=LogLevel.INFO,
             )
+
+    def replay(self, detailed: bool = False):
+        """Prints a pretty replay of the agent's steps.
+
+        Args:
+            detailed (bool, optional): If True, also displays the memory at each step. Defaults to False.
+                Careful: will increase log length exponentially. Use only for debugging.
+        """
+        self.memory.replay(self.logger, detailed=detailed)
 
 
 class ToolCallingAgent(MultiStepAgent):
@@ -852,20 +847,9 @@ class CodeAgent(MultiStepAgent):
         except Exception as e:
             raise AgentGenerationError(f"Error in generating model output:\n{e}", self.logger) from e
 
-        self.logger.log(
-            Group(
-                Rule(
-                    "[italic]Output message of the LLM:",
-                    align="left",
-                    style="orange",
-                ),
-                Syntax(
-                    model_output,
-                    lexer="markdown",
-                    theme="github-dark",
-                    word_wrap=True,
-                ),
-            ),
+        self.logger.log_markdown(
+            content=model_output,
+            title="Output message of the LLM:",
             level=LogLevel.DEBUG,
         )
 
@@ -885,20 +869,7 @@ class CodeAgent(MultiStepAgent):
         ]
 
         # Execute
-        self.logger.log(
-            Panel(
-                Syntax(
-                    code_action,
-                    lexer="python",
-                    theme="monokai",
-                    word_wrap=True,
-                ),
-                title="[bold]Executing this code:",
-                title_align="left",
-                box=box.HORIZONTALS,
-            ),
-            level=LogLevel.INFO,
-        )
+        self.logger.log_code(title="Executing parsed code:", content=code_action, level=LogLevel.INFO)
         observation = ""
         is_final_answer = False
         try:
