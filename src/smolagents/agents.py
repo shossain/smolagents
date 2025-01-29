@@ -200,8 +200,10 @@ class MultiStepAgent:
 
     @property
     def logs(self):
-        logger.warning("The 'logs' attribute is deprecated. Please use 'self.memory.steps' instead.")
-        return self.memory.steps
+        logger.warning(
+            "The 'logs' attribute is deprecated and will soon be removed. Please use 'self.memory.steps' instead."
+        )
+        return [self.memory.system_prompt] + self.memory.steps
 
     def initialize_system_prompt(self):
         system_prompt = format_prompt_with_tools(

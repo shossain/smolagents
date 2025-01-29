@@ -640,3 +640,7 @@ nested_answer()
         agent.run("What's the weather in Paris?")
         assert agent.memory.steps[0].task == "What's the weather in Paris?"
         assert agent.memory.steps[1].tool_calls[0].name == "get_weather"
+        step_memory_dict = agent.memory.get_succinct_steps()[1]
+        assert step_memory_dict["model_output_message"].tool_calls[0].function.name == "get_weather"
+        assert step_memory_dict["model_output_message"].raw["completion_kwargs"]["max_new_tokens"] == 100
+        assert "model_input_messages" in agent.memory.get_full_steps()[1]

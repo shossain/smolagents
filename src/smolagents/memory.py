@@ -176,16 +176,18 @@ class SystemPromptStep(MemoryStep):
 
 class AgentMemory:
     def __init__(self, system_prompt: str):
-        self.system = SystemPromptStep(system_prompt=system_prompt)
+        self.system_prompt = SystemPromptStep(system_prompt=system_prompt)
         self.steps: List[Union[TaskStep, ActionStep, PlanningStep]] = []
 
     def reset(self):
         self.steps = []
 
-    def get_succinct_steps(self):
-        return [{key: value for key, value in log.items() if key != "model_input_messages"} for log in self.steps]
+    def get_succinct_steps(self) -> list[dict]:
+        return [
+            {key: value for key, value in step.dict().items() if key != "model_input_messages"} for step in self.steps
+        ]
 
-    def get_extended_steps(self) -> list[dict]:
+    def get_full_steps(self) -> list[dict]:
         return [step.dict() for step in self.steps]
 
 
