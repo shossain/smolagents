@@ -28,6 +28,7 @@ from rich.syntax import Syntax
 from rich.text import Text
 
 from .default_tools import TOOL_MAPPING, FinalAnswerTool
+from .docker_executor import DockerExecutor
 from .e2b_executor import E2BExecutor
 from .local_python_executor import (
     BASE_BUILTIN_MODULES,
@@ -873,6 +874,7 @@ class CodeAgent(MultiStepAgent):
         additional_authorized_imports (`list[str]`, *optional*): Additional authorized imports for the agent.
         planning_interval (`int`, *optional*): Interval at which the agent will run a planning step.
         use_e2b_executor (`bool`, default `False`): Whether to use the E2B executor for remote code execution.
+        use_docker_executor (`bool`, default `False`): Whether to use the Docker executor for remote code execution.
         max_print_outputs_length (`int`, *optional*): Maximum length of the print outputs.
         **kwargs: Additional keyword arguments.
 
@@ -887,6 +889,7 @@ class CodeAgent(MultiStepAgent):
         additional_authorized_imports: Optional[List[str]] = None,
         planning_interval: Optional[int] = None,
         use_e2b_executor: bool = False,
+        use_docker_executor: bool = False,
         max_print_outputs_length: Optional[int] = None,
         **kwargs,
     ):
@@ -911,14 +914,23 @@ class CodeAgent(MultiStepAgent):
                 0,
             )
 
-        if use_e2b_executor and len(self.managed_agents) > 0:
-            raise Exception(
-                f"You passed both {use_e2b_executor=} and some managed agents. Managed agents is not yet supported with remote code execution."
-            )
+        # Validate executor options
+        if use_e2b_executor and use_docker_executor:
+            raise ValueError("Cannot use both E2B executor and Docker executor at the same time.")
+        if (use_e2b_executor or use_docker_executor) and len(self.managed_agents) > 0:
+            raise Exception("Managed agents are not yet supported with remote code execution.")
 
         all_tools = {**self.tools, **self.managed_agents}
+
+        # Initialize the appropriate executor
         if use_e2b_executor:
             self.python_executor = E2BExecutor(
+                self.additional_authorized_imports,
+                list(all_tools.values()),
+                self.logger,
+            )
+        elif use_docker_executor:
+            self.python_executor = DockerExecutor(
                 self.additional_authorized_imports,
                 list(all_tools.values()),
                 self.logger,
