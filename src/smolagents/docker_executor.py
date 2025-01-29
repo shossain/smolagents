@@ -18,7 +18,7 @@ class DockerExecutor:
     Executes Python code within a Docker container.
     """
 
-    def __init__(self, additional_imports: List[str], tools: List[Tool], logger):
+    def __init__(self, additional_imports: List[str], tools: List[Tool], logger, host="127.0.0.1", port=65432):
         """
         Initializes the Docker executor.
 
@@ -26,6 +26,8 @@ class DockerExecutor:
             additional_imports (List[str]): List of additional Python packages to install.
             tools (List[Tool]): List of tools to make available in the execution environment.
             logger: Logger for logging messages.
+            host (str): Host IP to bind the container to.
+            port (int): Port to bind the container to.
         """
         try:
             import docker
@@ -34,13 +36,22 @@ class DockerExecutor:
             raise ModuleNotFoundError(
                 """Please install 'docker' extra to use DockerExecutor: pip install `pip install "smolagents[docker]"`"""
             )
-        self.client = docker.from_env()
-        self.container: Container = self.client.containers.run(
-            "python:3.11-slim",
-            command=["sleep", "infinity"],
-            detach=True,
-            volumes={"/tmp/smolagents": {"bind": "/app", "mode": "rw"}},
-        )
+        try:
+            self.client = docker.from_env()
+            self.client.ping()
+        except docker.errors.DockerException:
+            raise RuntimeError("Could not connect to Docker daemon. Please ensure Docker is installed and running.")
+        try:
+            self.container: Container = self.client.containers.run(
+                "python:3.12-slim",
+                command=["sleep", "infinity"],
+                detach=True,
+                ports={f"{port}/tcp": (host, port)},
+                volumes={"/tmp/smolagents": {"bind": "/app", "mode": "rw"}},
+            )
+        except docker.errors.DockerException as e:
+            raise RuntimeError(f"Failed to create Docker container: {e}")
+
         self.logger = logger
         self.final_answer_pattern = re.compile(r"^final_answer\((.*)\)$")
         self.final_answer = False
