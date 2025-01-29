@@ -17,10 +17,21 @@ from smolagents.agents import ActionStep
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run a web browser automation script with a specified model.")
-    parser.add_argument('--model', type=str, default='OpenAIServerModel', help='The model type to use (e.g., OpenAIServerModel, LiteLLMModel, TransformersModel, HfApiModel)')
-    parser.add_argument('--model-id', type=str, default='accounts/fireworks/models/qwen2-vl-72b-instruct', help='The model ID to use for the specified model type')
-    parser.add_argument('--prompt', type=str, required=True, help='The prompt to run with the agent')
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="OpenAIServerModel",
+        help="The model type to use (e.g., OpenAIServerModel, LiteLLMModel, TransformersModel, HfApiModel)",
+    )
+    parser.add_argument(
+        "--model-id",
+        type=str,
+        default="accounts/fireworks/models/qwen2-vl-72b-instruct",
+        help="The model ID to use for the specified model type",
+    )
+    parser.add_argument("--prompt", type=str, required=True, help="The prompt to run with the agent")
     return parser.parse_args()
+
 
 # Load environment variables
 load_dotenv()
@@ -32,7 +43,7 @@ args = parse_arguments()
 # Initialize the model based on the provided arguments
 if args.model == "OpenAIServerModel":
     model = OpenAIServerModel(
-        api_key=os.getenv("FIREWORKS_API_KEY"),
+        api_key="fw_3ZYi6VswPcQJ9569cVaMvQw6",  # os.getenv("FIREWORKS_API_KEY"),
         api_base="https://api.fireworks.ai/inference/v1",
         model_id=args.model_id,
     )
@@ -42,11 +53,7 @@ elif args.model == "LiteLLMModel":
         api_key=os.getenv("OPENAI_API_KEY"),
     )
 elif args.model == "TransformersModel":
-    model = TransformersModel(
-        model_id=args.model_id,
-        device_map="auto",
-        flatten_messages_as_text=False
-    )
+    model = TransformersModel(model_id=args.model_id, device_map="auto", flatten_messages_as_text=False)
 elif args.model == "HfApiModel":
     model = HfApiModel(
         token=os.getenv("HF_API_KEY"),
@@ -54,6 +61,7 @@ elif args.model == "HfApiModel":
     )
 else:
     raise ValueError(f"Unsupported model type: {args.model}")
+
 
 # Prepare callback
 def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
@@ -78,7 +86,7 @@ def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
 # Initialize driver and agent
 chrome_options = webdriver.ChromeOptions()
 chrome_options.add_argument("--force-device-scale-factor=1")
-chrome_options.add_argument("--window-size=500,650")
+chrome_options.add_argument("--window-size=1000,1350")
 chrome_options.add_argument("--disable-pdf-viewer")
 
 driver = helium.start_chrome(headless=False, options=chrome_options)
