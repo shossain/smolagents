@@ -1,5 +1,6 @@
 from io import BytesIO
 from time import sleep
+import argparse
 
 import helium
 from dotenv import load_dotenv
@@ -10,36 +11,49 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, TransformersModel, tool  # noqa: F401
+from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, HfApiModel, TransformersModel, tool  # noqa: F401
 from smolagents.agents import ActionStep
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Run a web browser automation script with a specified model.")
+    parser.add_argument('--model', type=str, default='OpenAIServerModel', help='The model type to use (e.g., OpenAIServerModel, LiteLLMModel, TransformersModel, HfApiModel)')
+    parser.add_argument('--model-id', type=str, default='accounts/fireworks/models/qwen2-vl-72b-instruct', help='The model ID to use for the specified model type')
+    parser.add_argument('--prompt', type=str, required=True, help='The prompt to run with the agent')
+    return parser.parse_args()
+
+# Load environment variables
 load_dotenv()
 import os
 
+# Parse command line arguments
+args = parse_arguments()
 
-# Let's use Qwen2-VL-72B via an inference provider like Fireworks AI
-
-model = OpenAIServerModel(
-    api_key=os.getenv("FIREWORKS_API_KEY"),
-    api_base="https://api.fireworks.ai/inference/v1",
-    model_id="accounts/fireworks/models/qwen2-vl-72b-instruct",
-)
-
-# You can also use a close model
-
-# model = LiteLLMModel(
-#     model_id="gpt-4o",
-#     api_key=os.getenv("OPENAI_API_KEY"),
-# )
-
-# locally a good candidate is Qwen2-VL-7B-Instruct
-# model = TransformersModel(
-#     model_id="Qwen/Qwen2-VL-7B-Instruct",
-#     device_map = "auto",
-#     flatten_messages_as_text=False
-# )
-
+# Initialize the model based on the provided arguments
+if args.model == "OpenAIServerModel":
+    model = OpenAIServerModel(
+        api_key=os.getenv("FIREWORKS_API_KEY"),
+        api_base="https://api.fireworks.ai/inference/v1",
+        model_id=args.model_id,
+    )
+elif args.model == "LiteLLMModel":
+    model = LiteLLMModel(
+        model_id=args.model_id,
+        api_key=os.getenv("OPENAI_API_KEY"),
+    )
+elif args.model == "TransformersModel":
+    model = TransformersModel(
+        model_id=args.model_id,
+        device_map="auto",
+        flatten_messages_as_text=False
+    )
+elif args.model == "HfApiModel":
+    model = HfApiModel(
+        token=os.getenv("HF_API_KEY"),
+        model_id=args.model_id,
+    )
+else:
+    raise ValueError(f"Unsupported model type: {args.model}")
 
 # Prepare callback
 def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
@@ -64,7 +78,7 @@ def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
 # Initialize driver and agent
 chrome_options = webdriver.ChromeOptions()
 chrome_options.add_argument("--force-device-scale-factor=1")
-chrome_options.add_argument("--window-size=1000,1300")
+chrome_options.add_argument("--window-size=500,650")
 chrome_options.add_argument("--disable-pdf-viewer")
 
 driver = helium.start_chrome(headless=False, options=chrome_options)
@@ -208,15 +222,5 @@ But beware that the screenshot will only be taken at the end of the whole action
 Don't kill the browser.
 """
 
-# Run the agent!
-
-github_request = """
-I'm trying to find how hard I have to work to get a repo in github.com/trending.
-Can you navigate to the profile for the top author of the top trending repo, and give me their total number of commits over the last year?
-"""  # The agent is able to achieve this request only when powered by GPT-4o or Claude-3.5-sonnet.
-
-search_request = """
-Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that mentions a construction accident.
-"""
-
-agent.run(search_request + helium_instructions)
+# Run the agent with the provided prompt
+agent.run(args.prompt + helium_instructions)
