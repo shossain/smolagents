@@ -57,12 +57,7 @@ from .tools import (
     Tool,
     get_tool_description_with_args,
 )
-from .types import (
-    AgentAudio, 
-    AgentImage, 
-    AgentType, 
-    handle_agent_output_types
-)
+from .types import AgentAudio, AgentImage, AgentType, handle_agent_output_types
 from .utils import (
     AgentError,
     AgentExecutionError,
