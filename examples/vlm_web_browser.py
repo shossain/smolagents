@@ -43,7 +43,7 @@ args = parse_arguments()
 # Initialize the model based on the provided arguments
 if args.model == "OpenAIServerModel":
     model = OpenAIServerModel(
-        api_key="fw_3ZYi6VswPcQJ9569cVaMvQw6",  # os.getenv("FIREWORKS_API_KEY"),
+        api_key=os.getenv("FIREWORKS_API_KEY"),
         api_base="https://api.fireworks.ai/inference/v1",
         model_id=args.model_id,
     )
