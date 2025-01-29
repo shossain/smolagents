@@ -24,3 +24,13 @@ torch>=2.2.2
 torchvision>=0.17.2
 transformers>=4.46.0
 youtube_transcript_api>=0.6.2
+chess
+sympy
+pubchempy
+Bio
+scikit-learn
+scipy
+pydub
+PyPDF2
+python-pptx
+torch

@@ -30,7 +30,7 @@ def run_agent(
         # run executor agent
         result = agent.run(augmented_question, additional_args=kwargs if len(kwargs)>0 else None)
 
-        agent_memory = agent.write_inner_memory_from_logs(summary_mode=True)
+        agent_memory = agent.write_memory_to_messages(summary_mode=True)
         try:
             final_result = prepare_response(augmented_question, agent_memory, reformulation_model)
         except Exception as e:
@@ -134,6 +134,7 @@ def answer_questions(
     except Exception as e:
         print("Error when loading records: ", e)
         print("Found no usable records! 🤔 Starting new.")
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         results = []
 
     results_df = pd.DataFrame(results)
@@ -153,7 +154,7 @@ def answer_questions(
                 if '.MOV' in example['file_name']:
                     continue
                 prompt_use_files += "\n\nTo answer the question above, you will have to use these attached files:"
-                if example['file_name'].split('.')[-1] in ['pdf', 'xlsx']:
+                if example['file_name'].split('.')[-1] in ['pdf', 'xlsx', 'pptx']:
                     image_path = example['file_name'].split('.')[0] + '.png'
                     if os.path.exists(image_path):
                         prompt_use_files += f"\nAttached image: {image_path}"
@@ -206,7 +207,7 @@ def answer_questions(
             else:
                 prompt_use_files += "\n\nYou have been given no local files to access."
             example['augmented_question'] = """It is paramount that you complete this task and provide a correct answer.
-    Give it all you can: I know for a fact that you have access to all the relevant tools to solve it. Failure or 'I cannot answer' will not be tolerated, success will be rewarded.
+    Give it all you can: I know for a fact that you have access to all the relevant tools to solve it and find the answer (the answer does exist). Failure or 'I cannot answer' or 'None found' will not be tolerated, success will be rewarded. Don't fear running many verification steps if that's needed, you need to make sure you fidn the correct answer!
     Here is the task:
     """ + example['question'] + prompt_use_files + postprompt
 

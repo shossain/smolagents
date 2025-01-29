@@ -361,7 +361,7 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 
 browser_config = {
     "viewport_size": 1024 * 5,
-    "downloads_folder": "coding",
+    "downloads_folder": "downloads_folder",
     "request_kwargs": {
         "headers": {"User-Agent": user_agent},
         "timeout": 300,
@@ -369,6 +369,8 @@ browser_config = {
 }
 
 browser_config["serpapi_key"] = os.environ["SERPAPI_API_KEY"]
+
+assert os.path.isdir(f"./{browser_config['downloads_folder']}"), f"Directory {browser_config['downloads_folder']} chosen in your config does not exist."
 
 browser = SimpleTextBrowser(**browser_config)
 

@@ -14,7 +14,7 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
 
     inputs = {
         "file_path": {
-            "description": "The path to the file you want to read as text. Must be a '.something' file, like '.pdf'. If it is an image, use the visualizer tool instead! DO NOT USE THIS TOOL FOR A WEBPAGE: use the search tool instead!",
+            "description": "The path to the file you want to read as text. Must be a '.something' file, like '.pdf'. If it is an image, use the visualizer tool instead! DO NOT USE THIS TOOL FOR AN HTML WEBPAGE: use the search tool instead!",
             "type": "string",
         },
         "question": {
@@ -82,7 +82,7 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
                 "content": [{"type": "text", "text": "Here is the complete file:\n### "
                 + str(result.title)
                 + "\n\n"
-                + result.text_content[:self.text_limit]}],
+                + result.text_content[:self.text_limit]}]
             },
             {
                 "role": MessageRole.USER,

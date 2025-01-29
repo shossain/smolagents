@@ -17,7 +17,6 @@ from scripts.text_web_browser import (
     VisitTool,
 )
 from scripts.visual_qa import VisualQAGPT4Tool, visualizer
-from scripts.vlm_web_browser import helium_instructions, vision_browser_agent
 
 from smolagents import CodeAgent, HfApiModel, LiteLLMModel, ManagedAgent, ToolCallingAgent
 
@@ -69,6 +68,10 @@ print(pd.Series(eval_ds["task"]).value_counts())
 
 ### BUILD AGENTS & TOOLS
 
+
+text_limit = 100000
+ti_tool = TextInspectorTool(websurfer_model, text_limit)
+
 WEB_TOOLS = [
     SearchInformationTool(),
     NavigationalSearchTool(),
@@ -78,36 +81,32 @@ WEB_TOOLS = [
     FinderTool(),
     FindNextTool(),
     ArchiveSearchTool(),
+    TextInspectorTool(websurfer_model, text_limit),
 ]
-
 
 surfer_agent = ToolCallingAgent(
     model=websurfer_model,
     tools=WEB_TOOLS,
-    max_steps=10,
+    max_steps=20,
     verbosity_level=2,
     # grammar = DEFAULT_JSONAGENT_REGEX_GRAMMAR,
-    planning_interval=4,
+    planning_interval=6,
 )
 
 search_agent = ManagedAgent(
-    vision_browser_agent,
+    surfer_agent,
     "web_search",
     description="""A team member that will browse the internet to answer your question.
 Ask him for all your web-search related questions, but he's unable to do problem-solving.
 Provide him as much context as possible, in particular if you need to search on a specific timeframe!
-And don't hesitate to provide him with a complex search task, like finding a difference between two webpages.""",
-    additional_prompting= helium_instructions + """You can navigate to .txt or .pdf online files.
-If it's another format, you can return the url of the file, and your manager will handle the download and inspection from there.
+And don't hesitate to provide him with a complex search task, like finding a difference between two webpages.
+Your request must be a real sentence, not a google search! Like "Find me this information (...)" rather than a few keywords.
+""",
+    additional_prompting= """You can navigate to .txt online files.
+If a non-html page is in another format, especially .pdf, use tool 'inspect_file_as_text' to download and inspect it.
 Additionally, if after some searching you find out that you need more information to answer the question, you can use `final_answer` with your request for clarification as argument to request for more information.""",
     provide_run_summary=True
 )
-
-text_limit = 70000
-if USE_OPEN_MODELS:
-    text_limit = 20000
-
-ti_tool = TextInspectorTool(websurfer_model, text_limit)
 
 TASK_SOLVING_TOOLBOX = [
     visualizer,  # VisualQATool(),
@@ -144,10 +143,10 @@ manager_agent = CodeAgent(
         "pptx",
         "torch",
         "datetime",
-        "csv",
         "fractions",
+        "csv"
     ],
-    planning_interval=4,
+    planning_interval=5,
     managed_agents=[search_agent]
 )
 
@@ -156,8 +155,9 @@ manager_agent = CodeAgent(
 results = answer_questions(
     eval_ds,
     manager_agent,
-    "code_o1_25-01_visioon",
+    "code_o1_29-01_vision",
     output_folder=f"{OUTPUT_DIR}/{SET}",
     visual_inspection_tool = VisualQAGPT4Tool(),
     text_inspector_tool = ti_tool,
+    reformulation_model=model,
 )

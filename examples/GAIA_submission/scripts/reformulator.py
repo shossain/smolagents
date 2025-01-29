@@ -61,20 +61,20 @@ If you are unable to determine the final answer, output 'FINAL ANSWER: Unable to
     final_answer = response.split("FINAL ANSWER: ")[-1].strip()
     print("Reformulated answer is: ", final_answer)
 
-    if "unable to determine" in final_answer.lower():
-        messages.append({"role": MessageRole.ASSISTANT, "content": response })
-        messages.append({"role": MessageRole.USER, "content": [{"type": "text", "text": """
-I understand that a definitive answer could not be determined. Please make a well-informed EDUCATED GUESS based on the conversation.
+#     if "unable to determine" in final_answer.lower():
+#         messages.append({"role": MessageRole.ASSISTANT, "content": response })
+#         messages.append({"role": MessageRole.USER, "content": [{"type": "text", "text": """
+# I understand that a definitive answer could not be determined. Please make a well-informed EDUCATED GUESS based on the conversation.
 
-To output the educated guess, use the following template: EDUCATED GUESS: [YOUR EDUCATED GUESS]
-Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
-ADDITIONALLY, your EDUCATED GUESS MUST adhere to any formatting instructions specified in the original question (e.g., alphabetization, sequencing, units, rounding, decimal places, etc.)
-If you are asked for a number, express it numerically (i.e., with digits rather than words), don't use commas, and don't include units such as $ or percent signs unless specified otherwise.
-If you are asked for a string, don't use articles or abbreviations (e.g. for cities), unless specified otherwise. Don't output any final sentence punctuation such as '.', '!', or '?'.
-If you are asked for a comma separated list, apply the above rules depending on whether the elements are numbers or strings.
-""".strip()}]})
+# To output the educated guess, use the following template: EDUCATED GUESS: [YOUR EDUCATED GUESS]
+# Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
+# ADDITIONALLY, your EDUCATED GUESS MUST adhere to any formatting instructions specified in the original question (e.g., alphabetization, sequencing, units, rounding, decimal places, etc.)
+# If you are asked for a number, express it numerically (i.e., with digits rather than words), don't use commas, and don't include units such as $ or percent signs unless specified otherwise.
+# If you are asked for a string, don't use articles or abbreviations (e.g. for cities), unless specified otherwise. Don't output any final sentence punctuation such as '.', '!', or '?'.
+# If you are asked for a comma separated list, apply the above rules depending on whether the elements are numbers or strings.
+# """.strip()}]})
 
-        response = model(messages).content
-        print("\n>>>Making an educated guess.\n", response)
-        final_answer = response.split("EDUCATED GUESS: ")[-1].strip()
+#         response = model(messages).content
+#         print("\n>>>Making an educated guess.\n", response)
+#         final_answer = response.split("EDUCATED GUESS: ")[-1].strip()
     return final_answer
