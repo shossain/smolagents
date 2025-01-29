@@ -23,12 +23,18 @@ Your team then worked diligently to address that request. Read below a transcrip
     #    del inner_messages[0]
 
     # copy them to this context
-    for message in inner_messages:
-        if not message.get("content"):
-            continue
-        message = copy.deepcopy(message)
-        message["role"] = MessageRole.USER
-        messages.append(message)
+    try:
+        for message in inner_messages:
+            if not message.get("content"):
+                continue
+            message = copy.deepcopy(message)
+            message["role"] = MessageRole.USER
+            messages.append(message)
+    except Exception:
+        messages += [{
+            "role": MessageRole.ASSISTANT,
+            "content": str(inner_messages)
+        }]
 
     # ask for the final answer
     messages.append(

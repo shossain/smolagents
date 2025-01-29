@@ -12,6 +12,7 @@ from scripts.reformulator import prepare_response
 from tqdm import tqdm
 
 from smolagents.agents import AgentError, MultiStepAgent
+from smolagents import Model
 from smolagents.default_tools import Tool
 
 
@@ -19,6 +20,7 @@ def run_agent(
     example: Dict,
     agent: MultiStepAgent,
     agent_name: str,
+    reformulation_model: Model,
     writer_queue: Queue = None,
     **kwargs
 ) -> dict:
@@ -30,7 +32,7 @@ def run_agent(
 
         agent_memory = agent.write_inner_memory_from_logs(summary_mode=True)
         try:
-            final_result = prepare_response(augmented_question, agent_memory, agent.model)
+            final_result = prepare_response(augmented_question, agent_memory, reformulation_model)
         except Exception as e:
             print(e)
             final_result = result
@@ -91,7 +93,6 @@ def run_agent(
     return annotated_example
 
 
-
 def serialize_agent_error(obj):
     if isinstance(obj, AgentError):
         return {"error_type": obj.__class__.__name__, "message": obj.message}
@@ -103,11 +104,13 @@ def answer_questions(
     dataset: Dataset,
     agent: MultiStepAgent,
     agent_name: str,
+    reformulation_model: Model,
     output_folder: str = "output",
     visual_inspection_tool: Tool = None,
     text_inspector_tool: Tool = None,
     skip_hard_questions: bool = False,
     postprompt: str = "",
+    run_simple: bool=False
 ) -> List[Dict[str, Any]]:
     """
     Evaluates the agent on a given dataset.
@@ -207,11 +210,11 @@ def answer_questions(
     Here is the task:
     """ + example['question'] + prompt_use_files + postprompt
 
-            # run agent
             result = run_agent(
                 example=example,
                 agent=agent,
                 agent_name=agent_name,
+                reformulation_model=reformulation_model
             )
 
             # add in example metadata
