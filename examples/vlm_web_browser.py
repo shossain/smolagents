@@ -1,6 +1,7 @@
+import argparse
+import os
 from io import BytesIO
 from time import sleep
-import argparse
 
 import helium
 from dotenv import load_dotenv
@@ -11,7 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, HfApiModel, TransformersModel, tool  # noqa: F401
+from smolagents import CodeAgent, HfApiModel, LiteLLMModel, OpenAIServerModel, TransformersModel, tool  # noqa: F401
 from smolagents.agents import ActionStep
 
 
@@ -35,7 +36,6 @@ def parse_arguments():
 
 # Load environment variables
 load_dotenv()
-import os
 
 # Parse command line arguments
 args = parse_arguments()
