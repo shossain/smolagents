@@ -9,7 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
-from smolagents import CodeAgent, HfApiModel, LiteLLMModel, OpenAIServerModel, TransformersModel, tool  # noqa: F401
+from smolagents import CodeAgent, tool  # Removed unused imports
 from smolagents.agents import ActionStep
 from smolagents.cli import load_model
 
@@ -22,7 +22,6 @@ Can you navigate to the profile for the top author of the top trending repo, and
 search_request = """
 Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that mentions a construction accident.
 """
-
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run a web browser automation script with a specified model.")
@@ -41,18 +40,6 @@ def parse_arguments():
     parser.add_argument("--prompt", type=str, default=search_request, help="The prompt to run with the agent")
     return parser.parse_args()
 
-
-# Load environment variables
-load_dotenv()
-
-# Parse command line arguments
-args = parse_arguments()
-
-# Initialize the model based on the provided arguments
-model = load_model(args.model_type, args.model_id)
-
-
-# Prepare callback
 def save_screenshot(memory_step: ActionStep, agent: CodeAgent) -> None:
     sleep(1.0)  # Let JavaScript animations happen before taking the screenshot
     driver = helium.get_driver()
@@ -73,17 +60,6 @@ def save_screenshot(memory_step: ActionStep, agent: CodeAgent) -> None:
     )
     return
 
-
-# Initialize driver and agent
-chrome_options = webdriver.ChromeOptions()
-chrome_options.add_argument("--force-device-scale-factor=1")
-chrome_options.add_argument("--window-size=1000,1350")
-chrome_options.add_argument("--disable-pdf-viewer")
-chrome_options.add_argument("--window-position=0,0")
-
-driver = helium.start_chrome(headless=False, options=chrome_options)
-
-# Initialize tools
 
 
 @tool
@@ -117,15 +93,25 @@ def close_popups() -> str:
     """
     webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
 
+def initialize_driver():
+    """Initialize the Selenium WebDriver."""
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument("--force-device-scale-factor=1")
+    chrome_options.add_argument("--window-size=1000,1350")
+    chrome_options.add_argument("--disable-pdf-viewer")
+    chrome_options.add_argument("--window-position=0,0")
+    return helium.start_chrome(headless=False, options=chrome_options)
 
-agent = CodeAgent(
-    tools=[go_back, close_popups, search_item_ctrl_f],
-    model=model,
-    additional_authorized_imports=["helium"],
-    step_callbacks=[save_screenshot],
-    max_steps=20,
-    verbosity_level=2,
-)
+def initialize_agent(model):
+    """Initialize the CodeAgent with the specified model."""
+    return CodeAgent(
+        tools=[go_back, close_popups, search_item_ctrl_f],
+        model=model,
+        additional_authorized_imports=["helium"],
+        step_callbacks=[save_screenshot],
+        max_steps=20,
+        verbosity_level=2,
+    )
 
 helium_instructions = """
 You can use helium to access websites. Don't bother about the helium driver, it's already managed.
@@ -198,23 +184,9 @@ def main():
     # Initialize the model based on the provided arguments
     model = load_model(args.model_type, args.model_id)
 
-    # Initialize driver and agent
-    chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument("--force-device-scale-factor=1")
-    chrome_options.add_argument("--window-size=1000,1350")
-    chrome_options.add_argument("--disable-pdf-viewer")
-    chrome_options.add_argument("--window-position=0,0")
-
-    driver = helium.start_chrome(headless=False, options=chrome_options)
-
-    agent = CodeAgent(
-        tools=[go_back, close_popups, search_item_ctrl_f],
-        model=model,
-        additional_authorized_imports=["helium"],
-        step_callbacks=[save_screenshot],
-        max_steps=20,
-        verbosity_level=2,
-    )
+    global driver
+    driver = initialize_driver()
+    agent = initialize_agent(model)
 
     # Run the agent with the provided prompt
     agent.python_executor("from helium import *", agent.state)
