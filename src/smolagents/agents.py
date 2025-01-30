@@ -25,13 +25,13 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.text import Text
 
+from smolagents.agent_types import AgentAudio, AgentImage, handle_agent_output_types
 from smolagents.memory import ActionStep, AgentMemory, PlanningStep, SystemPromptStep, TaskStep, ToolCall
 from smolagents.monitoring import (
     YELLOW_HEX,
     AgentLogger,
     LogLevel,
 )
-from smolagents.types import AgentAudio, AgentImage, handle_agent_output_types
 from smolagents.utils import (
     AgentError,
     AgentExecutionError,
@@ -43,6 +43,7 @@ from smolagents.utils import (
     truncate_content,
 )
 
+from .agent_types import AgentType
 from .default_tools import TOOL_MAPPING, FinalAnswerTool
 from .e2b_executor import E2BExecutor
 from .local_python_executor import (
@@ -73,7 +74,6 @@ from .tools import (
     Tool,
     get_tool_description_with_args,
 )
-from .types import AgentType
 
 
 logger = getLogger(__name__)

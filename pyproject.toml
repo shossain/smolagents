@@ -97,3 +97,6 @@ lint.select = ["E", "F", "I", "W"]
 [tool.ruff.lint.isort]
 known-first-party = ["smolagents"]
 lines-after-imports = 2
+
+[project.scripts]
+smolagent = "smolagents.cli:main"

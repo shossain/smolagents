@@ -1,5 +1,4 @@
 import argparse
-import os
 from io import BytesIO
 from time import sleep
 
@@ -12,6 +11,7 @@ from selenium.webdriver.common.keys import Keys
 
 from smolagents import CodeAgent, HfApiModel, LiteLLMModel, OpenAIServerModel, TransformersModel, tool  # noqa: F401
 from smolagents.agents import ActionStep
+from smolagents.cli import load_model
 
 
 github_request = """
@@ -27,7 +27,7 @@ Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run a web browser automation script with a specified model.")
     parser.add_argument(
-        "--model",
+        "--model-type",
         type=str,
         default="LiteLLMModel",
         help="The model type to use (e.g., OpenAIServerModel, LiteLLMModel, TransformersModel, HfApiModel)",
@@ -49,26 +49,7 @@ load_dotenv()
 args = parse_arguments()
 
 # Initialize the model based on the provided arguments
-if args.model == "OpenAIServerModel":
-    model = OpenAIServerModel(
-        api_key=os.getenv("FIREWORKS_API_KEY"),
-        api_base="https://api.fireworks.ai/inference/v1",
-        model_id=args.model_id,
-    )
-elif args.model == "LiteLLMModel":
-    model = LiteLLMModel(
-        model_id=args.model_id,
-        api_key=os.getenv("OPENAI_API_KEY"),
-    )
-elif args.model == "TransformersModel":
-    model = TransformersModel(model_id=args.model_id, device_map="auto", flatten_messages_as_text=False)
-elif args.model == "HfApiModel":
-    model = HfApiModel(
-        token=os.getenv("HF_API_KEY"),
-        model_id=args.model_id,
-    )
-else:
-    raise ValueError(f"Unsupported model type: {args.model}")
+model = load_model(args.model_type)
 
 
 # Prepare callback

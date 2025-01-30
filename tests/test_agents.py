@@ -20,6 +20,7 @@ from pathlib import Path
 
 from transformers.testing_utils import get_tests_dir
 
+from smolagents.agent_types import AgentImage, AgentText
 from smolagents.agents import (
     AgentMaxStepsError,
     CodeAgent,
@@ -30,7 +31,6 @@ from smolagents.agents import (
 from smolagents.default_tools import PythonInterpreterTool
 from smolagents.models import ChatMessage, ChatMessageToolCall, ChatMessageToolCallDefinition, TransformersModel
 from smolagents.tools import tool
-from smolagents.types import AgentImage, AgentText
 from smolagents.utils import BASE_BUILTIN_MODULES
 
 
