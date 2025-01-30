@@ -19,9 +19,6 @@ class Message(TypedDict):
     role: MessageRole
     content: str | list[dict]
 
-    def dict(self):
-        return {"role": self.role, "content": self.content}
-
 
 @dataclass
 class ToolCall:
