@@ -12,7 +12,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "huggingface-hub>=0.24.0",
+  "huggingface-hub>=0.28.0",
   "requests>=2.32.3",
   "rich>=13.9.4",
   "pandas>=2.2.3",
@@ -41,7 +41,7 @@ e2b = [
   "python-dotenv>=1.0.1",
 ]
 gradio = [
-  "gradio>=5.13.0",
+  "gradio>=5.13.2",
 ]
 litellm = [
   "litellm>=1.55.10",
