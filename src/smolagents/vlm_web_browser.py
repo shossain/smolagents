@@ -23,6 +23,7 @@ search_request = """
 Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that mentions a construction accident.
 """
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run a web browser automation script with a specified model.")
     parser.add_argument(
@@ -39,6 +40,7 @@ def parse_arguments():
     )
     parser.add_argument("--prompt", type=str, default=search_request, help="The prompt to run with the agent")
     return parser.parse_args()
+
 
 def save_screenshot(memory_step: ActionStep, agent: CodeAgent) -> None:
     sleep(1.0)  # Let JavaScript animations happen before taking the screenshot
@@ -59,7 +61,6 @@ def save_screenshot(memory_step: ActionStep, agent: CodeAgent) -> None:
         url_info if memory_step.observations is None else memory_step.observations + "\n" + url_info
     )
     return
-
 
 
 @tool
@@ -93,6 +94,7 @@ def close_popups() -> str:
     """
     webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
 
+
 def initialize_driver():
     """Initialize the Selenium WebDriver."""
     chrome_options = webdriver.ChromeOptions()
@@ -101,6 +103,7 @@ def initialize_driver():
     chrome_options.add_argument("--disable-pdf-viewer")
     chrome_options.add_argument("--window-position=0,0")
     return helium.start_chrome(headless=False, options=chrome_options)
+
 
 def initialize_agent(model):
     """Initialize the CodeAgent with the specified model."""
@@ -112,6 +115,7 @@ def initialize_agent(model):
         max_steps=20,
         verbosity_level=2,
     )
+
 
 helium_instructions = """
 You can use helium to access websites. Don't bother about the helium driver, it's already managed.
