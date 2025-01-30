@@ -7,13 +7,21 @@ import helium
 from dotenv import load_dotenv
 from PIL import Image
 from selenium import webdriver
-from selenium.common.exceptions import ElementNotInteractableException, TimeoutException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.keys import Keys
 
 from smolagents import CodeAgent, HfApiModel, LiteLLMModel, OpenAIServerModel, TransformersModel, tool  # noqa: F401
 from smolagents.agents import ActionStep
+
+
+github_request = """
+I'm trying to find how hard I have to work to get a repo in github.com/trending.
+Can you navigate to the profile for the top author of the top trending repo, and give me their total number of commits over the last year?
+"""  # The agent is able to achieve this request only when powered by GPT-4o or Claude-3.5-sonnet.
+
+search_request = """
+Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that mentions a construction accident.
+"""
 
 
 def parse_arguments():
@@ -21,16 +29,16 @@ def parse_arguments():
     parser.add_argument(
         "--model",
         type=str,
-        default="OpenAIServerModel",
+        default="LiteLLMModel",
         help="The model type to use (e.g., OpenAIServerModel, LiteLLMModel, TransformersModel, HfApiModel)",
     )
     parser.add_argument(
         "--model-id",
         type=str,
-        default="accounts/fireworks/models/qwen2-vl-72b-instruct",
+        default="gpt-4o",
         help="The model ID to use for the specified model type",
     )
-    parser.add_argument("--prompt", type=str, required=True, help="The prompt to run with the agent")
+    parser.add_argument("--prompt", type=str, default=search_request, help="The prompt to run with the agent")
     return parser.parse_args()
 
 
@@ -88,6 +96,7 @@ chrome_options = webdriver.ChromeOptions()
 chrome_options.add_argument("--force-device-scale-factor=1")
 chrome_options.add_argument("--window-size=1000,1350")
 chrome_options.add_argument("--disable-pdf-viewer")
+chrome_options.add_argument("--window-position=0,0")
 
 driver = helium.start_chrome(headless=False, options=chrome_options)
 
@@ -123,42 +132,7 @@ def close_popups() -> str:
     """
     Closes any visible modal or pop-up on the page. Use this to dismiss pop-up windows! This does not work on cookie consent banners.
     """
-    # Common selectors for modal close buttons and overlay elements
-    modal_selectors = [
-        "button[class*='close']",
-        "[class*='modal']",
-        "[class*='modal'] button",
-        "[class*='CloseButton']",
-        "[aria-label*='close']",
-        ".modal-close",
-        ".close-modal",
-        ".modal .close",
-        ".modal-backdrop",
-        ".modal-overlay",
-        "[class*='overlay']",
-    ]
-
-    wait = WebDriverWait(driver, timeout=0.5)
-
-    for selector in modal_selectors:
-        try:
-            elements = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))
-
-            for element in elements:
-                if element.is_displayed():
-                    try:
-                        # Try clicking with JavaScript as it's more reliable
-                        driver.execute_script("arguments[0].click();", element)
-                    except ElementNotInteractableException:
-                        # If JavaScript click fails, try regular click
-                        element.click()
-
-        except TimeoutException:
-            continue
-        except Exception as e:
-            print(f"Error handling selector {selector}: {str(e)}")
-            continue
-    return "Modals closed"
+    webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
 
 
 agent = CodeAgent(
@@ -172,10 +146,10 @@ agent = CodeAgent(
 
 helium_instructions = """
 You can use helium to access websites. Don't bother about the helium driver, it's already managed.
-First you need to import everything from helium, then you can do other actions!
+We've already ran "from helium import *"
+Then you can go to pages!
 Code:
 ```py
-from helium import *
 go_to('github.com/trending')
 ```<end_code>
 
@@ -228,7 +202,10 @@ Of course, you can act on buttons like a user would do when navigating.
 After each code blob you write, you will be automatically provided with an updated screenshot of the browser and the current browser url.
 But beware that the screenshot will only be taken at the end of the whole action, it won't see intermediate states.
 Don't kill the browser.
+When you have modals or cookie banners on screen, you should get rid of them before you can click anything else.
 """
 
 # Run the agent with the provided prompt
+
+agent.python_executor("from helium import *", agent.state)
 agent.run(args.prompt + helium_instructions)
