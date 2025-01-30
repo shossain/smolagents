@@ -49,7 +49,7 @@ load_dotenv()
 args = parse_arguments()
 
 # Initialize the model based on the provided arguments
-model = load_model(args.model_type)
+model = load_model(args.model_type, args.model_id)
 
 
 # Prepare callback
