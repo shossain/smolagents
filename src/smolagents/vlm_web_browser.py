@@ -174,6 +174,7 @@ Don't kill the browser.
 When you have modals or cookie banners on screen, you should get rid of them before you can click anything else.
 """
 
+
 def main():
     # Load environment variables
     load_dotenv()
@@ -191,6 +192,7 @@ def main():
     # Run the agent with the provided prompt
     agent.python_executor("from helium import *", agent.state)
     agent.run(args.prompt + helium_instructions)
+
 
 if __name__ == "__main__":
     main()
