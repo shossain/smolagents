@@ -90,7 +90,7 @@ surfer_agent = ToolCallingAgent(
     max_steps=20,
     verbosity_level=2,
     # grammar = DEFAULT_JSONAGENT_REGEX_GRAMMAR,
-    planning_interval=6,
+    planning_interval=4,
 )
 
 search_agent = ManagedAgent(
@@ -146,7 +146,7 @@ manager_agent = CodeAgent(
         "fractions",
         "csv"
     ],
-    planning_interval=5,
+    planning_interval=4,
     managed_agents=[search_agent]
 )
 
@@ -155,7 +155,7 @@ manager_agent = CodeAgent(
 results = answer_questions(
     eval_ds,
     manager_agent,
-    "code_o1_29-01_vision",
+    "code_o1_29-01_text",
     output_folder=f"{OUTPUT_DIR}/{SET}",
     visual_inspection_tool = VisualQAGPT4Tool(),
     text_inspector_tool = ti_tool,
