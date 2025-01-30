@@ -188,7 +188,37 @@ Don't kill the browser.
 When you have modals or cookie banners on screen, you should get rid of them before you can click anything else.
 """
 
-# Run the agent with the provided prompt
+def main():
+    # Load environment variables
+    load_dotenv()
 
-agent.python_executor("from helium import *", agent.state)
-agent.run(args.prompt + helium_instructions)
+    # Parse command line arguments
+    args = parse_arguments()
+
+    # Initialize the model based on the provided arguments
+    model = load_model(args.model_type, args.model_id)
+
+    # Initialize driver and agent
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument("--force-device-scale-factor=1")
+    chrome_options.add_argument("--window-size=1000,1350")
+    chrome_options.add_argument("--disable-pdf-viewer")
+    chrome_options.add_argument("--window-position=0,0")
+
+    driver = helium.start_chrome(headless=False, options=chrome_options)
+
+    agent = CodeAgent(
+        tools=[go_back, close_popups, search_item_ctrl_f],
+        model=model,
+        additional_authorized_imports=["helium"],
+        step_callbacks=[save_screenshot],
+        max_steps=20,
+        verbosity_level=2,
+    )
+
+    # Run the agent with the provided prompt
+    agent.python_executor("from helium import *", agent.state)
+    agent.run(args.prompt + helium_instructions)
+
+if __name__ == "__main__":
+    main()
