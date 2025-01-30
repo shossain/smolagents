@@ -9,7 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
-from smolagents import CodeAgent, tool
+from smolagents import CodeAgent, DuckDuckGoSearchTool, tool
 from smolagents.agents import ActionStep
 from smolagents.cli import load_model
 
@@ -27,6 +27,13 @@ Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run a web browser automation script with a specified model.")
     parser.add_argument(
+        "prompt",
+        type=str,
+        nargs="?",  # Makes it optional
+        default=search_request,
+        help="The prompt to run with the agent",
+    )
+    parser.add_argument(
         "--model-type",
         type=str,
         default="LiteLLMModel",
@@ -38,7 +45,6 @@ def parse_arguments():
         default="gpt-4o",
         help="The model ID to use for the specified model type",
     )
-    parser.add_argument("--prompt", type=str, default=search_request, help="The prompt to run with the agent")
     return parser.parse_args()
 
 
@@ -108,7 +114,7 @@ def initialize_driver():
 def initialize_agent(model):
     """Initialize the CodeAgent with the specified model."""
     return CodeAgent(
-        tools=[go_back, close_popups, search_item_ctrl_f],
+        tools=[DuckDuckGoSearchTool(), go_back, close_popups, search_item_ctrl_f],
         model=model,
         additional_authorized_imports=["helium"],
         step_callbacks=[save_screenshot],
@@ -118,7 +124,9 @@ def initialize_agent(model):
 
 
 helium_instructions = """
-You can use helium to access websites. Don't bother about the helium driver, it's already managed.
+Use your web_search tool when you want to get Google search results.
+Then you can use helium to access websites. Don't use helium for Google search, only for navigating websites!
+Don't bother about the helium driver, it's already managed.
 We've already ran "from helium import *"
 Then you can go to pages!
 Code:

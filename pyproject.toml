@@ -101,4 +101,4 @@ lines-after-imports = 2
 
 [project.scripts]
 smolagent = "smolagents.cli:main"
-webagent = "smolagents.vlm_web_browser:main"
+webagent = "smolagents.vision_web_browser:main"
