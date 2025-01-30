@@ -12,7 +12,11 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+<<<<<<< HEAD
   "huggingface-hub>=0.23.4",
+=======
+  "huggingface-hub>=0.28.0",
+>>>>>>> main
   "requests>=2.32.3",
   "rich>=13.9.4",
   "pandas>=2.2.3",
@@ -20,6 +24,7 @@ dependencies = [
   "pillow>=11.0.0",
   "markdownify>=0.13.1",
   "duckduckgo-search>=6.3.7",
+<<<<<<< HEAD
   "torchvision>=0.17.2",
   "datasets>=2.21.0",
   "anthropic>=0.37.1",
@@ -41,6 +46,9 @@ dependencies = [
   "torch>=2.2.2",
   "transformers>=4.46.0",
   "youtube-transcript-api>=0.6.2",
+=======
+  "python-dotenv"
+>>>>>>> main
 ]
 
 [project.optional-dependencies]
@@ -118,3 +126,7 @@ lint.select = ["E", "F", "I", "W"]
 [tool.ruff.lint.isort]
 known-first-party = ["smolagents"]
 lines-after-imports = 2
+
+[project.scripts]
+smolagent = "smolagents.cli:main"
+webagent = "smolagents.vlm_web_browser:main"
