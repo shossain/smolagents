@@ -105,7 +105,8 @@ class ActionStep(MemoryStep):
                 )
             else:
                 tool_response_message = Message(
-                    role=MessageRole.TOOL_RESPONSE, content=f"Call id: {self.tool_calls[0].id}\n{message_content}"
+                    role=MessageRole.TOOL_RESPONSE,
+                    content=[{"type": "text", "text": f"Call id: {self.tool_calls[0].id}\n{message_content}"}],
                 )
 
             messages.append(tool_response_message)
@@ -114,7 +115,12 @@ class ActionStep(MemoryStep):
                 messages.append(
                     Message(
                         role=MessageRole.TOOL_RESPONSE,
-                        content=f"Call id: {self.tool_calls[0].id}\nObservation:\n{self.observations}",
+                        content=[
+                            {
+                                "type": "text",
+                                "text": f"Call id: {self.tool_calls[0].id}\nObservation:\n{self.observations}",
+                            }
+                        ],
                     )
                 )
         if self.observations_images:

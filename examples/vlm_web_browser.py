@@ -72,22 +72,24 @@ else:
 
 
 # Prepare callback
-def save_screenshot(step_log: ActionStep, agent: CodeAgent) -> None:
+def save_screenshot(memory_step: ActionStep, agent: CodeAgent) -> None:
     sleep(1.0)  # Let JavaScript animations happen before taking the screenshot
     driver = helium.get_driver()
-    current_step = step_log.step_number
+    current_step = memory_step.step_number
     if driver is not None:
-        for step_logs in agent.logs:  # Remove previous screenshots from logs for lean processing
-            if isinstance(step_logs, ActionStep) and step_logs.step_number <= current_step - 2:
-                step_logs.observations_images = None
+        for previous_memory_step in agent.memory.steps:  # Remove previous screenshots from logs for lean processing
+            if isinstance(previous_memory_step, ActionStep) and previous_memory_step.step_number <= current_step - 2:
+                previous_memory_step.observations_images = None
         png_bytes = driver.get_screenshot_as_png()
         image = Image.open(BytesIO(png_bytes))
         print(f"Captured a browser screenshot: {image.size} pixels")
-        step_log.observations_images = [image.copy()]  # Create a copy to ensure it persists, important!
+        memory_step.observations_images = [image.copy()]  # Create a copy to ensure it persists, important!
 
     # Update observations with current URL
     url_info = f"Current url: {driver.current_url}"
-    step_log.observations = url_info if step_logs.observations is None else step_log.observations + "\n" + url_info
+    memory_step.observations = (
+        url_info if memory_step.observations is None else memory_step.observations + "\n" + url_info
+    )
     return
 
 
