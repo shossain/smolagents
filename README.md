@@ -128,8 +128,9 @@ We've created [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/age
 
 This comparison shows that open-source models can now take on the best closed models!
 
+<details>
 
-## Contributing
+<summary><h2>Contributing</h2></summary>
 
 To contribute, follow our [contribution guide](https://github.com/huggingface/smolagents/blob/main/CONTRIBUTING.md).
 
@@ -158,6 +159,7 @@ To run tests locally, run this command:
 ```bash
 make test
 ```
+</details>
 
 ## Citing smolagents
 
