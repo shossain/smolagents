@@ -46,6 +46,16 @@ Full documentation can be found [here](https://huggingface.co/docs/smolagents/in
 > [!NOTE]
 > Check the our [launch blog post](https://huggingface.co/blog/smolagents) to learn more about `smolagents`!
 
+## Table of Contents
+- [Introduction](#introduction)
+- [Quick Demo](#quick-demo)
+- [Command Line Interface](#command-line-interface)
+- [Code Agents](#code-agents)
+- [How Smol is it Really?](#how-smol-is-it-really)
+- [How Strong are Open Models for Agentic Workflows?](#how-strong-are-open-models-for-agentic-workflows)
+- [Contributing](#contributing)
+- [Citing smolagents](#citing-smolagents)
+
 ## Quick demo
 
 First install the package.
@@ -62,6 +72,44 @@ agent.run("How many seconds would it take for a leopard at full speed to run thr
 ```
 
 https://github.com/user-attachments/assets/cd0226e2-7479-4102-aea0-57c22ca47884
+
+
+## Command Line Interface
+
+You can accomplish multi-step agentic tasks using two commands: `smolagent` and `webagent`. `smolagent` is a more generalist command to run multi-step agents that can be equipped with various tools, meanwhile `webagent` is an agent equipped with web browsing tools using helium.
+
+**VLM Web Browser in CLI**
+
+`webagent` allows users to automate web browsing tasks. It uses the Helium library to interact with web pages and uses defined tools to browse the web. 
+
+Run the following command to get started:
+
+```bash
+webagent {YOUR_PROMPT_HERE}
+```
+
+You can also add following arguments for more customization: 
+- `--model`: Specifies the [model type](https://huggingface.co/docs/smolagents/en/reference/models) to use.
+- `--model-id`: Specifies the model ID for the chosen model type.
+
+A good example command to get started is `$ webagent --prompt "go to xyz.com/women, get to sale section, click the first clothing item you see. Get the product details, and the price, return them. note that I'm shopping from France"`. We redacted the website here, modify it with website of your choice.
+
+## Tool Calling Agent in CLI 
+
+You can run `smolagent` command to run a multi-step agent with [tools](https://huggingface.co/docs/smolagents/en/reference/tools). It uses web search tool by default.
+
+```bash
+smolagent {YOUR_PROMPT_HERE}
+```
+
+You can further customize with following.
+
+- `--model-type`: Specifies the model type to use.
+- `--model-id`: Specifies the model ID for the chosen model type.
+- `--imports`: Libraries agent can import, e.g. "pandas numpy"
+- `--tools`: A space-separated list of tools that the agent can use, e.g. "speech_to_text translation"
+
+A good example command to get started is `$ smolagent "Plan a trip to Tokyo, Kyoto and Osaka between Mar 28 and Apr 7. Allocate time according to number of public attraction in each, and optimize for distance and travel time. Bring all the public transportation options."`. 
 
 ## Code agents?
 
@@ -90,6 +138,45 @@ We've created [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/age
 </p>
 
 This comparison shows that open source models can now take on the best closed models!
+
+
+## CLI Commands
+
+You can accomplish multi-step agentic tasks using two commands: `smolagent` and `webagent`. `smolagent` is a more generalist command to run multi-step agents that can be equipped with various tools, meanwhile `webagent` is an agent equipped with web browsing tools using helium.
+
+## VLM Web Browser in CLI
+
+`webagent` allows users to automate web browsing tasks. It supports all models: `OpenAIServerModel`, `LiteLLMModel`, `TransformersModel`, and `HfApiModel`. In the backend, it uses vision language models, takes screenshots and picks the next action based on the task at hand and the screenshot.
+
+It uses the Helium library to interact with web pages and uses defined tools to browse the web. 
+
+Run the following command to get started:
+
+```bash
+webagent {YOUR_PROMPT_HERE}
+```
+
+You can also add following arguments for more customization: 
+- `--model`: Specifies the model type to use.
+- `--model-id`: Specifies the model ID for the chosen model type.
+
+
+## Tool Calling Agent in CLI 
+
+You can run `smolagent` command to run a multi-step agent with tools. It uses web search tool by default.
+
+```bash
+smolagent {YOUR_PROMPT_HERE}
+```
+
+You can further customize with following.
+
+- `--model-type`: Specifies the model type to use.
+- `--model-id`: Specifies the model ID for the chosen model type.
+- `--imports`: Libraries agent can import, e.g. "pandas numpy"
+- `--tools`: A space-separated list of tools that the agent can use, e.g. "speech_to_text translation"
+
+A good example command to get started is `$ smolagent "Plan a trip to Tokyo, Kyoto and Osaka between Mar 28 and Apr 7. Allocate time according to number of public attraction in each, and optimize for distance and travel time. Bring all the public transportation options."`. 
 
 ## Contributing
 
