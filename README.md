@@ -76,7 +76,7 @@ https://github.com/user-attachments/assets/cd0226e2-7479-4102-aea0-57c22ca47884
 Our library is LLM-agnostic: you could switch the example above to any inference provider.
 
 <details>
-<summary> <b>4+ inference providers via HfApiModel</b></summary>
+<summary> <b>HfApiModel as a gateway for 4 inference providers</b></summary>
 
 ```py
 from smolagents import HfApiModel
@@ -88,7 +88,7 @@ model = HfApiModel(
 ```
 </details>
 <details>
-<summary> <b>Any LLM via [LiteLLM](litellm.ai)</b></summary>
+<summary> <b>LiteLLM for 100+ LLMs</b></summary>
 
 ```py
 from smolagents import LiteLLMModel
@@ -101,7 +101,7 @@ model = LiteLLMModel(
 ```
 </details>
 <details>
-<summary> <b>OpenAI chat server</b></summary>
+<summary> <b>OpenAI-compatible servers</b></summary>
 
 ```py
 from smolagents import OpenAIServerModel
@@ -152,7 +152,11 @@ Run the following command to get started:
 webagent {YOUR_PROMPT_HERE} --model "LiteLLMModel" --model-id "gpt-4o"
 ```
 
-A good example command to get started is `$ webagent --prompt "go to xyz.com/women, get to sale section, click the first clothing item you see. Get the product details, and the price, return them. note that I'm shopping from France"`. We redacted the website here, modify it with website of your choice.
+For instance:
+```bash
+webagent --prompt "go to xyz.com/women, get to sale section, click the first clothing item you see. Get the product details, and the price, return them. note that I'm shopping from France"
+```
+We redacted the website here, modify it with website of your choice.
 
 **CodeAgent in CLI**
 
@@ -163,7 +167,10 @@ You can easily get started with `$ smolagent {YOUR_PROMPT_HERE}`. A more custom 
 smolagent {YOUR_PROMPT_HERE} --model-type "HfApiModel" --model-id "Qwen/Qwen2.5-Coder-32B-Instruct" --imports "pandas numpy" --tools "web_search translation"
 ```
 
-A good example command to get started is `$ smolagent "Plan a trip to Tokyo, Kyoto and Osaka between Mar 28 and Apr 7. Allocate time according to number of public attraction in each, and optimize for distance and travel time. Bring all the public transportation options."`. 
+For instance:
+```bash
+smolagent "Plan a trip to Tokyo, Kyoto and Osaka between Mar 28 and Apr 7. Allocate time according to number of public attraction in each, and optimize for distance and travel time. Bring all the public transportation options."
+``` 
 
 ## Code agents?
 
@@ -175,10 +182,10 @@ Especially, since code execution can be a security concern (arbitrary code execu
 
 On top of this [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/agents#smolagents.CodeAgent) class, we still support the standard [`ToolCallingAgent`](https://huggingface.co/docs/smolagents/reference/agents#smolagents.ToolCallingAgent) that writes actions as JSON/text blobs. But we recommend always using `CodeAgent`.
 
-## How smol is it really?
+## How smol is this library?
 
-We strived to keep abstractions to a strict minimum: the main code in `agents.py` is only ~1,000 lines of code.
-Still, we implement several types of agents: `CodeAgent` writes its actions as Python code snippets, and the more classic `ToolCallingAgent` leverages built-in tool calling methods.
+We strived to keep abstractions to a strict minimum: the main code in `agents.py` has <1,000 lines of code.
+Still, we implement several types of agents: `CodeAgent` writes its actions as Python code snippets, and the more classic `ToolCallingAgent` leverages built-in tool calling methods. We also have multi-agent hierarchies, import from tool collections, remote code execution, vision models...
 
 By the way, why use a framework at all? Well, because a big part of this stuff is non-trivial. For instance, the code agent has to keep a consistent format for code throughout its system prompt, its parser, the execution. So our framework handles this complexity for you. But of course we still encourage you to hack into the source code and use only the bits that you need, to the exclusion of everything else!
 
