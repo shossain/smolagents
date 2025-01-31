@@ -1272,7 +1272,7 @@ def evaluate_python_code(
         expression = ast.parse(code)
     except SyntaxError as e:
         raise InterpreterError(
-            f"Code execution failed on line {e.lineno} due to: {type(e).__name__}\n"
+            f"Code parsing failed on line {e.lineno} due to: {type(e).__name__}\n"
             f"{e.text}"
             f"{' ' * (e.offset or 0)}^\n"
             f"Error: {str(e)}"
@@ -1305,11 +1305,10 @@ def evaluate_python_code(
         return e.value, is_final_answer
     except Exception as e:
         exception_type = type(e).__name__
-        error_msg = truncate_content(PRINT_OUTPUTS, max_length=max_print_outputs_length)
-        error_msg = (
+        state["print_outputs"] = truncate_content(PRINT_OUTPUTS, max_length=max_print_outputs_length)
+        raise InterpreterError(
             f"Code execution failed at line '{ast.get_source_segment(code, node)}' due to: {exception_type}:{str(e)}"
         )
-        raise InterpreterError(error_msg)
 
 
 class LocalPythonInterpreter:

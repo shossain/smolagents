@@ -178,6 +178,7 @@ def fake_code_model_error(messages, stop_sequences=None) -> str:
 Thought: I should multiply 2 by 3.6452. special_marker
 Code:
 ```py
+print("Flag!")
 def error_function():
     raise ValueError("error")
 
@@ -392,6 +393,11 @@ class AgentTests(unittest.TestCase):
         assert output == "got an error"
         assert "Code execution failed at line 'error_function()'" in str(agent.memory.steps[1].error)
         assert "ValueError" in str(agent.memory.steps)
+
+    def test_code_agent_code_error_saves_previous_print_outputs(self):
+        agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model_error)
+        agent.run("What is 2 multiplied by 3.6452?")
+        assert "Flag!" in str(agent.memory.steps[1].observations)
 
     def test_code_agent_syntax_error_show_offending_lines(self):
         agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model_syntax_error)

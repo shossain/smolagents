@@ -768,8 +768,15 @@ class OpenAIServerModel(Model):
             convert_images_to_image_urls=True,
             **kwargs,
         )
+        print("ok previous")
+        import traceback
 
-        response = self.client.chat.completions.create(**completion_kwargs)
+        try:
+            response = self.client.chat.completions.create(**completion_kwargs)
+        except Exception:
+            print("Full traceback:")
+            print(traceback.format_exc())
+        print(response)
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
 
