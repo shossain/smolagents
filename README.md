@@ -78,12 +78,11 @@ https://github.com/user-attachments/assets/cd0226e2-7479-4102-aea0-57c22ca47884
 
 You can accomplish multi-step agentic tasks using two commands: `smolagent` and `webagent`. `smolagent` is a more generalist command to run multi-step agents that can be equipped with various tools, meanwhile `webagent` is an agent equipped with web browsing tools using helium.
 
-**VLM Web Browser in CLI**
+**Web Browser in CLI**
 
 `webagent` allows users to automate web browsing tasks. It uses the Helium library to interact with web pages and uses defined tools to browse the web. 
 
 Run the following command to get started:
-
 ```bash
 webagent {YOUR_PROMPT_HERE}
 ```
@@ -94,7 +93,7 @@ You can also add following arguments for more customization:
 
 A good example command to get started is `$ webagent --prompt "go to xyz.com/women, get to sale section, click the first clothing item you see. Get the product details, and the price, return them. note that I'm shopping from France"`. We redacted the website here, modify it with website of your choice.
 
-## Tool Calling Agent in CLI 
+**Tool Calling Agent in CLI**
 
 You can run `smolagent` command to run a multi-step agent with [tools](https://huggingface.co/docs/smolagents/en/reference/tools). It uses web search tool by default.
 
