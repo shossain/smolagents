@@ -208,8 +208,7 @@ We've created [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/age
 
 This comparison shows that open-source models can now take on the best closed models!
 
-<details>
-<summary> <h2>Contribute</h2></summary>
+## Contribute
 
 To contribute, follow our [contribution guide](https://github.com/huggingface/smolagents/blob/main/CONTRIBUTING.md).
 
@@ -240,7 +239,7 @@ make test
 ```
 </details>
 
-## Citing smolagents
+## Cite smolagents
 
 If you use `smolagents` in your publication, please cite it by using the following BibTeX entry.
 
