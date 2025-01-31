@@ -148,11 +148,11 @@ model = AzureOpenAIServerModel(
 
 ## Command Line Interface
 
-You can accomplish multi-step agentic tasks using two commands: `smolagent` and `webagent`. `smolagent` is a more generalist command to run a multi-step `CodeAgent` that can be equipped with various tools, meanwhile `webagent` is an agent equipped with web browsing tools using [helium](https://github.com/helium).
+You can run agents from CLI using two commands: `smolagent` and `webagent`. `smolagent` is a generalist command to run a multi-step `CodeAgent` that can be equipped with various tools, meanwhile `webagent` is a specific web-browsing agent using [helium](https://github.com/helium).
 
 **Web Browser Agent in CLI**
 
-`webagent` allows users to automate web browsing tasks. It uses the Helium library to interact with web pages and uses defined tools to browse the web. Read more about it [here](https://github.com/huggingface/smolagents/blob/main/src/smolagents/vision_web_browser.py).
+`webagent` allows users to automate web browsing tasks. It uses the [helium](https://github.com/helium) library to interact with web pages and uses defined tools to browse the web. Read more about this agent [here](https://github.com/huggingface/smolagents/blob/main/src/smolagents/vision_web_browser.py).
 
 Run the following command to get started:
 ```bash
