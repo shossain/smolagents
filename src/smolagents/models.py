@@ -70,9 +70,6 @@ class ChatMessageToolCallDefinition:
             description=tool_call_definition.description,
         )
 
-    def dict(self):
-        return json.dumps(get_dict_from_nested_dataclasses(self))
-
 
 @dataclass
 class ChatMessageToolCall:
@@ -87,9 +84,6 @@ class ChatMessageToolCall:
             id=tool_call.id,
             type=tool_call.type,
         )
-
-    def dict(self):
-        return json.dumps(get_dict_from_nested_dataclasses(self))
 
 
 @dataclass

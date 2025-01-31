@@ -427,8 +427,8 @@ You have been provided with these additional arguments, that you can access usin
             images (`list[str]`): Paths to image(s).
         """
         final_answer = None
-        self.step_number = 0
-        while final_answer is None and self.step_number < self.max_steps:
+        self.step_number = 1
+        while final_answer is None and self.step_number <= self.max_steps:
             step_start_time = time.time()
             memory_step = ActionStep(
                 step_number=self.step_number,
@@ -901,6 +901,7 @@ class CodeAgent(MultiStepAgent):
                         Text(execution_logs),
                     ]
                     memory_step.observations = "Execution logs:\n" + execution_logs
+                    self.logger.log(Group(*execution_outputs_console), level=LogLevel.INFO)
             error_msg = str(e)
             if "Import of " in error_msg and " is not allowed" in error_msg:
                 self.logger.log(
