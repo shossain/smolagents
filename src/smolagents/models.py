@@ -54,13 +54,6 @@ def get_dict_from_nested_dataclasses(obj):
 
     return convert(obj)
 
-if _is_package_available("vllm"):
-    import gc
-
-    import torch
-    from vllm import LLM, SamplingParams
-    from vllm.distributed.parallel_state import destroy_distributed_environment, destroy_model_parallel
-    from vllm.transformers_utils.tokenizer import get_tokenizer
 
 
 @dataclass
@@ -108,6 +101,30 @@ class ChatMessage:
         if getattr(message, "tool_calls", None) is not None:
             tool_calls = [ChatMessageToolCall.from_hf_api(tool_call) for tool_call in message.tool_calls]
         return cls(role=message.role, content=message.content, tool_calls=tool_calls)
+
+    @classmethod
+    def from_vllm_api(cls, output, tools_to_call_from) -> "ChatMessage":
+        if tools_to_call_from is None:
+            return cls(role="assistant", content=output)
+
+        if "Action:" in output:
+            output = output.split("Action:", 1)[1].strip()
+
+        parsed_output = json.loads(output)
+        tool_name = parsed_output.get("tool_name")
+        tool_arguments = parsed_output.get("tool_arguments")
+
+        return cls(
+            role="assistant",
+            content="",
+            tool_calls=[
+                ChatMessageToolCall(
+                    id="".join(random.choices("0123456789", k=5)),
+                    type="function",
+                    function=ChatMessageToolCallDefinition(name=tool_name, arguments=tool_arguments),
+                )
+            ],
+        )
 
     @classmethod
     def from_dict(cls, data: dict) -> "ChatMessage":
@@ -383,8 +400,16 @@ class VLLMModel(Model):
             The Hugging Face model ID to be used for inference. This can be a path or model identifier from the Hugging Face model hub.
     """
 
-    def __init__(self, model_id: Optional[str] = None):
-        super().__init__()
+    def __init__(self, model_id: Optional[str] = None, **kwargs):
+        if not _is_package_available("vllm"):
+            raise ModuleNotFoundError(
+                "Please install 'vllm' extra to use VLLMModel: `pip install 'smolagents[vllm]'`"
+            )
+
+        from vllm import LLM
+        from vllm.transformers_utils.tokenizer import get_tokenizer
+
+        super().__init__(**kwargs)
 
         default_model_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
         if model_id is None:
@@ -398,6 +423,10 @@ class VLLMModel(Model):
         self.tokenizer = get_tokenizer(model_id)
 
     def cleanup(self):
+        import gc
+
+        import torch
+        from vllm.distributed.parallel_state import destroy_distributed_environment, destroy_model_parallel
         destroy_model_parallel()
         if self.model is not None:
             del self.model.llm_engine.model_executor.driver_worker
@@ -411,9 +440,10 @@ class VLLMModel(Model):
         messages: List[Dict[str, str]],
         stop_sequences: Optional[List[str]] = None,
         grammar: Optional[str] = None,
-        max_tokens: int = 1500,
         tools_to_call_from: Optional[List[Tool]] = None,
+        **kwargs
     ) -> ChatMessage:
+        from vllm import SamplingParams
         messages = get_clean_message_list(
             messages, role_conversions=tool_role_conversions
         )
@@ -430,8 +460,9 @@ class VLLMModel(Model):
                 tokenize=False,
             )
 
+
         sampling_params = SamplingParams(
-            n=1, temperature=0.3, max_tokens=max_tokens, stop=stop_sequences
+            n=kwargs.get("n", 1), temperature=kwargs.get("temperature", 0.0), max_tokens=kwargs.get("max_tokens", 2048), stop=stop_sequences
         )
 
         out = self.model.generate(
@@ -439,32 +470,10 @@ class VLLMModel(Model):
             sampling_params=sampling_params,
         )
         output = out[0].outputs[0].text
-        count_prompt_tokens = len(out[0].prompt_token_ids)
-        count_generated_tokens = len(out[0].outputs[0].token_ids)
-        self.last_input_token_count = count_prompt_tokens
-        self.last_output_token_count = count_generated_tokens
+        self.last_input_token_count = len(out[0].prompt_token_ids)
+        self.last_output_token_count = len(out[0].outputs[0].token_ids)
 
-        if tools_to_call_from is None:
-            return ChatMessage(role="assistant", content=output)
-        else:
-            if "Action:" in output:
-                output = output.split("Action:", 1)[1].strip()
-            parsed_output = json.loads(output)
-            tool_name = parsed_output.get("tool_name")
-            tool_arguments = parsed_output.get("tool_arguments")
-            return ChatMessage(
-                role="assistant",
-                content="",
-                tool_calls=[
-                    ChatMessageToolCall(
-                        id="".join(random.choices("0123456789", k=5)),
-                        type="function",
-                        function=ChatMessageToolCallDefinition(
-                            name=tool_name, arguments=tool_arguments
-                        ),
-                    )
-                ],
-            )
+        return ChatMessage.from_vllm_api(output)
 
 
 class TransformersModel(Model):
