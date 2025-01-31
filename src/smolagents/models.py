@@ -70,6 +70,9 @@ class ChatMessageToolCallDefinition:
             description=tool_call_definition.description,
         )
 
+    def dict(self):
+        return json.dumps(get_dict_from_nested_dataclasses(self))
+
 
 @dataclass
 class ChatMessageToolCall:
@@ -84,6 +87,9 @@ class ChatMessageToolCall:
             id=tool_call.id,
             type=tool_call.type,
         )
+
+    def dict(self):
+        return json.dumps(get_dict_from_nested_dataclasses(self))
 
 
 @dataclass
@@ -768,15 +774,7 @@ class OpenAIServerModel(Model):
             convert_images_to_image_urls=True,
             **kwargs,
         )
-        print("ok previous")
-        import traceback
-
-        try:
-            response = self.client.chat.completions.create(**completion_kwargs)
-        except Exception:
-            print("Full traceback:")
-            print(traceback.format_exc())
-        print(response)
+        response = self.client.chat.completions.create(**completion_kwargs)
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
 

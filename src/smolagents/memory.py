@@ -90,7 +90,12 @@ class ActionStep(MemoryStep):
             messages.append(
                 Message(
                     role=MessageRole.ASSISTANT,
-                    content=[{"type": "text", "text": str([tc.dict() for tc in self.tool_calls])}],
+                    content=[
+                        {
+                            "type": "text",
+                            "text": "Calling tools:\n" + str([tc.function.dict() for tc in self.tool_calls]),
+                        }
+                    ],
                 )
             )
 
