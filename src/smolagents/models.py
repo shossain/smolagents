@@ -425,6 +425,7 @@ class VLLMModel(Model):
 
         destroy_model_parallel()
         if self.model is not None:
+            # taken from https://github.com/vllm-project/vllm/issues/1908#issuecomment-2076870351
             del self.model.llm_engine.model_executor.driver_worker
         self.model = None
         gc.collect()
