@@ -80,33 +80,23 @@ You can accomplish multi-step agentic tasks using two commands: `smolagent` and 
 
 **Web Browser in CLI**
 
-`webagent` allows users to automate web browsing tasks. It uses the Helium library to interact with web pages and uses defined tools to browse the web. 
+`webagent` allows users to automate web browsing tasks. It uses the Helium library to interact with web pages and uses defined tools to browse the web. Read more about it [here](https://github.com/huggingface/smolagents/blob/main/src/smolagents/vision_web_browser.py).
 
 Run the following command to get started:
 ```bash
-webagent {YOUR_PROMPT_HERE}
+webagent {YOUR_PROMPT_HERE} --model "LiteLLMModel" --model-id "gpt-4o"
 ```
-
-You can also add following arguments for more customization: 
-- `--model`: Specifies the [model type](https://huggingface.co/docs/smolagents/en/reference/models) to use.
-- `--model-id`: Specifies the model ID for the chosen model type.
 
 A good example command to get started is `$ webagent --prompt "go to xyz.com/women, get to sale section, click the first clothing item you see. Get the product details, and the price, return them. note that I'm shopping from France"`. We redacted the website here, modify it with website of your choice.
 
 **Tool Calling Agent in CLI**
 
 You can run `smolagent` command to run a multi-step agent with [tools](https://huggingface.co/docs/smolagents/en/reference/tools). It uses web search tool by default.
+You can easily get started with `$ smolagent {YOUR_PROMPT_HERE}`. A more custom version of this one-liner is following, see more details [here](https://github.com/huggingface/smolagents/blob/main/src/smolagents/cli.py).
 
 ```bash
-smolagent {YOUR_PROMPT_HERE}
+smolagent {YOUR_PROMPT_HERE} --model-type "HfApiModel" --model-id "Qwen/Qwen2.5-Coder-32B-Instruct" --imports "pandas numpy" --tools "web_search translation"
 ```
-
-You can further customize with following.
-
-- `--model-type`: Specifies the model type to use.
-- `--model-id`: Specifies the model ID for the chosen model type.
-- `--imports`: Libraries agent can import, e.g. "pandas numpy"
-- `--tools`: A space-separated list of tools that the agent can use, e.g. "speech_to_text translation"
 
 A good example command to get started is `$ smolagent "Plan a trip to Tokyo, Kyoto and Osaka between Mar 28 and Apr 7. Allocate time according to number of public attraction in each, and optimize for distance and travel time. Bring all the public transportation options."`. 
 
