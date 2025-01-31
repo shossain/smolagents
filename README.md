@@ -32,7 +32,7 @@ limitations under the License.
 
 `smolagents` is a library that enables you to run powerful agents in a few lines of code. It offers:
 
-✨ **Simplicity**: the logic for agents fits in ~thousand lines of code (see [agents.py](https://github.com/huggingface/smolagents/blob/main/src/smolagents/agents.py)). We kept abstractions to their minimal shape above raw code!
+✨ **Simplicity**: the logic for agents fits in 1,000 lines of code (see [agents.py](https://github.com/huggingface/smolagents/blob/main/src/smolagents/agents.py)). We kept abstractions to their minimal shape above raw code!
 
 🧑‍💻 **First-class support for Code Agents**. Our [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/agents#smolagents.CodeAgent) writes its actions in code (as opposed to "agents being used to write code"). To make it secure, we support executing in sandboxed environments via [E2B](https://e2b.dev/).
 
@@ -163,12 +163,12 @@ For instance:
 ```bash
 webagent --prompt "go to xyz.com/women, get to sale section, click the first clothing item you see. Get the product details, and the price, return them. note that I'm shopping from France"
 ```
-We redacted the website here, modify it with website of your choice.
+We redacted the website here, modify it with the website of your choice.
 
 **CodeAgent in CLI**
 
-You can run `smolagent` command to run a multi-step agent with [tools](https://huggingface.co/docs/smolagents/en/reference/tools). It uses web search tool by default.
-You can easily get started with `$ smolagent {YOUR_PROMPT_HERE}`. A more custom version of this one-liner is following, see more details [here](https://github.com/huggingface/smolagents/blob/main/src/smolagents/cli.py).
+Use `smolagent` to run a multi-step agent with [tools](https://huggingface.co/docs/smolagents/en/reference/tools). It uses web search tool by default.
+You can easily get started with `$ smolagent {YOUR_PROMPT_HERE}`. You can customize this as follows (more details [here](https://github.com/huggingface/smolagents/blob/main/src/smolagents/cli.py)).
 
 ```bash
 smolagent {YOUR_PROMPT_HERE} --model-type "HfApiModel" --model-id "Qwen/Qwen2.5-Coder-32B-Instruct" --imports "pandas numpy" --tools "web_search translation"
