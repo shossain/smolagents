@@ -136,46 +136,8 @@ We've created [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/age
     <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/smolagents/benchmark_code_agents.png" alt="benchmark of different models on agentic workflows" width=70%>
 </p>
 
-This comparison shows that open source models can now take on the best closed models!
+This comparison shows that open-source models can now take on the best closed models!
 
-
-## CLI Commands
-
-You can accomplish multi-step agentic tasks using two commands: `smolagent` and `webagent`. `smolagent` is a more generalist command to run multi-step agents that can be equipped with various tools, meanwhile `webagent` is an agent equipped with web browsing tools using helium.
-
-## VLM Web Browser in CLI
-
-`webagent` allows users to automate web browsing tasks. It supports all models: `OpenAIServerModel`, `LiteLLMModel`, `TransformersModel`, and `HfApiModel`. In the backend, it uses vision language models, takes screenshots and picks the next action based on the task at hand and the screenshot.
-
-It uses the Helium library to interact with web pages and uses defined tools to browse the web. 
-
-Run the following command to get started:
-
-```bash
-webagent {YOUR_PROMPT_HERE}
-```
-
-You can also add following arguments for more customization: 
-- `--model`: Specifies the model type to use.
-- `--model-id`: Specifies the model ID for the chosen model type.
-
-
-## Tool Calling Agent in CLI 
-
-You can run `smolagent` command to run a multi-step agent with tools. It uses web search tool by default.
-
-```bash
-smolagent {YOUR_PROMPT_HERE}
-```
-
-You can further customize with following.
-
-- `--model-type`: Specifies the model type to use.
-- `--model-id`: Specifies the model ID for the chosen model type.
-- `--imports`: Libraries agent can import, e.g. "pandas numpy"
-- `--tools`: A space-separated list of tools that the agent can use, e.g. "speech_to_text translation"
-
-A good example command to get started is `$ smolagent "Plan a trip to Tokyo, Kyoto and Osaka between Mar 28 and Apr 7. Allocate time according to number of public attraction in each, and optimize for distance and travel time. Bring all the public transportation options."`. 
 
 ## Contributing
 
