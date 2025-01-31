@@ -55,7 +55,6 @@ def get_dict_from_nested_dataclasses(obj):
     return convert(obj)
 
 
-
 @dataclass
 class ChatMessageToolCallDefinition:
     arguments: Any
@@ -402,9 +401,7 @@ class VLLMModel(Model):
 
     def __init__(self, model_id: Optional[str] = None, **kwargs):
         if not _is_package_available("vllm"):
-            raise ModuleNotFoundError(
-                "Please install 'vllm' extra to use VLLMModel: `pip install 'smolagents[vllm]'`"
-            )
+            raise ModuleNotFoundError("Please install 'vllm' extra to use VLLMModel: `pip install 'smolagents[vllm]'`")
 
         from vllm import LLM
         from vllm.transformers_utils.tokenizer import get_tokenizer
@@ -414,9 +411,7 @@ class VLLMModel(Model):
         default_model_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
         if model_id is None:
             model_id = default_model_id
-            logger.warning(
-                f"`model_id`not provided, using this default tokenizer for token counts: '{model_id}'"
-            )
+            logger.warning(f"`model_id`not provided, using this default tokenizer for token counts: '{model_id}'")
 
         self.model_id = model_id
         self.model = LLM(model=model_id)
@@ -427,6 +422,7 @@ class VLLMModel(Model):
 
         import torch
         from vllm.distributed.parallel_state import destroy_distributed_environment, destroy_model_parallel
+
         destroy_model_parallel()
         if self.model is not None:
             del self.model.llm_engine.model_executor.driver_worker
@@ -441,12 +437,11 @@ class VLLMModel(Model):
         stop_sequences: Optional[List[str]] = None,
         grammar: Optional[str] = None,
         tools_to_call_from: Optional[List[Tool]] = None,
-        **kwargs
+        **kwargs,
     ) -> ChatMessage:
         from vllm import SamplingParams
-        messages = get_clean_message_list(
-            messages, role_conversions=tool_role_conversions
-        )
+
+        messages = get_clean_message_list(messages, role_conversions=tool_role_conversions)
         if tools_to_call_from is not None:
             prompt = self.tokenizer.apply_chat_template(
                 messages,
@@ -460,9 +455,11 @@ class VLLMModel(Model):
                 tokenize=False,
             )
 
-
         sampling_params = SamplingParams(
-            n=kwargs.get("n", 1), temperature=kwargs.get("temperature", 0.0), max_tokens=kwargs.get("max_tokens", 2048), stop=stop_sequences
+            n=kwargs.get("n", 1),
+            temperature=kwargs.get("temperature", 0.0),
+            max_tokens=kwargs.get("max_tokens", 2048),
+            stop=stop_sequences,
         )
 
         out = self.model.generate(
