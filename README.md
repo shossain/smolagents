@@ -36,9 +36,12 @@ limitations under the License.
 
 🧑‍💻 **First-class support for Code Agents**. Our [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/agents#smolagents.CodeAgent) writes its actions in code (as opposed to "agents being used to write code"). To make it secure, we support executing in sandboxed environments via [E2B](https://e2b.dev/).
 
-🤗 **Hub integrations**: you can share and load Gradio Spaces as tools to/from the Hub, and more is to come!
+🤗 **Hub integrations**: you can [share/pull tools to/from the Hub](https://huggingface.co/docs/smolagents/reference/tools#smolagents.Tool.from_hub), and more is to come!
 
 🌐 **Support for any LLM**: it supports models hosted on the Hub loaded in their `transformers` version or through our inference API, but also supports models from OpenAI, Anthropic and many others via our [LiteLLM](https://www.litellm.ai/) integration.
+- 👁️ We even support vision models! Leverage this to build a web-browsing agent in [this tutorial](https://huggingface.co/docs/smolagents/examples/web_browser).
+
+🛠️ **Support for a wide range of tools**: you can use tools from [LangChain](https://huggingface.co/docs/smolagents/reference/tools#smolagents.Tool.from_langchain), [Anthropic's MCP](https://huggingface.co/docs/smolagents/reference/tools#smolagents.ToolCollection.from_mcp), you can even use a [Hub Space](https://huggingface.co/docs/smolagents/reference/tools#smolagents.Tool.from_space) as a tool.
 
 Full documentation can be found [here](https://huggingface.co/docs/smolagents/index).
 
@@ -76,7 +79,7 @@ https://github.com/user-attachments/assets/cd0226e2-7479-4102-aea0-57c22ca47884
 Our library is LLM-agnostic: you could switch the example above to any inference provider.
 
 <details>
-<summary> <b>HfApiModel as a gateway for 4 inference providers</b></summary>
+<summary> <b>HfApiModel, gateway for 4 inference providers</b></summary>
 
 ```py
 from smolagents import HfApiModel
@@ -94,9 +97,9 @@ model = HfApiModel(
 from smolagents import LiteLLMModel
 
 model = LiteLLMModel(
-  "anthropic/claude-3-5-sonnet-latest",
-  temperature=0.2,
-  max_tokens=10
+    "anthropic/claude-3-5-sonnet-latest",
+    temperature=0.2,
+    max_tokens=10
 )
 ```
 </details>
@@ -104,12 +107,13 @@ model = LiteLLMModel(
 <summary> <b>OpenAI-compatible servers</b></summary>
 
 ```py
+import os
 from smolagents import OpenAIServerModel
 
 model = OpenAIServerModel(
-    model_id="gpt-4o",
-    api_base="https://api.openai.com/v1",
-    api_key=os.environ["OPENAI_API_KEY"],
+    model_id="deepseek-ai/DeepSeek-R1",
+    api_base="https://api.together.xyz/v1/", # Leave this blank to query OpenAI servers.
+    api_key=os.environ["TOGETHER_API_KEY"], # Switch to the API key for the server you're targeting.
 )
 ```
 </details>
@@ -119,7 +123,11 @@ model = OpenAIServerModel(
 ```py
 from smolagents import TransformersModel
 
-model = TransformersModel(model_id="Qwen/Qwen2.5-Coder-32B-Instruct", max_new_tokens=4096)
+model = TransformersModel(
+    model_id="Qwen/Qwen2.5-Coder-32B-Instruct",
+    max_new_tokens=4096,
+    device_map="auto"
+)
 ```
 </details>
 <details>
@@ -127,7 +135,6 @@ model = TransformersModel(model_id="Qwen/Qwen2.5-Coder-32B-Instruct", max_new_to
 
 ```py
 import os
-
 from smolagents import AzureOpenAIServerModel
 
 model = AzureOpenAIServerModel(
