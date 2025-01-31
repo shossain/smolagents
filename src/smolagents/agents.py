@@ -461,7 +461,7 @@ You have been provided with these additional arguments, that you can access usin
                 self.step_number += 1
                 yield memory_step
 
-        if final_answer is None and self.step_number == self.max_steps:
+        if final_answer is None and self.step_number == self.max_steps + 1:
             error_message = "Reached max steps."
             final_answer = self.provide_final_answer(task, images)
             final_memory_step = ActionStep(
