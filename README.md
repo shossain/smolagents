@@ -53,7 +53,7 @@ Full documentation can be found [here](https://huggingface.co/docs/smolagents/in
 - [Quick Demo](#quick-demo)
 - [Command Line Interface](#command-line-interface)
 - [Code Agents](#code-agents)
-- [How Smol is it Really?](#how-smol-is-it-really)
+- [How smol is this library?](#how-smol-is-this-library)
 - [How Strong are Open Models for Agentic Workflows?](#how-strong-are-open-models-for-agentic-workflows)
 - [Contributing](#contributing)
 - [Citing smolagents](#citing-smolagents)
