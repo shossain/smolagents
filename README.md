@@ -91,7 +91,7 @@ model = HfApiModel(
 ```
 </details>
 <details>
-<summary> <b>LiteLLM for 100+ LLMs</b></summary>
+<summary> <b>LiteLLM to access 100+ LLMs</b></summary>
 
 ```py
 from smolagents import LiteLLMModel
@@ -99,7 +99,7 @@ from smolagents import LiteLLMModel
 model = LiteLLMModel(
     "anthropic/claude-3-5-sonnet-latest",
     temperature=0.2,
-    max_tokens=10
+    api_key=os.environ["ANTHROPIC_API_KEY"]
 )
 ```
 </details>
@@ -203,7 +203,7 @@ We've created [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/age
 [Find the benchmarking code here](https://github.com/huggingface/smolagents/blob/main/examples/benchmark.ipynb) for more detail on the agentic setup used, and see a comparison of using LLMs code agents compared to vanilla (spoilers: code agents works better).
 
 <p align="center">
-    <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smolagents/benchmark_code_agents.jpeg" alt="benchmark of different models on agentic workflows. Open model DeepSeek-R1 beats closed-source models." width=60%>
+    <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smolagents/benchmark_code_agents.jpeg" alt="benchmark of different models on agentic workflows. Open model DeepSeek-R1 beats closed-source models." width=60% max-width=500px>
 </p>
 
 This comparison shows that open-source models can now take on the best closed models!
