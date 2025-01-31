@@ -77,6 +77,7 @@ Our library is LLM-agnostic: you could switch the example above to any inference
 
 <details>
 <summary> <b>4+ inference providers via HfApiModel</b></summary>
+
 ```py
 from smolagents import HfApiModel
 
@@ -88,6 +89,7 @@ model = HfApiModel(
 </details>
 <details>
 <summary> <b>Any LLM via [LiteLLM](litellm.ai)</b></summary>
+
 ```py
 from smolagents import LiteLLMModel
 
@@ -100,6 +102,7 @@ model = LiteLLMModel(
 </details>
 <details>
 <summary> <b>OpenAI chat server</b></summary>
+
 ```py
 from smolagents import OpenAIServerModel
 
@@ -112,10 +115,27 @@ model = OpenAIServerModel(
 </details>
 <details>
 <summary> <b>Local `transformers` model</b></summary>
+
 ```py
 from smolagents import TransformersModel
 
 model = TransformersModel(model_id="Qwen/Qwen2.5-Coder-32B-Instruct", max_new_tokens=4096)
+```
+</details>
+<details>
+<summary> <b>Azure models</b></summary>
+
+```py
+import os
+
+from smolagents import AzureOpenAIServerModel
+
+model = AzureOpenAIServerModel(
+    model_id = os.environ.get("AZURE_OPENAI_MODEL"),
+    azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
+    api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
+    api_version=os.environ.get("OPENAI_API_VERSION")    
+)
 ```
 </details>
 
