@@ -1,5 +1,6 @@
 import pytest
 
+from smolagents.agents import ToolCall
 from smolagents.memory import (
     ActionStep,
     AgentMemory,
@@ -11,7 +12,6 @@ from smolagents.memory import (
     SystemPromptStep,
     TaskStep,
 )
-from smolagents.models import ChatMessageToolCall, ChatMessageToolCallDefinition
 
 
 class TestAgentMemory:
@@ -41,11 +41,7 @@ def test_action_step_to_messages():
     action_step = ActionStep(
         model_input_messages=[Message(role=MessageRole.USER, content="Hello")],
         tool_calls=[
-            ChatMessageToolCall(
-                id="0",
-                type="tool_call",
-                function=ChatMessageToolCallDefinition(name="get_weather", arguments={"location": "Paris"}),
-            )
+            ToolCall(id="id", name="get_weather", arguments={"location": "Paris"}),
         ],
         start_time=0.0,
         end_time=1.0,

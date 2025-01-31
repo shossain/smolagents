@@ -93,7 +93,7 @@ class ActionStep(MemoryStep):
                     content=[
                         {
                             "type": "text",
-                            "text": "Calling tools:\n" + str([tc.function.dict() for tc in self.tool_calls]),
+                            "text": "Calling tools:\n" + str([tc.dict() for tc in self.tool_calls]),
                         }
                     ],
                 )
