@@ -10,10 +10,18 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from smolagents import CodeAgent, LiteLLMModel, OpenAIServerModel, TransformersModel, GoogleSearchTool, tool  # noqa: F401
+from smolagents import (  # noqa: F401
+    CodeAgent,
+    GoogleSearchTool,
+    LiteLLMModel,
+    OpenAIServerModel,
+    TransformersModel,
+    tool,
+)
 from smolagents.agents import ActionStep
 
 from .text_inspector_tool import TextInspectorTool
+
 
 load_dotenv()
 import os
@@ -149,6 +157,7 @@ def make_browser_agent(model):
         max_steps=20,
         verbosity_level=2,
     )
+
 
 helium_instructions = """
 For web searches start with your google search tool.

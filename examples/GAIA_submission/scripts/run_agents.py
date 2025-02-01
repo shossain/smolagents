@@ -1,96 +1,11 @@
 import json
 import os
-from datetime import datetime
+import shutil
+import textwrap
+from pathlib import Path
 
 # import tqdm.asyncio
-from queue import Queue
-from typing import Any, Callable, Dict, List
-
-import pandas as pd
-from datasets import Dataset
-from scripts.reformulator import prepare_response
-from tqdm import tqdm
-
-from smolagents.agents import AgentError, MultiStepAgent
-from smolagents import Model
-from smolagents.default_tools import Tool
-
-
-def run_agent(
-    example: Dict,
-    agent: MultiStepAgent,
-    agent_name: str,
-    reformulation_model: Model,
-    writer_queue: Queue = None,
-    **kwargs
-) -> dict:
-    start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    augmented_question = example["augmented_question"]
-    try:
-        # run executor agent
-        result = agent.run(augmented_question, additional_args=kwargs if len(kwargs)>0 else None)
-
-        agent_memory = agent.write_memory_to_messages(summary_mode=True)
-        try:
-            final_result = prepare_response(augmented_question, agent_memory, reformulation_model)
-        except Exception as e:
-            print(e)
-            final_result = result
-        output= str(final_result)
-        for log in agent.logs:
-            log.agent_memory = None
-        intermediate_steps = [
-            str(log)
-            for log in agent.logs
-        ]
-        # check for parsing errors which indicate the LLM failed to follow the ReACT format
-        # this could be due to an issue with the tool calling format or ReACT formatting (i.e. Thought, Action, Observation, etc.)
-        parsing_error = (
-            True
-            if any(
-                [
-                    "AgentParsingError" in step
-                    for step in intermediate_steps
-                ]
-            )
-            else False
-        )
-
-        # check if iteration limit exceeded
-        iteration_limit_exceeded = (
-            True
-            if "Agent stopped due to iteration limit or time limit." in output
-            else False
-        )
-        raised_exception = False
-
-    except Exception as e:
-        print("Error on ", augmented_question, e)
-        output= None
-        intermediate_steps= None
-        parsing_error = False
-        iteration_limit_exceeded = False
-        exception = e
-        raised_exception = True
-    end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    intermediate_steps = intermediate_steps
-    annotated_example = {
-        "agent_name": agent_name,
-        "question": example['question'],
-        "augmented_question": augmented_question,
-        "prediction": output,
-        "intermediate_steps": intermediate_steps,
-        "parsing_error": parsing_error,
-        "iteration_limit_exceeded": iteration_limit_exceeded,
-        "agent_error": str(exception) if raised_exception else None,
-        "start_time": start_time,
-        "end_time": end_time,
-        "task": example["task"],
-        "true_answer": example["true_answer"],
-    }
-    if writer_queue:
-        writer_queue.put(annotated_example)
-    return annotated_example
+from smolagents.agents import AgentError
 
 
 def serialize_agent_error(obj):
@@ -100,140 +15,73 @@ def serialize_agent_error(obj):
         return str(obj)
 
 
-def answer_questions(
-    dataset: Dataset,
-    agent: MultiStepAgent,
-    agent_name: str,
-    reformulation_model: Model,
-    output_folder: str = "output",
-    visual_inspection_tool: Tool = None,
-    text_inspector_tool: Tool = None,
-    skip_hard_questions: bool = False,
-    postprompt: str = "",
-    run_simple: bool=False
-) -> List[Dict[str, Any]]:
-    """
-    Evaluates the agent on a given dataset.
+def get_image_description(file_name: str, question: str, visual_inspection_tool) -> str:
+    prompt = f"""Write a caption of 5 sentences for this image. Pay special attention to any details that might be useful for someone answering the following question:
+{question}. But do not try to answer the question directly!
+Do not add any information that is not present in the image."""
+    return visual_inspection_tool(image_path=file_name, question=prompt)
 
-    Args:
-        dataset (Dataset): The dataset to test the agent on.
-        agent: The agent.
-        agent_name (str): The name of the agent model.
 
-    Returns:
-        List[Dict[str, Any]]: A list of dictionaries containing the evaluation results for each example in the dataset.
-        Each dictionary includes the agent model ID, evaluator model ID, question, ground truth answer, prediction,
-        intermediate steps, evaluation score, evaluation feedback, tool call parsing error flag, iteration limit
-        exceeded flag, agent error (if any), and example metadata (task).
-    """
-    output_path = f"{output_folder}/{agent_name}.jsonl"
-    print(f"Loading answers from {output_path}...")
-    try:
-        results = pd.read_json(output_path, lines=True).to_dict(orient="records")
-        print(f"Found {len(results)} previous results!")
-    except Exception as e:
-        print("Error when loading records: ", e)
-        print("Found no usable records! 🤔 Starting new.")
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        results = []
+def get_document_description(file_path: str, question: str, document_inspection_tool) -> str:
+    prompt = f"""Write a caption of 5 sentences for this document. Pay special attention to any details that might be useful for someone answering the following question:
+{question}. But do not try to answer the question directly!
+Do not add any information that is not present in the document."""
+    return document_inspection_tool.forward_initial_exam_mode(file_path=file_path, question=prompt)
 
-    results_df = pd.DataFrame(results)
 
-    for _, example in tqdm(enumerate(dataset), total=len(dataset)):
-        try:
-            if len(results_df) > 0:
-                if example["question"] in results_df["question"].unique():
-                    continue
-                # if skip_hard_questions:
-                #     if example["question"] in HARD_QUESTIONS:
-                #         continue
-            if "If this whole pint is made up of ice cream" in example["question"]:
-                continue
-            prompt_use_files = ""
-            if example['file_name']:
-                if '.MOV' in example['file_name']:
-                    continue
-                prompt_use_files += "\n\nTo answer the question above, you will have to use these attached files:"
-                if example['file_name'].split('.')[-1] in ['pdf', 'xlsx', 'pptx']:
-                    image_path = example['file_name'].split('.')[0] + '.png'
-                    if os.path.exists(image_path):
-                        prompt_use_files += f"\nAttached image: {image_path}"
-                    else:
-                        prompt_use_files += f"\nAttached file: {example['file_name']}"
-                elif example['file_name'].split('.')[-1] == "zip":
-                    import shutil
+def get_single_file_description(file_path: str, question: str, visual_inspection_tool, document_inspection_tool):
+    file_extension = file_path.split(".")[-1]
+    if file_extension in ["png", "jpg", "jpeg"]:
+        file_description = f" - Attached image: {file_path}"
+        file_description += (
+            f"\n     -> Image description: {get_image_description(file_path, question, visual_inspection_tool)}"
+        )
+        return file_description
+    elif file_extension in ["pdf", "xls", "xlsx", "docx", "doc", "xml"]:
+        file_description = f" - Attached document: {file_path}"
+        image_path = file_path.split(".")[0] + ".png"
+        if os.path.exists(image_path):
+            description = get_image_description(image_path, question, visual_inspection_tool)
+        else:
+            description = get_document_description(file_path, question, document_inspection_tool)
+        file_description += f"\n     -> File description: {description}"
+        return file_description
+    elif file_extension in ["mp3", "m4a", "wav"]:
+        return f" - Attached audio: {file_path}"
+    else:
+        return f" - Attached file: {file_path}"
 
-                    folder_name = example['file_name'].replace(".zip", "")
-                    os.makedirs(folder_name, exist_ok=True)
-                    shutil.unpack_archive(example['file_name'], folder_name)
 
-                    # Convert the extracted files
-                    prompt_use_files = "\n\nYou have been given a zip archive of supporting files. We extracted it into a directory: find the extracted files at the following paths:\n"
-                    for root, dirs, files in os.walk(folder_name):
-                        for file in files:
-                            file_path = os.path.join(root, file)
-                            prompt_use_files += f"- {file_path}\n"
-                            if file.split('.')[-1] in ['png', 'jpg', 'jpeg'] and visual_inspection_tool is not None:
-                                prompt = f"""Write a caption of 5 sentences maximum for this image. Pay special attention to any details that might be useful for someone answering the following question:
-    {example['question']}. But do not try to answer the question directly!
-    Do not add any information that is not present in the image.
-    """.strip()
-                                prompt_use_files += "> Description of this image: " + visual_inspection_tool(image_path=file_path, question=prompt) + '\n\n'
-                            else:
-                                prompt = f"""Write a short caption (5 sentences maximum) for this file. Pay special attention to any details that might be useful for someone answering the following question:
-    {example['question']}. But do not try to answer the question directly!
-    Do not add any information that is not present in the file.
-    """.strip()
-                                prompt_use_files += "> Description of this file: " + text_inspector_tool.forward_initial_exam_mode(file_path=file_path, question=prompt) + '\n\n'
-                elif example['file_name'].split('.')[-1] in ['png', 'jpg', 'jpeg']:
-                    prompt_use_files += f"\nAttached image: {example['file_name']}"
-                elif example['file_name'].split('.')[-1] in ['mp3', 'm4a', 'wav']:
-                    prompt_use_files += f"\nAttached audio: {example['file_name']}"
-                else:
-                    prompt_use_files += f"\nAttached file: {example['file_name']}"
+def get_zip_description(file_path: str, question: str, visual_inspection_tool, document_inspection_tool):
+    folder_path = file_path.replace(".zip", "")
+    os.makedirs(folder_path, exist_ok=True)
+    shutil.unpack_archive(file_path, folder_path)
 
-                if example['file_name'].split('.')[-1] in ['png', 'jpg', 'jpeg'] and visual_inspection_tool is not None:
-                    prompt = f"""Write a caption of 5 sentences maximum for this image. Pay special attention to any details that might be useful for someone answering the following question:
-    {example['question']}. But do not try to answer the question directly!
-    Do not add any information that is not present in the image.
-    """.strip()
-                    prompt_use_files += "\n> Description of this image: " + visual_inspection_tool(image_path=example['file_name'], question=prompt)
-                elif '.zip' not in example['file_name'] and text_inspector_tool is not None:
-                    prompt = f"""Write a short caption (5 sentences maximum) for this file. Pay special attention to any details that might be useful for someone answering the following question:
-    {example['question']}. But do not try to answer the question directly!
-    Do not add any information that is not present in the file.
-    """.strip()
-                    prompt_use_files += "\n> Description of this file: " + text_inspector_tool.forward_initial_exam_mode(file_path=example['file_name'], question=prompt)
-            else:
-                prompt_use_files += "\n\nYou have been given no local files to access."
-            example['augmented_question'] = """It is paramount that you complete this task and provide a correct answer.
-    Give it all you can: I know for a fact that you have access to all the relevant tools to solve it and find the answer (the answer does exist). Failure or 'I cannot answer' or 'None found' will not be tolerated, success will be rewarded. Don't fear running many verification steps if that's needed, you need to make sure you fidn the correct answer!
-    Here is the task:
-    """ + example['question'] + prompt_use_files + postprompt
-
-            result = run_agent(
-                example=example,
-                agent=agent,
-                agent_name=agent_name,
-                reformulation_model=reformulation_model
+    prompt_use_files = ""
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            prompt_use_files += "\n" + textwrap.indent(
+                get_single_file_description(file_path, question, visual_inspection_tool, document_inspection_tool),
+                prefix="    "
             )
+    return prompt_use_files
 
-            # add in example metadata
-            result.update(
-                {
-                    "true_answer": example["true_answer"],
-                    "task": example["task"],
-                }
-            )
-            results.append(result)
 
-            with open(output_path, 'w') as f:
-                for d in results:
-                    json.dump(d, f, default=serialize_agent_error)
-                    f.write('\n')  # add a newline for JSONL format
-        except Exception as e:
-            if "can't decode byte" in str(e): # ignore broken files for now
-                print(e)
+def get_tasks_to_run(data, total: int, base_filename: Path, tasks_ids: list[int]):
+    f = base_filename.parent / f"{base_filename.stem}_answers.jsonl"
+    done = set()
+    if f.exists():
+        with open(f, encoding="utf-8") as fh:
+            done = {json.loads(line)["task_id"] for line in fh if line.strip()}
+
+    tasks = []
+    for i in range(total):
+        task_id = int(data[i]["task_id"])
+        if task_id not in done:
+            if tasks_ids is not None:
+                if task_id in tasks_ids:
+                    tasks.append(data[i])
             else:
-                raise Exception from e
-    return results
+                tasks.append(data[i])
+    return tasks

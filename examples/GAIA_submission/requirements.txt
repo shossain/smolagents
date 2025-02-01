@@ -8,6 +8,7 @@ markdownify>=0.13.1
 numexpr>=2.10.1
 numpy>=2.1.2
 openai>=1.52.2
+openpyxl
 pandas>=2.2.3
 pathvalidate>=3.2.1
 pdfminer>=20191125
@@ -34,3 +35,4 @@ pydub
 PyPDF2
 python-pptx
 torch
+xlrd

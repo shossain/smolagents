@@ -264,6 +264,7 @@ class PdfConverter(DocumentConverter):
             text_content=pdfminer.high_level.extract_text(local_path),
         )
 
+
 class AudioConverter(DocumentConverter):
     def __init__(self):
         super().__init__()
@@ -279,12 +280,11 @@ class AudioConverter(DocumentConverter):
         except Exception as e:
             print("Exception in decoding audio:", e)
             from openai import OpenAI
+
             oai_client = OpenAI()
             from pathlib import Path
-            result = oai_client.audio.transcriptions.create(
-                model="whisper-1", 
-                file=Path(local_path)
-            ).text
+
+            result = oai_client.audio.transcriptions.create(model="whisper-1", file=Path(local_path)).text
 
         return DocumentConverterResult(
             title=None,
@@ -312,10 +312,8 @@ class XlsxConverter(HtmlConverter):
     def convert(self, local_path, **kwargs) -> Union[None, DocumentConverterResult]:
         # Bail if not a XLSX
         extension = kwargs.get("file_extension", "")
-
         if extension.lower() not in [".xlsx", ".xls"]:
             return None
-
         sheets = pd.read_excel(local_path, sheet_name=None)
         md_content = ""
         for s in sheets:
@@ -342,40 +340,40 @@ class XmlConverter(DocumentConverter):
             xml_string = fh.read()
 
         def extract_table_from_html_like(xml_root):
-            table = xml_root.find('.//table')
+            table = xml_root.find(".//table")
             if table is None:
                 raise ValueError("No table found in the XML")
 
-            headers = [th.text for th in table.find('thead').findall('th')]
-            rows = [[td.text for td in tr.findall('td')] for tr in table.find('tbody').findall('tr')]
+            headers = [th.text for th in table.find("thead").findall("th")]
+            rows = [[td.text for td in tr.findall("td")] for tr in table.find("tbody").findall("tr")]
 
             # Create markdown table
-            markdown = '| ' + ' | '.join(headers) + ' |\n'
-            markdown += '| ' + ' | '.join(['---'] * len(headers)) + ' |\n'
+            markdown = "| " + " | ".join(headers) + " |\n"
+            markdown += "| " + " | ".join(["---"] * len(headers)) + " |\n"
             for row in rows:
-                markdown += '| ' + ' | '.join(row) + ' |\n'
+                markdown += "| " + " | ".join(row) + " |\n"
 
         def extract_table_from_wordml(xml_root, namespaces):
             # Parse the XML content
             root = xml_root
-            namespace = {'w': 'http://schemas.microsoft.com/office/word/2003/wordml'}
+            namespace = {"w": "http://schemas.microsoft.com/office/word/2003/wordml"}
 
             # Extract text content
-            body = root.find('w:body', namespace)
-            paragraphs = body.findall('.//w:p', namespace)
+            body = root.find("w:body", namespace)
+            paragraphs = body.findall(".//w:p", namespace)
             text_content = []
             for para in paragraphs:
-                texts = para.findall('.//w:t', namespace)
+                texts = para.findall(".//w:t", namespace)
                 for text in texts:
                     text_content.append(text.text)
 
-            return '\n'.join(text_content)
+            return "\n".join(text_content)
 
         # Parse the XML string
         root = ET.fromstring(xml_string)
-        namespaces = {'w': 'http://schemas.microsoft.com/office/word/2003/wordml'}
+        namespaces = {"w": "http://schemas.microsoft.com/office/word/2003/wordml"}
 
-        if root.tag.endswith('wordDocument'):
+        if root.tag.endswith("wordDocument"):
             markdown = extract_table_from_wordml(root, namespaces)
         else:
             markdown = extract_table_from_html_like(root)
@@ -384,6 +382,7 @@ class XmlConverter(DocumentConverter):
             title=None,
             text_content=markdown.strip(),
         )
+
 
 class PptxConverter(HtmlConverter):
     def convert(self, local_path, **kwargs) -> Union[None, DocumentConverterResult]:
@@ -471,11 +470,14 @@ class PptxConverter(HtmlConverter):
             return True
         return False
 
+
 class FileConversionException(Exception):
     pass
 
+
 class UnsupportedFormatException(Exception):
     pass
+
 
 class MarkdownConverter:
     """(In preview) An extremely simple text-based document reader, suitable for LLM use.
@@ -489,7 +491,6 @@ class MarkdownConverter:
             self._requests_session = requests.Session()
         else:
             self._requests_session = requests_session
-
 
         self._page_converters: List[DocumentConverter] = []
 
@@ -609,9 +610,8 @@ class MarkdownConverter:
 
                         # Todo
                         return res
-                except Exception as e:
+                except Exception:
                     error_trace = ("\n\n" + traceback.format_exc()).strip()
-
 
         # If we got this far without success, report any exceptions
         if len(error_trace) > 0:

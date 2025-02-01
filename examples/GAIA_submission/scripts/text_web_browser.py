@@ -61,7 +61,7 @@ class SimpleTextBrowser:
         if uri_or_path == "about:blank":
             self._set_page_content("")
         elif uri_or_path.startswith("google:"):
-            self._serpapi_search(uri_or_path[len("google:"):].strip(), filter_year=filter_year)
+            self._serpapi_search(uri_or_path[len("google:") :].strip(), filter_year=filter_year)
         else:
             if (
                 not uri_or_path.startswith("http:")
@@ -202,7 +202,6 @@ class SimpleTextBrowser:
             self.viewport_pages.append((start_idx, end_idx))
             start_idx = end_idx
 
-
     def _serpapi_search(self, query: str, filter_year: Optional[int] = None) -> None:
         if self.serpapi_key is None:
             raise ValueError("Missing SerpAPI key.")
@@ -220,9 +219,11 @@ class SimpleTextBrowser:
         self.page_title = f"{query} - Search"
         if "organic_results" not in results.keys():
             raise Exception(f"'organic_results' key not found for query: '{query}'. Use a less restrictive query.")
-        if len(results['organic_results']) == 0:
+        if len(results["organic_results"]) == 0:
             year_filter_message = f" with filter year={filter_year}" if filter_year is not None else ""
-            self._set_page_content(f"No results found for '{query}'{year_filter_message}. Try with a more general query, or remove the year filter.")
+            self._set_page_content(
+                f"No results found for '{query}'{year_filter_message}. Try with a more general query, or remove the year filter."
+            )
             return
 
         def _prev_visit(url):
@@ -253,14 +254,12 @@ class SimpleTextBrowser:
                 redacted_version = redacted_version.replace("Your browser can't play this video.", "")
                 web_snippets.append(redacted_version)
 
-
         content = (
             f"A Google search for '{query}' found {len(web_snippets)} results:\n\n## Web Results\n"
             + "\n\n".join(web_snippets)
         )
 
         self._set_page_content(content)
-
 
     def _fetch_page(self, url: str) -> None:
         download_path = ""
@@ -323,7 +322,6 @@ class SimpleTextBrowser:
                     local_uri = pathlib.Path(download_path).as_uri()
                     self.set_address(local_uri)
 
-
         except UnsupportedFormatException as e:
             print(e)
             self.page_title = ("Download complete.",)
@@ -355,6 +353,7 @@ class SimpleTextBrowser:
                 self.page_title = "Error"
                 self._set_page_content(f"## Error\n\n{str(request_exception)}")
 
+
 load_dotenv(override=True)
 
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
@@ -370,7 +369,9 @@ browser_config = {
 
 browser_config["serpapi_key"] = os.environ["SERPAPI_API_KEY"]
 
-assert os.path.isdir(f"./{browser_config['downloads_folder']}"), f"Directory {browser_config['downloads_folder']} chosen in your config does not exist."
+assert os.path.isdir(f"./{browser_config['downloads_folder']}"), (
+    f"Directory {browser_config['downloads_folder']} chosen in your config does not exist."
+)
 
 browser = SimpleTextBrowser(**browser_config)
 
@@ -385,25 +386,20 @@ def _browser_state() -> Tuple[str, str]:
     total_pages = len(browser.viewport_pages)
 
     address = browser.address
-    for i in range(len(browser.history)-2,-1,-1): # Start from the second last
+    for i in range(len(browser.history) - 2, -1, -1):  # Start from the second last
         if browser.history[i][0] == address:
             header += f"You previously visited this page {round(time.time() - browser.history[i][1])} seconds ago.\n"
             break
 
-    header += f"Viewport position: Showing page {current_page+1} of {total_pages}.\n"
+    header += f"Viewport position: Showing page {current_page + 1} of {total_pages}.\n"
     return (header, browser.viewport)
 
 
 class SearchInformationTool(Tool):
-    name="web_search"
-    description="Perform a web search query (think a google search) and returns the search results."
-    inputs = {
-        "query": {
-            "type": "string",
-            "description": "The web search query to perform."
-        }
-    }
-    inputs["filter_year"]= {
+    name = "web_search"
+    description = "Perform a web search query (think a google search) and returns the search results."
+    inputs = {"query": {"type": "string", "description": "The web search query to perform."}}
+    inputs["filter_year"] = {
         "type": "string",
         "description": "[Optional parameter]: filter the search results to only include pages from a specific year. For example, '2020' will only include pages from 2020. Make sure to use this parameter if you're trying to search for articles from a specific date!",
         "nullable": True,
@@ -417,8 +413,8 @@ class SearchInformationTool(Tool):
 
 
 class NavigationalSearchTool(Tool):
-    name="navigational_web_search"
-    description="Perform a NAVIGATIONAL web search query then immediately navigate to the top result. Useful, for example, to navigate to a particular Wikipedia article or other known destination. Equivalent to Google's \"I'm Feeling Lucky\" button."
+    name = "navigational_web_search"
+    description = "Perform a NAVIGATIONAL web search query then immediately navigate to the top result. Useful, for example, to navigate to a particular Wikipedia article or other known destination. Equivalent to Google's \"I'm Feeling Lucky\" button."
     inputs = {"query": {"type": "string", "description": "The navigational web search query to perform."}}
     output_type = "string"
 
@@ -436,8 +432,8 @@ class NavigationalSearchTool(Tool):
 
 
 class VisitTool(Tool):
-    name="visit_page"
-    description="Visit a webpage at a given URL and return its text."
+    name = "visit_page"
+    description = "Visit a webpage at a given URL and return its text."
     inputs = {"url": {"type": "string", "description": "The relative or absolute url of the webapge to visit."}}
     output_type = "string"
 
@@ -448,8 +444,8 @@ class VisitTool(Tool):
 
 
 class DownloadTool(Tool):
-    name="download_file"
-    description="""
+    name = "download_file"
+    description = """
 Download a file at a given URL. The file should be of this format: [".xlsx", ".pptx", ".wav", ".mp3", ".png", ".docx"]
 After using this tool, for further inspection of this page you should return the download path to your manager via final_answer, and they will be able to inspect it.
 DO NOT use this tool for .pdf or .txt or .htm files: for these types of files use visit_page with the file url instead."""
@@ -477,8 +473,8 @@ DO NOT use this tool for .pdf or .txt or .htm files: for these types of files us
 
 
 class PageUpTool(Tool):
-    name="page_up"
-    description="Scroll the viewport UP one page-length in the current webpage and return the new viewport content."
+    name = "page_up"
+    description = "Scroll the viewport UP one page-length in the current webpage and return the new viewport content."
     inputs = {}
     output_type = "string"
 
@@ -487,12 +483,16 @@ class PageUpTool(Tool):
         header, content = _browser_state()
         return header.strip() + "\n=======================\n" + content
 
+
 class ArchiveSearchTool(Tool):
-    name="find_archived_url"
-    description="Given a url, searches the Wayback Machine and returns the archived version of the url that's closest in time to the desired date."
-    inputs={
+    name = "find_archived_url"
+    description = "Given a url, searches the Wayback Machine and returns the archived version of the url that's closest in time to the desired date."
+    inputs = {
         "url": {"type": "string", "description": "The url you need the archive for."},
-        "date": {"type": "string", "description": "The date that you want to find the archive for. Give this date in the format 'YYYYMMDD', for instance '27 June 2008' is written as '20080627'."}
+        "date": {
+            "type": "string",
+            "description": "The date that you want to find the archive for. Give this date in the format 'YYYYMMDD', for instance '27 June 2008' is written as '20080627'.",
+        },
     }
     output_type = "string"
 
@@ -506,12 +506,19 @@ class ArchiveSearchTool(Tool):
         target_url = closest["url"]
         browser.visit_page(target_url)
         header, content = _browser_state()
-        return f"Web archive for url {url}, snapshot taken at date {closest['timestamp'][:8]}:\n" + header.strip() + "\n=======================\n" + content
+        return (
+            f"Web archive for url {url}, snapshot taken at date {closest['timestamp'][:8]}:\n"
+            + header.strip()
+            + "\n=======================\n"
+            + content
+        )
 
 
 class PageDownTool(Tool):
-    name="page_down"
-    description="Scroll the viewport DOWN one page-length in the current webpage and return the new viewport content."
+    name = "page_down"
+    description = (
+        "Scroll the viewport DOWN one page-length in the current webpage and return the new viewport content."
+    )
     inputs = {}
     output_type = "string"
 
@@ -522,9 +529,14 @@ class PageDownTool(Tool):
 
 
 class FinderTool(Tool):
-    name="find_on_page_ctrl_f"
-    description="Scroll the viewport to the first occurrence of the search string. This is equivalent to Ctrl+F."
-    inputs = {"search_string": {"type": "string", "description": "The string to search for on the page. This search string supports wildcards like '*'" }}
+    name = "find_on_page_ctrl_f"
+    description = "Scroll the viewport to the first occurrence of the search string. This is equivalent to Ctrl+F."
+    inputs = {
+        "search_string": {
+            "type": "string",
+            "description": "The string to search for on the page. This search string supports wildcards like '*'",
+        }
+    }
     output_type = "string"
 
     def forward(self, search_string: str) -> str:
@@ -532,14 +544,17 @@ class FinderTool(Tool):
         header, content = _browser_state()
 
         if find_result is None:
-            return header.strip() + f"\n=======================\nThe search string '{search_string}' was not found on this page."
+            return (
+                header.strip()
+                + f"\n=======================\nThe search string '{search_string}' was not found on this page."
+            )
         else:
             return header.strip() + "\n=======================\n" + content
 
 
 class FindNextTool(Tool):
-    name="find_next"
-    description="Scroll the viewport to next occurrence of the search string. This is equivalent to finding the next match in a Ctrl+F search."
+    name = "find_next"
+    description = "Scroll the viewport to next occurrence of the search string. This is equivalent to finding the next match in a Ctrl+F search."
     inputs = {}
     output_type = "string"
 
