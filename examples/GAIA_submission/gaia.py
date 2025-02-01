@@ -18,7 +18,7 @@ from scripts.text_web_browser import (
 )
 from scripts.visual_qa import VisualQAGPT4Tool, visualizer
 
-from smolagents import CodeAgent, HfApiModel, LiteLLMModel, ManagedAgent, ToolCallingAgent
+from smolagents import CodeAgent, HfApiModel, LiteLLMModel, ManagedAgent, ToolCallingAgent, OpenAIServerModel
 
 
 load_dotenv(override=True)
@@ -33,7 +33,12 @@ USE_OPEN_MODELS = False
 
 SET = "validation"
 
-proprietary_model = LiteLLMModel("o1")
+custom_role_conversions = {"tool-response": "user"}
+proprietary_model = OpenAIServerModel(
+    "o3-mini",
+    custom_role_conversions=custom_role_conversions,
+    max_completion_tokens=8192
+)
 
 websurfer_model = proprietary_model
 
@@ -155,7 +160,7 @@ manager_agent = CodeAgent(
 results = answer_questions(
     eval_ds,
     manager_agent,
-    "code_o1_29-01_text",
+    "code_o1_preview_01-02_text",
     output_folder=f"{OUTPUT_DIR}/{SET}",
     visual_inspection_tool = VisualQAGPT4Tool(),
     text_inspector_tool = ti_tool,
