@@ -58,6 +58,7 @@ from .models import (
 from .monitoring import Monitor
 from .prompts import (
     CODE_SYSTEM_PROMPT,
+    MANAGED_AGENT_PROMPT,
     PLAN_UPDATE_FINAL_PLAN_REDACTION,
     SYSTEM_PROMPT_FACTS,
     SYSTEM_PROMPT_FACTS_UPDATE,
@@ -179,7 +180,7 @@ class MultiStepAgent:
         self.state = {}
         self.name = name
         self.description = description
-        self.managed_agent_prompt = managed_agent_prompt
+        self.managed_agent_prompt = managed_agent_prompt if managed_agent_prompt else MANAGED_AGENT_PROMPT
 
         self.managed_agents = {}
         if managed_agents is not None:
@@ -652,17 +653,13 @@ Now begin!""",
 
     def __call__(self, request, provide_run_summary=False, **kwargs):
         """Adds additional prompting for the managed agent, and runs it."""
-        full_task = self.managed_agent_prompt.format(name=self.name, task=request)
-        if self.additional_prompting:
-            full_task = full_task.replace("\n{additional_prompting}", self.additional_prompting).strip()
-        else:
-            full_task = full_task.replace("\n{additional_prompting}", "").strip()
-        output = self.agent.run(full_task, **kwargs)
+        full_task = self.managed_agent_prompt.format(name=self.name, task=request).strip()
+        output = self.run(full_task, **kwargs)
         if provide_run_summary:
             answer = f"Here is the final answer from your managed agent '{self.name}':\n"
             answer += str(output)
             answer += f"\n\nFor more detail, find below a summary of this agent's work:\nSUMMARY OF WORK FROM AGENT '{self.name}':\n"
-            for message in self.agent.write_memory_to_messages(summary_mode=True):
+            for message in self.write_memory_to_messages(summary_mode=True):
                 content = message["content"]
                 answer += "\n" + truncate_content(str(content)) + "\n---"
             answer += f"\nEND OF SUMMARY OF WORK FROM AGENT '{self.name}'."
@@ -928,7 +925,7 @@ class CodeAgent(MultiStepAgent):
                 ]
             observation = "Execution logs:\n" + execution_logs
         except Exception as e:
-            if "print_outputs" in self.python_executor.state:
+            if hasattr(self.python_executor, "state") and "print_outputs" in self.python_executor.state:
                 execution_logs = self.python_executor.state["print_outputs"]
                 if len(execution_logs) > 0:
                     execution_outputs_console = [
