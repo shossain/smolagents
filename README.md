@@ -148,7 +148,7 @@ model = AzureOpenAIServerModel(
 
 ## Command Line Interface
 
-You can run agents from CLI using two commands: `smolagent` and `webagent`. `smolagent` is a generalist command to run a multi-step `CodeAgent` that can be equipped with various tools, meanwhile `webagent` is a specific web-browsing agent using [helium](https://github.com/helium).
+You can run agents from CLI using two commands: `smolagent` and `webagent`. `smolagent` is a generalist command to run a multi-step `CodeAgent` that can be equipped with various tools, meanwhile `webagent` is a specific web-browsing agent using [helium](https://github.com/mherrmann/helium).
 
 **Web Browser Agent in CLI**
 
