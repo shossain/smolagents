@@ -6,7 +6,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import List
-from tqdm import tqdm
 
 import datasets
 import pandas as pd
@@ -29,8 +28,9 @@ from scripts.text_web_browser import (
     VisitTool,
 )
 from scripts.visual_qa import visualizer
+from tqdm import tqdm
 
-from smolagents import CodeAgent, LiteLLMModel, ManagedAgent, Model, ToolCallingAgent
+from smolagents import MANAGED_AGENT_PROMPT, CodeAgent, LiteLLMModel, Model, ToolCallingAgent
 
 
 AUTHORIZED_IMPORTS = [
@@ -124,21 +124,18 @@ def create_agent_hierarchy(model: Model):
         verbosity_level=2,
         # grammar = DEFAULT_JSONAGENT_REGEX_GRAMMAR,
         planning_interval=4,
-    )
-
-    search_agent = ManagedAgent(
-        text_webbrowser_agent,
-        "web_search",
-        description="""A team member that will browse the internet to answer your question.
+        name="search_agent",
+        description="""A team member that will search the internet to answer your question.
     Ask him for all your questions that require browsing the web.
     Provide him as much context as possible, in particular if you need to search on a specific timeframe!
     And don't hesitate to provide him with a complex search task, like finding a difference between two webpages.
     Your request must be a real sentence, not a google search! Like "Find me this information (...)" rather than a few keywords.
     """,
-        additional_prompting="""You can navigate to .txt online files.
+        provide_run_summary=True,
+        managed_agent_prompt=MANAGED_AGENT_PROMPT
+        + """You can navigate to .txt online files.
     If a non-html page is in another format, especially .pdf, use tool 'inspect_file_as_text' to download and inspect it.
     Additionally, if after some searching you find out that you need more information to answer the question, you can use `final_answer` with your request for clarification as argument to request for more information.""",
-        provide_run_summary=True,
     )
 
     manager_agent = CodeAgent(
@@ -148,7 +145,7 @@ def create_agent_hierarchy(model: Model):
         verbosity_level=1,
         additional_authorized_imports=AUTHORIZED_IMPORTS,
         planning_interval=4,
-        managed_agents=[search_agent],
+        managed_agents=[text_webbrowser_agent],
     )
     return manager_agent
 

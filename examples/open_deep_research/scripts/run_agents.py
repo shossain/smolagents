@@ -63,7 +63,7 @@ def get_zip_description(file_path: str, question: str, visual_inspection_tool, d
             file_path = os.path.join(root, file)
             prompt_use_files += "\n" + textwrap.indent(
                 get_single_file_description(file_path, question, visual_inspection_tool, document_inspection_tool),
-                prefix="    "
+                prefix="    ",
             )
     return prompt_use_files
 

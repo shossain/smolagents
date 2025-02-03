@@ -61,7 +61,14 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
             },
             {
                 "role": MessageRole.USER,
-                "content": [{"type": "text", "text": "Now please write a short, 5 sentence caption for this document, that could help someone asking this question: " + question + "\n\nDon't answer the question yourself! Just provide useful notes on the document"}],
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Now please write a short, 5 sentence caption for this document, that could help someone asking this question: "
+                        + question
+                        + "\n\nDon't answer the question yourself! Just provide useful notes on the document",
+                    }
+                ],
             },
         ]
         return self.model(messages).content

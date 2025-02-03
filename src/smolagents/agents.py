@@ -143,6 +143,7 @@ class MultiStepAgent:
         name (`str`, *optional*): Necessary for a managed agent only - the name by which this agent can be called.
         description (`str`, *optional*): Necessary for a managed agent only - the description of this agent.
         managed_agent_prompt (`str`, *optional*): Custom prompt for the managed agent. Defaults to None.
+        provide_run_summary (`bool`, *optional*): Wether to provide a run summary when called as a managed agent.
     """
 
     def __init__(
@@ -162,6 +163,7 @@ class MultiStepAgent:
         name: Optional[str] = None,
         description: Optional[str] = None,
         managed_agent_prompt: Optional[str] = None,
+        provide_run_summary: bool = False,
     ):
         if system_prompt is None:
             system_prompt = CODE_SYSTEM_PROMPT
@@ -181,6 +183,7 @@ class MultiStepAgent:
         self.name = name
         self.description = description
         self.managed_agent_prompt = managed_agent_prompt if managed_agent_prompt else MANAGED_AGENT_PROMPT
+        self.provide_run_summary = provide_run_summary
 
         self.managed_agents = {}
         if managed_agents is not None:
@@ -651,21 +654,21 @@ Now begin!""",
         """
         self.memory.replay(self.logger, detailed=detailed)
 
-    def __call__(self, request, provide_run_summary=False, **kwargs):
-        """Adds additional prompting for the managed agent, and runs it."""
+    def __call__(self, request: str, **kwargs):
+        """
+        This methd is called only by a manager agent.
+        Adds additional prompting for the managed agent, runs it, and wraps the output.
+        """
         full_task = self.managed_agent_prompt.format(name=self.name, task=request).strip()
         output = self.run(full_task, **kwargs)
-        if provide_run_summary:
-            answer = f"Here is the final answer from your managed agent '{self.name}':\n"
-            answer += str(output)
+        answer = f"Here is the final answer from your managed agent '{self.name}':\n{str(output)}"
+        if self.provide_run_summary:
             answer += f"\n\nFor more detail, find below a summary of this agent's work:\nSUMMARY OF WORK FROM AGENT '{self.name}':\n"
             for message in self.write_memory_to_messages(summary_mode=True):
                 content = message["content"]
                 answer += "\n" + truncate_content(str(content)) + "\n---"
             answer += f"\nEND OF SUMMARY OF WORK FROM AGENT '{self.name}'."
-            return answer
-        else:
-            return output
+        return answer
 
 
 class ToolCallingAgent(MultiStepAgent):
