@@ -79,6 +79,7 @@ def parse_args():
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--model-id", type=str, default="o1")
     parser.add_argument("--api-base", type=str, default=None)
+    parser.add_argument("--run-name", type=str, required=True)
     return parser.parse_args()
 
 
@@ -183,7 +184,10 @@ def append_answer(entry: dict, jsonl_file: str) -> None:
 
 def answer_single_question(example, model_id, answers_file, visual_inspection_tool):
     model = LiteLLMModel(
-        model_id, custom_role_conversions=custom_role_conversions, max_completion_tokens=8192, reasoning_effort="high"
+        model_id,
+        custom_role_conversions=custom_role_conversions,
+        max_completion_tokens=8192,
+        reasoning_effort="medium",
     )
     # model = HfApiModel("Qwen/Qwen2.5-72B-Instruct", provider="together")
     #     "https://lnxyuvj02bpe6mam.us-east-1.aws.endpoints.huggingface.cloud",
@@ -278,9 +282,7 @@ def main():
     args = parse_args()
     print(f"Starting run with arguments: {args}")
 
-    run_name = "code_o1_04_february_submission"
-
-    answers_file = f"output/{SET}/{run_name}.jsonl"
+    answers_file = f"output/{SET}/{args.run_name}.jsonl"
     tasks_to_run = get_examples_to_answer(answers_file, eval_ds)
 
     with ThreadPoolExecutor(max_workers=args.concurrency) as exe:

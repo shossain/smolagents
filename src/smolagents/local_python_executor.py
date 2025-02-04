@@ -1365,16 +1365,22 @@ def evaluate_python_code(
     try:
         for node in expression.body:
             result = evaluate_ast(node, state, static_tools, custom_tools, authorized_imports)
-        state["_print_outputs"].value = truncate_content(str(state["_print_outputs"]), max_length=max_print_outputs_length)
+        state["_print_outputs"].value = truncate_content(
+            str(state["_print_outputs"]), max_length=max_print_outputs_length
+        )
         is_final_answer = False
         return result, is_final_answer
     except FinalAnswerException as e:
-        state["_print_outputs"].value = truncate_content(str(state["_print_outputs"]), max_length=max_print_outputs_length)
+        state["_print_outputs"].value = truncate_content(
+            str(state["_print_outputs"]), max_length=max_print_outputs_length
+        )
         is_final_answer = True
         return e.value, is_final_answer
     except Exception as e:
         exception_type = type(e).__name__
-        state["_print_outputs"].value = truncate_content(str(state["_print_outputs"]), max_length=max_print_outputs_length)
+        state["_print_outputs"].value = truncate_content(
+            str(state["_print_outputs"]), max_length=max_print_outputs_length
+        )
         raise InterpreterError(
             f"Code execution failed at line '{ast.get_source_segment(code, node)}' due to: {exception_type}:{str(e)}"
         )

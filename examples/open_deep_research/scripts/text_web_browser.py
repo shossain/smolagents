@@ -457,13 +457,19 @@ class ArchiveSearchTool(Tool):
         self.browser = browser
 
     def forward(self, url, date) -> str:
-        archive_url = f"https://archive.org/wayback/available?url={url}&timestamp={date}"
+        no_timestamp_url = f"https://archive.org/wayback/available?url={url}"
+        archive_url = no_timestamp_url + f"&timestamp={date}"
         response = requests.get(archive_url).json()
-        try:
+        response_notimestamp = requests.get(no_timestamp_url).json()
+        if "archived_snapshots" in response and "closest" in response["archived_snapshots"]:
             closest = response["archived_snapshots"]["closest"]
             print("Archive found!", closest)
-        except Exception:
-            raise Exception(f"Your {archive_url=} was not archived on Wayback Machine, try a different url.")
+
+        elif "archived_snapshots" in response_notimestamp and "closest" in response_notimestamp["archived_snapshots"]:
+            closest = response_notimestamp["archived_snapshots"]["closest"]
+            print("Archive found!", closest)
+        else:
+            raise Exception(f"Your {url=} was not archived on Wayback Machine, try a different url.")
         target_url = closest["url"]
         self.browser.visit_page(target_url)
         header, content = self.browser._state()

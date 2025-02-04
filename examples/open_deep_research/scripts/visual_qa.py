@@ -147,9 +147,9 @@ class VisualQATool(Tool):
 def visualizer(image_path: str, question: Optional[str] = None) -> str:
     """A tool that can answer questions about attached images.
 
-    image_path: The path to the image on which to answer the question. This should be a local path to downloaded image.
-    question: The question to answer.
-    image_path: The path to the image on which to answer the question. This should be a local path to downloaded image.
+    Args:
+        image_path: The path to the image on which to answer the question. This should be a local path to downloaded image.
+        question: The question to answer.
     """
 
     add_note = False
