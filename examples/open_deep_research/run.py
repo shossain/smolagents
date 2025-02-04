@@ -267,7 +267,6 @@ Here is the task:
         "end_time": end_time,
         "task": example["task"],
         "task_id": example["task_id"],
-        "task_id": example["task_id"],
         "true_answer": example["true_answer"],
     }
     append_answer(annotated_example, answers_file)
