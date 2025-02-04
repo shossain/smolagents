@@ -211,16 +211,16 @@ Run verification steps if that's needed, you must make sure you find the correct
 Here is the task:
 """ + example["question"]
 
-    if example["file_name"]:
+    if example["file_path"]:
         if ".zip" in example["file_name"]:
             prompt_use_files = "\n\nTo solve the task above, you will have to use these attached files:\n"
             prompt_use_files += get_zip_description(
-                example["file_name"], example["question"], visual_inspection_tool, document_inspection_tool
+                example["file_path"], example["question"], visual_inspection_tool, document_inspection_tool
             )
         else:
             prompt_use_files = "\n\nTo solve the task above, you will have to use this attached file:"
             prompt_use_files += get_single_file_description(
-                example["file_name"], example["question"], visual_inspection_tool, document_inspection_tool
+                example["file_path"], example["question"], visual_inspection_tool, document_inspection_tool
             )
         augmented_question += prompt_use_files
 
