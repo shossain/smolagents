@@ -25,7 +25,7 @@ class SimpleTextBrowser:
     def __init__(
         self,
         start_page: Optional[str] = None,
-        viewport_size: Optional[int] = 1024 * 16,
+        viewport_size: Optional[int] = 1024 * 8,
         downloads_folder: Optional[Union[str, None]] = None,
         serpapi_key: Optional[Union[str, None]] = None,
         request_kwargs: Optional[Union[Dict[str, Any], None]] = None,
