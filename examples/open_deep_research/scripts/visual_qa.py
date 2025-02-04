@@ -157,7 +157,7 @@ def visualizer(image_path: str, question: Optional[str] = None) -> str:
         add_note = True
         question = "Please write a detailed caption for this image."
     if not isinstance(image_path, str):
-        raise Exception("You should provide only one string as argument to this tool!")
+        raise Exception("You should provide at least `image_path` string argument to this tool!")
 
     base64_image = encode_image(image_path)
 
