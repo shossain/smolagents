@@ -12,33 +12,31 @@ import pandas as pd
 from dotenv import load_dotenv
 from huggingface_hub import login, snapshot_download
 from scripts.reformulator import prepare_response
+from scripts.run_agents import (
+    get_single_file_description,
+    get_zip_description,
+)
+from scripts.text_inspector_tool import TextInspectorTool
 from scripts.text_web_browser import (
     ArchiveSearchTool,
     FinderTool,
     FindNextTool,
     PageDownTool,
     PageUpTool,
-    SimpleTextBrowser,
-    # RequestsMarkdownBrowser,
     SearchInformationTool,
+    SimpleTextBrowser,
     VisitTool,
 )
-from scripts.run_agents import (
-    get_single_file_description,
-    get_zip_description,
-)
-from scripts.text_inspector_tool import TextInspectorTool
 from scripts.visual_qa import visualizer
 from tqdm import tqdm
 
 from smolagents import (
     MANAGED_AGENT_PROMPT,
     CodeAgent,
-    HfApiModel,
+    # HfApiModel,
     LiteLLMModel,
     Model,
     ToolCallingAgent,
-    PythonInterpreterTool,
 )
 
 
@@ -163,7 +161,7 @@ def create_agent_hierarchy(model: Model):
         provide_run_summary=True,
         managed_agent_prompt=MANAGED_AGENT_PROMPT
         + """You can navigate to .txt online files.
-    If a non-html page is in another format, especially .pdf, use tool 'inspect_file_as_text' to download and inspect it.
+    If a non-html page is in another format, especially .pdf or a Youtube video, use tool 'inspect_file_as_text' to inspect it.
     Additionally, if after some searching you find out that you need more information to answer the question, you can use `final_answer` with your request for clarification as argument to request for more information.""",
     )
 
@@ -193,7 +191,7 @@ def answer_single_question(example, model_id, answers_file, visual_inspection_to
         model_id,
         custom_role_conversions=custom_role_conversions,
         max_completion_tokens=8192,
-        reasoning_effort="medium",
+        reasoning_effort="high",
     )
     # model = HfApiModel("Qwen/Qwen2.5-72B-Instruct", provider="together")
     #     "https://lnxyuvj02bpe6mam.us-east-1.aws.endpoints.huggingface.cloud",
