@@ -191,7 +191,7 @@ def append_answer(entry: dict, jsonl_file: str) -> None:
     jsonl_file.parent.mkdir(parents=True, exist_ok=True)
     with append_answer_lock, open(jsonl_file, "a", encoding="utf-8") as fp:
         fp.write(json.dumps(entry) + "\n")
-    assert os.path.exists(jsonl_file), "File not fonud!"
+    assert os.path.exists(jsonl_file), "File not found!"
     print("Answer exported to file:", jsonl_file.resolve())
 
 
