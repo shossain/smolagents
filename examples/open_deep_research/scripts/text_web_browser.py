@@ -391,29 +391,6 @@ class SearchInformationTool(Tool):
         return header.strip() + "\n=======================\n" + content
 
 
-# class NavigationalSearchTool(Tool):
-#     name = "navigational_web_search"
-#     description = "Perform a NAVIGATIONAL web search query then immediately navigate to the top result. Useful, for example, to navigate to a particular Wikipedia article or other known destination. Equivalent to Google's \"I'm Feeling Lucky\" button."
-#     inputs = {"query": {"type": "string", "description": "The navigational web search query to perform."}}
-#     output_type = "string"
-
-#     def __init__(self, browser):
-#         super().__init__()
-#         self.browser = browser
-
-#     def forward(self, query: str) -> str:
-#         self.browser.visit_page(f"search: {query}")
-
-#         # Extract the first line
-#         m = re.search(r"\[.*?\]\((http.*?)\)", self.browser.page_content)
-#         if m:
-#             self.browser.visit_page(m.group(1))
-
-#         # Return where we ended up
-#         header, content = self.browser._state()
-#         return header.strip() + "\n=======================\n" + content
-
-
 class VisitTool(Tool):
     name = "visit_page"
     description = "Visit a webpage at a given URL and return its text. Given a url to a YouTube video, this returns the transcript."
