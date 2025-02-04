@@ -122,6 +122,7 @@ class VisualQATool(Tool):
     client = InferenceClient("HuggingFaceM4/idefics2-8b-chatty")
 
     def forward(self, image_path: str, question: Optional[str] = None) -> str:
+        output = ""
         add_note = False
         if not question:
             add_note = True
