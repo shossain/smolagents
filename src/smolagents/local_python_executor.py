@@ -50,8 +50,8 @@ ERRORS = {
     if isinstance(getattr(builtins, name), type) and issubclass(getattr(builtins, name), BaseException)
 }
 
-PRINT_OUTPUTS, DEFAULT_MAX_LEN_OUTPUT = "", 50000
-OPERATIONS_COUNT, MAX_OPERATIONS = 0, 10000000
+DEFAULT_MAX_LEN_OUTPUT = 50000
+MAX_OPERATIONS = 10000000
 
 
 def custom_print(*args):
@@ -604,8 +604,8 @@ def evaluate_call(
     else:
         if func_name == "print":
             output = " ".join(map(str, args))
-            global PRINT_OUTPUTS
-            PRINT_OUTPUTS += output + "\n"
+            state["print_outputs"]
+            state["print_outputs"] += output + "\n"
             # cap the number of lines
             return None
         else:  # Assume it's a callable object
@@ -1153,12 +1153,11 @@ def evaluate_ast(
             The list of modules that can be imported by the code. By default, only a few safe modules are allowed.
             If it contains "*", it will authorize any import. Use this at your own risk!
     """
-    global OPERATIONS_COUNT
-    if OPERATIONS_COUNT >= MAX_OPERATIONS:
+    if state["_operations_count"] >= MAX_OPERATIONS:
         raise InterpreterError(
             f"Reached the max number of operations of {MAX_OPERATIONS}. Maybe there is an infinite loop somewhere in the code, or you're just asking too many calculations."
         )
-    OPERATIONS_COUNT += 1
+    state["_operations_count"] += 1
     if isinstance(expression, ast.Assign):
         # Assignment -> we evaluate the assignment which should update the state
         # We return the variable assigned as it may be used to determine the final result.
@@ -1332,10 +1331,8 @@ def evaluate_python_code(
     static_tools = static_tools.copy() if static_tools is not None else {}
     custom_tools = custom_tools if custom_tools is not None else {}
     result = None
-    global PRINT_OUTPUTS
-    PRINT_OUTPUTS = ""
-    global OPERATIONS_COUNT
-    OPERATIONS_COUNT = 0
+    state["print_outputs"] = ""
+    state["_operations_count"] = 0
 
     def final_answer(value):
         raise FinalAnswerException(value)
@@ -1345,16 +1342,16 @@ def evaluate_python_code(
     try:
         for node in expression.body:
             result = evaluate_ast(node, state, static_tools, custom_tools, authorized_imports)
-        state["print_outputs"] = truncate_content(PRINT_OUTPUTS, max_length=max_print_outputs_length)
+        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length)
         is_final_answer = False
         return result, is_final_answer
     except FinalAnswerException as e:
-        state["print_outputs"] = truncate_content(PRINT_OUTPUTS, max_length=max_print_outputs_length)
+        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length)
         is_final_answer = True
         return e.value, is_final_answer
     except Exception as e:
         exception_type = type(e).__name__
-        state["print_outputs"] = truncate_content(PRINT_OUTPUTS, max_length=max_print_outputs_length)
+        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length)
         raise InterpreterError(
             f"Code execution failed at line '{ast.get_source_segment(code, node)}' due to: {exception_type}:{str(e)}"
         )

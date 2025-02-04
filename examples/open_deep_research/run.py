@@ -12,27 +12,26 @@ import pandas as pd
 from dotenv import load_dotenv
 from huggingface_hub import login
 from scripts.reformulator import prepare_response
+from scripts.text_web_browser import (
+    ArchiveSearchTool,
+    FinderTool,
+    FindNextTool,
+    PageDownTool,
+    PageUpTool,
+    SimpleTextBrowser,
+    # RequestsMarkdownBrowser,
+    SearchInformationTool,
+    VisitTool,
+)
 from scripts.run_agents import (
     get_single_file_description,
     get_zip_description,
 )
 from scripts.text_inspector_tool import TextInspectorTool
-from scripts.text_web_browser import (
-    ArchiveSearchTool,
-    FinderTool,
-    FindNextTool,
-    # NavigationalSearchTool,
-    PageDownTool,
-    PageUpTool,
-    # RequestsMarkdownBrowser,
-    SearchInformationTool,
-    SimpleTextBrowser,
-    VisitTool,
-)
 from scripts.visual_qa import visualizer
 from tqdm import tqdm
 
-from smolagents import MANAGED_AGENT_PROMPT, CodeAgent, LiteLLMModel, Model, ToolCallingAgent
+from smolagents import MANAGED_AGENT_PROMPT, CodeAgent, HfApiModel, LiteLLMModel, Model, ToolCallingAgent
 
 
 AUTHORIZED_IMPORTS = [
@@ -114,26 +113,9 @@ BROWSER_CONFIG = {
     "serpapi_key": os.getenv("SERPAPI_API_KEY"),
 }
 
-# BROWSER_CONFIG["serpapi_key"] = os.environ["SERPAPI_API_KEY"]
-
 assert os.path.isdir(f"./{BROWSER_CONFIG['downloads_folder']}"), (
     f"Directory {BROWSER_CONFIG['downloads_folder']} chosen in your config does not exist."
 )
-
-# browser = RequestsMarkdownBrowser(**BROWSER_CONFIG)
-
-# WEB_TOOLS = [
-#     SearchInformationTool(browser),
-#     NavigationalSearchTool(browser),
-#     VisitTool(browser),
-#     PageUpTool(browser),
-#     PageDownTool(browser),
-#     FinderTool(browser),
-#     FindNextTool(browser),
-#     ArchiveSearchTool(browser),
-# ]
-# print(SearchInformationTool(browser)({"query":"Eliud Kipchoge Berlin Marathon world record details"}))
-# quit()
 
 
 def create_agent_hierarchy(model: Model):
@@ -144,7 +126,6 @@ def create_agent_hierarchy(model: Model):
 
     WEB_TOOLS = [
         SearchInformationTool(browser),
-        # NavigationalSearchTool(browser),
         VisitTool(browser),
         PageUpTool(browser),
         PageDownTool(browser),
@@ -158,7 +139,6 @@ def create_agent_hierarchy(model: Model):
         tools=WEB_TOOLS,
         max_steps=20,
         verbosity_level=2,
-        # grammar = DEFAULT_JSONAGENT_REGEX_GRAMMAR,
         planning_interval=4,
         name="search_agent",
         description="""A team member that will search the internet to answer your question.
@@ -291,7 +271,7 @@ def main():
     args = parse_args()
     print(f"Starting run with arguments: {args}")
 
-    run_name = "code_o1_03_february_remove-navigational"
+    run_name = "code_o1_03_february_fix-print-outputs"
 
     answers_file = f"output/{SET}/{run_name}.jsonl"
     tasks_to_run = get_examples_to_answer(answers_file, eval_ds)

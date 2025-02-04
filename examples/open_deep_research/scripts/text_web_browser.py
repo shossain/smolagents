@@ -461,6 +461,7 @@ class ArchiveSearchTool(Tool):
         response = requests.get(archive_url).json()
         try:
             closest = response["archived_snapshots"]["closest"]
+            print("Archive found!", closest)
         except Exception:
             raise Exception(f"Your {archive_url=} was not archived on Wayback Machine, try a different url.")
         target_url = closest["url"]
