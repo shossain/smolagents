@@ -114,6 +114,32 @@ BASE_PYTHON_TOOLS = {
 }
 
 
+class PrintContainer:
+    def __init__(self):
+        self.value = ""
+
+    def append(self, text):
+        self.value += text
+        return self
+
+    def __iadd__(self, other):
+        """Implements the += operator"""
+        self.value += str(other)
+        return self
+
+    def __str__(self):
+        """String representation"""
+        return self.value
+
+    def __repr__(self):
+        """Representation for debugging"""
+        return f"PrintContainer({self.value})"
+
+    def __len__(self):
+        """Implements len() function support"""
+        return len(self.value)
+
+
 class BreakException(Exception):
     pass
 
@@ -603,10 +629,7 @@ def evaluate_call(
             raise InterpreterError("super() takes at most 2 arguments")
     else:
         if func_name == "print":
-            output = " ".join(map(str, args))
-            state["print_outputs"]
-            state["print_outputs"] += output + "\n"
-            # cap the number of lines
+            state["print_outputs"] += " ".join(map(str, args)) + "\n"
             return None
         else:  # Assume it's a callable object
             if (
@@ -1331,7 +1354,7 @@ def evaluate_python_code(
     static_tools = static_tools.copy() if static_tools is not None else {}
     custom_tools = custom_tools if custom_tools is not None else {}
     result = None
-    state["print_outputs"] = ""
+    state["print_outputs"] = PrintContainer()
     state["_operations_count"] = 0
 
     def final_answer(value):
@@ -1342,16 +1365,16 @@ def evaluate_python_code(
     try:
         for node in expression.body:
             result = evaluate_ast(node, state, static_tools, custom_tools, authorized_imports)
-        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length)
+        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length).value
         is_final_answer = False
         return result, is_final_answer
     except FinalAnswerException as e:
-        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length)
+        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length).value
         is_final_answer = True
         return e.value, is_final_answer
     except Exception as e:
         exception_type = type(e).__name__
-        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length)
+        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length).value
         raise InterpreterError(
             f"Code execution failed at line '{ast.get_source_segment(code, node)}' due to: {exception_type}:{str(e)}"
         )
