@@ -121,7 +121,7 @@ class SimpleTextBrowser:
             self._find_on_page_last_result = viewport_match
             return self.viewport
 
-    def find_next(self) -> None:
+    def find_next(self) -> Union[str, None]:
         """Scroll to the next viewport that matches the query"""
 
         if self._find_on_page_query is None:
