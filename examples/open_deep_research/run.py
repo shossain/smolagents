@@ -12,6 +12,11 @@ import pandas as pd
 from dotenv import load_dotenv
 from huggingface_hub import login
 from scripts.reformulator import prepare_response
+from scripts.run_agents import (
+    get_single_file_description,
+    get_zip_description,
+)
+from scripts.text_inspector_tool import TextInspectorTool
 from scripts.text_web_browser import (
     ArchiveSearchTool,
     FinderTool,
@@ -19,20 +24,15 @@ from scripts.text_web_browser import (
     # NavigationalSearchTool,
     PageDownTool,
     PageUpTool,
-    SimpleTextBrowser,
     # RequestsMarkdownBrowser,
     SearchInformationTool,
+    SimpleTextBrowser,
     VisitTool,
 )
-from scripts.run_agents import (
-    get_single_file_description,
-    get_zip_description,
-)
-from scripts.text_inspector_tool import TextInspectorTool
 from scripts.visual_qa import visualizer
 from tqdm import tqdm
 
-from smolagents import MANAGED_AGENT_PROMPT, CodeAgent, HfApiModel, LiteLLMModel, Model, ToolCallingAgent
+from smolagents import MANAGED_AGENT_PROMPT, CodeAgent, LiteLLMModel, Model, ToolCallingAgent
 
 
 AUTHORIZED_IMPORTS = [
@@ -111,7 +111,7 @@ BROWSER_CONFIG = {
         "headers": {"User-Agent": user_agent},
         "timeout": 300,
     },
-    "serpapi_key": os.getenv("SERPAPI_API_KEY")
+    "serpapi_key": os.getenv("SERPAPI_API_KEY"),
 }
 
 # BROWSER_CONFIG["serpapi_key"] = os.environ["SERPAPI_API_KEY"]
@@ -134,6 +134,7 @@ assert os.path.isdir(f"./{BROWSER_CONFIG['downloads_folder']}"), (
 # ]
 # print(SearchInformationTool(browser)({"query":"Eliud Kipchoge Berlin Marathon world record details"}))
 # quit()
+
 
 def create_agent_hierarchy(model: Model):
     text_limit = 100000
@@ -196,10 +197,7 @@ def append_answer(entry: dict, jsonl_file: str) -> None:
 
 def answer_single_question(example, model_id, answers_file, visual_inspection_tool):
     model = LiteLLMModel(
-        model_id,
-        custom_role_conversions=custom_role_conversions,
-        max_completion_tokens=8192,
-        reasoning_effort="high"
+        model_id, custom_role_conversions=custom_role_conversions, max_completion_tokens=8192, reasoning_effort="high"
     )
     # model = HfApiModel("Qwen/Qwen2.5-72B-Instruct", provider="together")
     #     "https://lnxyuvj02bpe6mam.us-east-1.aws.endpoints.huggingface.cloud",
@@ -287,6 +285,7 @@ def get_examples_to_answer(answers_file, eval_ds) -> List[dict]:
         print("No usable records! ▶️ Starting new.")
         done_questions = []
     return [line for line in eval_ds.to_list() if line["question"] not in done_questions]
+
 
 def main():
     args = parse_args()

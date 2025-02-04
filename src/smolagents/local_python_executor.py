@@ -1089,6 +1089,7 @@ def evaluate_dictcomp(
                 result[key] = val
     return result
 
+
 def evaluate_delete(
     delete_node: ast.Delete,
     state: Dict[str, Any],
@@ -1123,6 +1124,7 @@ def evaluate_delete(
                 raise InterpreterError(f"Cannot delete index/key: {str(e)}")
         else:
             raise InterpreterError(f"Deletion of {type(target).__name__} targets is not supported")
+
 
 def evaluate_ast(
     expression: ast.AST,

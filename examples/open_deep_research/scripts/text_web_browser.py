@@ -11,7 +11,6 @@ from urllib.parse import unquote, urljoin, urlparse
 
 import pathvalidate
 import requests
-from dotenv import load_dotenv
 from serpapi import GoogleSearch
 
 from smolagents import Tool
@@ -496,6 +495,7 @@ class ArchiveSearchTool(Tool):
             + "\n=======================\n"
             + content
         )
+
 
 class PageUpTool(Tool):
     name = "page_up"

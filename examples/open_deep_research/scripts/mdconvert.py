@@ -2,7 +2,6 @@
 # Thanks to Microsoft researchers for open-sourcing this!
 # type: ignore
 import base64
-import binascii
 import copy
 import html
 import json
@@ -32,6 +31,7 @@ import speech_recognition as sr
 from bs4 import BeautifulSoup
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import SRTFormatter
+
 
 class _CustomMarkdownify(markdownify.MarkdownConverter):
     """
@@ -548,9 +548,7 @@ class WavConverter(MediaConverter):
         # Transcribe
         try:
             transcript = self._transcribe_audio(local_path)
-            md_content += "\n\n### Audio Transcript:\n" + (
-                "[No speech detected]" if transcript == "" else transcript
-            )
+            md_content += "\n\n### Audio Transcript:\n" + ("[No speech detected]" if transcript == "" else transcript)
         except Exception:
             md_content += "\n\n### Audio Transcript:\nError. Could not transcribe this audio."
 
@@ -867,7 +865,7 @@ class MarkdownConverter:
         finally:
             try:
                 fh.close()
-            except:
+            except Exception:
                 pass
             os.unlink(temp_path)
 
@@ -897,7 +895,7 @@ class MarkdownConverter:
                 try:
                     res = converter.convert(local_path, **_kwargs)
                 except Exception:
-                   error_trace = ("\n\n" + traceback.format_exc()).strip()
+                    error_trace = ("\n\n" + traceback.format_exc()).strip()
 
                 if res is not None:
                     # Normalize the content

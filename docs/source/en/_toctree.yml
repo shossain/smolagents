@@ -29,11 +29,7 @@
   - local: examples/multiagents
     title: Orchestrate a multi-agent system
   - local: examples/web_browser
-<<<<<<< HEAD
-    title: Build a web browser agent with vision models
-=======
     title: Build a web browser agent using vision models
->>>>>>> main
 - title: Reference
   sections:
   - local: reference/agents
