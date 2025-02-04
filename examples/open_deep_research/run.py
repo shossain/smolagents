@@ -10,7 +10,7 @@ from typing import List
 import datasets
 import pandas as pd
 from dotenv import load_dotenv
-from huggingface_hub import login
+from huggingface_hub import login, snapshot_download
 from scripts.reformulator import prepare_response
 from scripts.text_web_browser import (
     ArchiveSearchTool,
