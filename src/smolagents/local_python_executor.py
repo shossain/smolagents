@@ -215,7 +215,7 @@ def evaluate_while(
     custom_tools: Dict[str, Callable],
     authorized_imports: List[str],
 ) -> None:
-    max_iterations = 1000
+    max_iterations = 1000000
     iterations = 0
     while evaluate_ast(while_loop.test, state, static_tools, custom_tools, authorized_imports):
         for node in while_loop.body:
@@ -1089,6 +1089,40 @@ def evaluate_dictcomp(
                 result[key] = val
     return result
 
+def evaluate_delete(
+    delete_node: ast.Delete,
+    state: Dict[str, Any],
+    static_tools: Dict[str, Callable],
+    custom_tools: Dict[str, Callable],
+    authorized_imports: List[str],
+) -> None:
+    """
+    Evaluate a delete statement (del x, del x[y]).
+
+    Args:
+        delete_node: The AST Delete node to evaluate
+        state: The current state dictionary
+        static_tools: Dictionary of static tools
+        custom_tools: Dictionary of custom tools
+        authorized_imports: List of authorized imports
+    """
+    for target in delete_node.targets:
+        if isinstance(target, ast.Name):
+            # Handle simple variable deletion (del x)
+            if target.id in state:
+                del state[target.id]
+            else:
+                raise InterpreterError(f"Cannot delete name '{target.id}': name is not defined")
+        elif isinstance(target, ast.Subscript):
+            # Handle index/key deletion (del x[y])
+            obj = evaluate_ast(target.value, state, static_tools, custom_tools, authorized_imports)
+            index = evaluate_ast(target.slice, state, static_tools, custom_tools, authorized_imports)
+            try:
+                del obj[index]
+            except (TypeError, KeyError, IndexError) as e:
+                raise InterpreterError(f"Cannot delete index/key: {str(e)}")
+        else:
+            raise InterpreterError(f"Deletion of {type(target).__name__} targets is not supported")
 
 def evaluate_ast(
     expression: ast.AST,
@@ -1241,6 +1275,8 @@ def evaluate_ast(
         )
     elif isinstance(expression, ast.Pass):
         return None
+    elif isinstance(expression, ast.Delete):
+        return evaluate_delete(expression, state, static_tools, custom_tools, authorized_imports)
     else:
         # For now we refuse anything else. Let's add things as we need them.
         raise InterpreterError(f"{expression.__class__.__name__} is not supported.")

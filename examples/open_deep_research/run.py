@@ -12,25 +12,27 @@ import pandas as pd
 from dotenv import load_dotenv
 from huggingface_hub import login
 from scripts.reformulator import prepare_response
+from scripts.text_web_browser import (
+    ArchiveSearchTool,
+    FinderTool,
+    FindNextTool,
+    # NavigationalSearchTool,
+    PageDownTool,
+    PageUpTool,
+    SimpleTextBrowser,
+    # RequestsMarkdownBrowser,
+    SearchInformationTool,
+    VisitTool,
+)
 from scripts.run_agents import (
     get_single_file_description,
     get_zip_description,
 )
 from scripts.text_inspector_tool import TextInspectorTool
-from scripts.text_web_browser import (
-    ArchiveSearchTool,
-    FinderTool,
-    FindNextTool,
-    NavigationalSearchTool,
-    PageDownTool,
-    PageUpTool,
-    SearchInformationTool,
-    VisitTool,
-)
 from scripts.visual_qa import visualizer
 from tqdm import tqdm
 
-from smolagents import MANAGED_AGENT_PROMPT, CodeAgent, LiteLLMModel, Model, ToolCallingAgent
+from smolagents import MANAGED_AGENT_PROMPT, CodeAgent, HfApiModel, LiteLLMModel, Model, ToolCallingAgent
 
 
 AUTHORIZED_IMPORTS = [
@@ -67,7 +69,7 @@ append_answer_lock = threading.Lock()
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--concurrency", type=int, default=4)
+    parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--model-id", type=str, default="o1")
     parser.add_argument("--api-base", type=str, default=None)
     return parser.parse_args()
@@ -100,23 +102,56 @@ eval_df = pd.DataFrame(eval_ds)
 print("Loaded evaluation dataset:")
 print(eval_df["task"].value_counts())
 
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
+
+BROWSER_CONFIG = {
+    "viewport_size": 1024 * 5,
+    "downloads_folder": "downloads_folder",
+    "request_kwargs": {
+        "headers": {"User-Agent": user_agent},
+        "timeout": 300,
+    },
+    "serpapi_key": os.getenv("SERPAPI_API_KEY")
+}
+
+# BROWSER_CONFIG["serpapi_key"] = os.environ["SERPAPI_API_KEY"]
+
+assert os.path.isdir(f"./{BROWSER_CONFIG['downloads_folder']}"), (
+    f"Directory {BROWSER_CONFIG['downloads_folder']} chosen in your config does not exist."
+)
+
+# browser = RequestsMarkdownBrowser(**BROWSER_CONFIG)
+
+# WEB_TOOLS = [
+#     SearchInformationTool(browser),
+#     NavigationalSearchTool(browser),
+#     VisitTool(browser),
+#     PageUpTool(browser),
+#     PageDownTool(browser),
+#     FinderTool(browser),
+#     FindNextTool(browser),
+#     ArchiveSearchTool(browser),
+# ]
+# print(SearchInformationTool(browser)({"query":"Eliud Kipchoge Berlin Marathon world record details"}))
+# quit()
 
 def create_agent_hierarchy(model: Model):
     text_limit = 100000
     ti_tool = TextInspectorTool(model, text_limit)
 
+    browser = SimpleTextBrowser(**BROWSER_CONFIG)
+
     WEB_TOOLS = [
-        SearchInformationTool(),
-        NavigationalSearchTool(),
-        VisitTool(),
-        PageUpTool(),
-        PageDownTool(),
-        FinderTool(),
-        FindNextTool(),
-        ArchiveSearchTool(),
+        SearchInformationTool(browser),
+        # NavigationalSearchTool(browser),
+        VisitTool(browser),
+        PageUpTool(browser),
+        PageDownTool(browser),
+        FinderTool(browser),
+        FindNextTool(browser),
+        ArchiveSearchTool(browser),
         TextInspectorTool(model, text_limit),
     ]
-
     text_webbrowser_agent = ToolCallingAgent(
         model=model,
         tools=WEB_TOOLS,
@@ -142,7 +177,7 @@ def create_agent_hierarchy(model: Model):
         model=model,
         tools=[visualizer, ti_tool],
         max_steps=12,
-        verbosity_level=1,
+        verbosity_level=2,
         additional_authorized_imports=AUTHORIZED_IMPORTS,
         planning_interval=4,
         managed_agents=[text_webbrowser_agent],
@@ -160,8 +195,20 @@ def append_answer(entry: dict, jsonl_file: str) -> None:
 
 
 def answer_single_question(example, model_id, answers_file, visual_inspection_tool):
-    model = LiteLLMModel(model_id, custom_role_conversions=custom_role_conversions, max_completion_tokens=8192)
+    model = LiteLLMModel(
+        model_id,
+        custom_role_conversions=custom_role_conversions,
+        max_completion_tokens=8192,
+        reasoning_effort="high"
+    )
+    # model = HfApiModel("Qwen/Qwen2.5-72B-Instruct", provider="together")
+    #     "https://lnxyuvj02bpe6mam.us-east-1.aws.endpoints.huggingface.cloud",
+    #     custom_role_conversions=custom_role_conversions,
+    #     # provider="sambanova",
+    #     max_tokens=8096,
+    # )
     document_inspection_tool = TextInspectorTool(model, 100000)
+
     agent = create_agent_hierarchy(model)
 
     augmented_question = """You have one question to answer. It is paramount that you provide a correct answer.
@@ -214,7 +261,7 @@ Here is the task:
         raised_exception = True
     end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     annotated_example = {
-        "agent_name": model_id,
+        "agent_name": model.model_id,
         "question": example["question"],
         "augmented_question": augmented_question,
         "prediction": output,
@@ -241,15 +288,15 @@ def get_examples_to_answer(answers_file, eval_ds) -> List[dict]:
         done_questions = []
     return [line for line in eval_ds.to_list() if line["question"] not in done_questions]
 
-
 def main():
     args = parse_args()
     print(f"Starting run with arguments: {args}")
 
-    run_name = "code_o1_01_february_text"
+    run_name = "code_o1_03_february_remove-navigational"
 
     answers_file = f"output/{SET}/{run_name}.jsonl"
     tasks_to_run = get_examples_to_answer(answers_file, eval_ds)
+
     with ThreadPoolExecutor(max_workers=args.concurrency) as exe:
         futures = [
             exe.submit(answer_single_question, example, args.model_id, answers_file, visualizer)
@@ -259,6 +306,8 @@ def main():
             f.result()
 
     print("All tasks processed.")
+    # for example in tasks_to_run:
+    #     answer_single_question(example, args.model_id, answers_file, visualizer)
 
 
 if __name__ == "__main__":

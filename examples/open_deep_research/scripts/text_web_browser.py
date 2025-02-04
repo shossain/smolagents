@@ -26,7 +26,7 @@ class SimpleTextBrowser:
     def __init__(
         self,
         start_page: Optional[str] = None,
-        viewport_size: Optional[int] = 1024 * 8,
+        viewport_size: Optional[int] = 1024 * 16,
         downloads_folder: Optional[Union[str, None]] = None,
         serpapi_key: Optional[Union[str, None]] = None,
         request_kwargs: Optional[Union[Dict[str, Any], None]] = None,
@@ -218,7 +218,7 @@ class SimpleTextBrowser:
         results = search.get_dict()
         self.page_title = f"{query} - Search"
         if "organic_results" not in results.keys():
-            raise Exception(f"'organic_results' key not found for query: '{query}'. Use a less restrictive query.")
+            raise Exception(f"No results found for query: '{query}'. Use a less specific query.")
         if len(results["organic_results"]) == 0:
             year_filter_message = f" with filter year={filter_year}" if filter_year is not None else ""
             self._set_page_content(
@@ -353,46 +353,22 @@ class SimpleTextBrowser:
                 self.page_title = "Error"
                 self._set_page_content(f"## Error\n\n{str(request_exception)}")
 
+    def _state(self) -> Tuple[str, str]:
+        header = f"Address: {self.address}\n"
+        if self.page_title is not None:
+            header += f"Title: {self.page_title}\n"
 
-load_dotenv(override=True)
+        current_page = self.viewport_current_page
+        total_pages = len(self.viewport_pages)
 
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
+        address = self.address
+        for i in range(len(self.history) - 2, -1, -1):  # Start from the second last
+            if self.history[i][0] == address:
+                header += f"You previously visited this page {round(time.time() - self.history[i][1])} seconds ago.\n"
+                break
 
-browser_config = {
-    "viewport_size": 1024 * 5,
-    "downloads_folder": "downloads_folder",
-    "request_kwargs": {
-        "headers": {"User-Agent": user_agent},
-        "timeout": 300,
-    },
-}
-
-browser_config["serpapi_key"] = os.environ["SERPAPI_API_KEY"]
-
-assert os.path.isdir(f"./{browser_config['downloads_folder']}"), (
-    f"Directory {browser_config['downloads_folder']} chosen in your config does not exist."
-)
-
-browser = SimpleTextBrowser(**browser_config)
-
-
-# Helper functions
-def _browser_state() -> Tuple[str, str]:
-    header = f"Address: {browser.address}\n"
-    if browser.page_title is not None:
-        header += f"Title: {browser.page_title}\n"
-
-    current_page = browser.viewport_current_page
-    total_pages = len(browser.viewport_pages)
-
-    address = browser.address
-    for i in range(len(browser.history) - 2, -1, -1):  # Start from the second last
-        if browser.history[i][0] == address:
-            header += f"You previously visited this page {round(time.time() - browser.history[i][1])} seconds ago.\n"
-            break
-
-    header += f"Viewport position: Showing page {current_page + 1} of {total_pages}.\n"
-    return (header, browser.viewport)
+        header += f"Viewport position: Showing page {current_page + 1} of {total_pages}.\n"
+        return (header, self.viewport)
 
 
 class SearchInformationTool(Tool):
@@ -406,40 +382,52 @@ class SearchInformationTool(Tool):
     }
     output_type = "string"
 
+    def __init__(self, browser):
+        super().__init__()
+        self.browser = browser
+
     def forward(self, query: str, filter_year: Optional[int] = None) -> str:
-        browser.visit_page(f"google: {query}", filter_year=filter_year)
-        header, content = _browser_state()
+        self.browser.visit_page(f"google: {query}", filter_year=filter_year)
+        header, content = self.browser._state()
         return header.strip() + "\n=======================\n" + content
 
 
-class NavigationalSearchTool(Tool):
-    name = "navigational_web_search"
-    description = "Perform a NAVIGATIONAL web search query then immediately navigate to the top result. Useful, for example, to navigate to a particular Wikipedia article or other known destination. Equivalent to Google's \"I'm Feeling Lucky\" button."
-    inputs = {"query": {"type": "string", "description": "The navigational web search query to perform."}}
-    output_type = "string"
+# class NavigationalSearchTool(Tool):
+#     name = "navigational_web_search"
+#     description = "Perform a NAVIGATIONAL web search query then immediately navigate to the top result. Useful, for example, to navigate to a particular Wikipedia article or other known destination. Equivalent to Google's \"I'm Feeling Lucky\" button."
+#     inputs = {"query": {"type": "string", "description": "The navigational web search query to perform."}}
+#     output_type = "string"
 
-    def forward(self, query: str) -> str:
-        browser.visit_page(f"google: {query}")
+#     def __init__(self, browser):
+#         super().__init__()
+#         self.browser = browser
 
-        # Extract the first line
-        m = re.search(r"\[.*?\]\((http.*?)\)", browser.page_content)
-        if m:
-            browser.visit_page(m.group(1))
+#     def forward(self, query: str) -> str:
+#         self.browser.visit_page(f"search: {query}")
 
-        # Return where we ended up
-        header, content = _browser_state()
-        return header.strip() + "\n=======================\n" + content
+#         # Extract the first line
+#         m = re.search(r"\[.*?\]\((http.*?)\)", self.browser.page_content)
+#         if m:
+#             self.browser.visit_page(m.group(1))
+
+#         # Return where we ended up
+#         header, content = self.browser._state()
+#         return header.strip() + "\n=======================\n" + content
 
 
 class VisitTool(Tool):
     name = "visit_page"
-    description = "Visit a webpage at a given URL and return its text."
+    description = "Visit a webpage at a given URL and return its text. Given a url to a YouTube video, this returns the transcript."
     inputs = {"url": {"type": "string", "description": "The relative or absolute url of the webapge to visit."}}
     output_type = "string"
 
+    def __init__(self, browser):
+        super().__init__()
+        self.browser = browser
+
     def forward(self, url: str) -> str:
-        browser.visit_page(url)
-        header, content = _browser_state()
+        self.browser.visit_page(url)
+        header, content = self.browser._state()
         return header.strip() + "\n=======================\n" + content
 
 
@@ -451,6 +439,10 @@ After using this tool, for further inspection of this page you should return the
 DO NOT use this tool for .pdf or .txt or .htm files: for these types of files use visit_page with the file url instead."""
     inputs = {"url": {"type": "string", "description": "The relative or absolute url of the file to be downloaded."}}
     output_type = "string"
+
+    def __init__(self, browser):
+        super().__init__()
+        self.browser = browser
 
     def forward(self, url: str) -> str:
         if "arxiv" in url:
@@ -472,18 +464,6 @@ DO NOT use this tool for .pdf or .txt or .htm files: for these types of files us
         return f"File was downloaded and saved under path {new_path}."
 
 
-class PageUpTool(Tool):
-    name = "page_up"
-    description = "Scroll the viewport UP one page-length in the current webpage and return the new viewport content."
-    inputs = {}
-    output_type = "string"
-
-    def forward(self) -> str:
-        browser.page_up()
-        header, content = _browser_state()
-        return header.strip() + "\n=======================\n" + content
-
-
 class ArchiveSearchTool(Tool):
     name = "find_archived_url"
     description = "Given a url, searches the Wayback Machine and returns the archived version of the url that's closest in time to the desired date."
@@ -496,6 +476,10 @@ class ArchiveSearchTool(Tool):
     }
     output_type = "string"
 
+    def __init__(self, browser):
+        super().__init__()
+        self.browser = browser
+
     def forward(self, url, date) -> str:
         archive_url = f"https://archive.org/wayback/available?url={url}&timestamp={date}"
         response = requests.get(archive_url).json()
@@ -504,14 +488,29 @@ class ArchiveSearchTool(Tool):
         except Exception:
             raise Exception(f"Your {archive_url=} was not archived on Wayback Machine, try a different url.")
         target_url = closest["url"]
-        browser.visit_page(target_url)
-        header, content = _browser_state()
+        self.browser.visit_page(target_url)
+        header, content = self.browser._state()
         return (
             f"Web archive for url {url}, snapshot taken at date {closest['timestamp'][:8]}:\n"
             + header.strip()
             + "\n=======================\n"
             + content
         )
+
+class PageUpTool(Tool):
+    name = "page_up"
+    description = "Scroll the viewport UP one page-length in the current webpage and return the new viewport content."
+    inputs = {}
+    output_type = "string"
+
+    def __init__(self, browser):
+        super().__init__()
+        self.browser = browser
+
+    def forward(self) -> str:
+        self.browser.page_up()
+        header, content = self.browser._state()
+        return header.strip() + "\n=======================\n" + content
 
 
 class PageDownTool(Tool):
@@ -522,9 +521,13 @@ class PageDownTool(Tool):
     inputs = {}
     output_type = "string"
 
+    def __init__(self, browser):
+        super().__init__()
+        self.browser = browser
+
     def forward(self) -> str:
-        browser.page_down()
-        header, content = _browser_state()
+        self.browser.page_down()
+        header, content = self.browser._state()
         return header.strip() + "\n=======================\n" + content
 
 
@@ -539,9 +542,13 @@ class FinderTool(Tool):
     }
     output_type = "string"
 
+    def __init__(self, browser):
+        super().__init__()
+        self.browser = browser
+
     def forward(self, search_string: str) -> str:
-        find_result = browser.find_on_page(search_string)
-        header, content = _browser_state()
+        find_result = self.browser.find_on_page(search_string)
+        header, content = self.browser._state()
 
         if find_result is None:
             return (
@@ -558,9 +565,13 @@ class FindNextTool(Tool):
     inputs = {}
     output_type = "string"
 
+    def __init__(self, browser):
+        super().__init__()
+        self.browser = browser
+
     def forward(self) -> str:
-        find_result = browser.find_next()
-        header, content = _browser_state()
+        find_result = self.browser.find_next()
+        header, content = self.browser._state()
 
         if find_result is None:
             return header.strip() + "\n=======================\nThe search string was not found on this page."

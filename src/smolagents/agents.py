@@ -359,7 +359,7 @@ class MultiStepAgent:
             if tool_name in self.tools:
                 tool_description = get_tool_description_with_args(available_tools[tool_name])
                 error_msg = (
-                    f"Error in tool call execution: {e}\nYou should only use this tool with a correct input.\n"
+                    f"Error in tool call execution: {type(e).__name__}: {e}\nYou should only use this tool with a correct input.\n"
                     f"As a reminder, this tool's description is the following:\n{tool_description}"
                 )
                 raise AgentExecutionError(error_msg, self.logger)
@@ -456,10 +456,10 @@ You have been provided with these additional arguments, that you can access usin
                 observations_images=images,
             )
             try:
-                if self.planning_interval is not None and self.step_number % self.planning_interval == 0:
+                if self.planning_interval is not None and self.step_number % self.planning_interval == 1:
                     self.planning_step(
                         task,
-                        is_first_step=(self.step_number == 0),
+                        is_first_step=(self.step_number == 1),
                         step=self.step_number,
                     )
                 self.logger.log_rule(f"Step {self.step_number}", level=LogLevel.INFO)
