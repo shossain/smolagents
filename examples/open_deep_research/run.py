@@ -31,7 +31,15 @@ from scripts.text_inspector_tool import TextInspectorTool
 from scripts.visual_qa import visualizer
 from tqdm import tqdm
 
-from smolagents import MANAGED_AGENT_PROMPT, CodeAgent, HfApiModel, LiteLLMModel, Model, ToolCallingAgent
+from smolagents import (
+    MANAGED_AGENT_PROMPT,
+    CodeAgent,
+    HfApiModel,
+    LiteLLMModel,
+    Model,
+    ToolCallingAgent,
+    PythonInterpreterTool,
+)
 
 
 AUTHORIZED_IMPORTS = [
@@ -104,7 +112,7 @@ print(eval_df["task"].value_counts())
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
 
 BROWSER_CONFIG = {
-    "viewport_size": 1024 * 5,
+    "viewport_size": 1024 * 8,
     "downloads_folder": "downloads_folder",
     "request_kwargs": {
         "headers": {"User-Agent": user_agent},
@@ -113,9 +121,7 @@ BROWSER_CONFIG = {
     "serpapi_key": os.getenv("SERPAPI_API_KEY"),
 }
 
-assert os.path.isdir(f"./{BROWSER_CONFIG['downloads_folder']}"), (
-    f"Directory {BROWSER_CONFIG['downloads_folder']} chosen in your config does not exist."
-)
+os.makedirs(f"./{BROWSER_CONFIG['downloads_folder']}", exist_ok=True)
 
 
 def create_agent_hierarchy(model: Model):
@@ -250,6 +256,7 @@ Here is the task:
         "start_time": start_time,
         "end_time": end_time,
         "task": example["task"],
+        "task_id": example["task_id"],
         "true_answer": example["true_answer"],
     }
     append_answer(annotated_example, answers_file)
@@ -271,7 +278,7 @@ def main():
     args = parse_args()
     print(f"Starting run with arguments: {args}")
 
-    run_name = "code_o1_03_february_fix-print-outputs"
+    run_name = "code_o1_04_february_submission"
 
     answers_file = f"output/{SET}/{run_name}.jsonl"
     tasks_to_run = get_examples_to_answer(answers_file, eval_ds)
@@ -284,9 +291,9 @@ def main():
         for f in tqdm(as_completed(futures), total=len(tasks_to_run), desc="Processing tasks"):
             f.result()
 
-    print("All tasks processed.")
     # for example in tasks_to_run:
     #     answer_single_question(example, args.model_id, answers_file, visualizer)
+    print("All tasks processed.")
 
 
 if __name__ == "__main__":

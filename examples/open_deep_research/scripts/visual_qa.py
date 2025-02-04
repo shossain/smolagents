@@ -147,9 +147,9 @@ class VisualQATool(Tool):
 def visualizer(image_path: str, question: Optional[str] = None) -> str:
     """A tool that can answer questions about attached images.
 
-    Args:
-        question: the question to answer
-        image_path: The path to the image on which to answer the question. This should be a local path to downloaded image.
+    image_path: The path to the image on which to answer the question. This should be a local path to downloaded image.
+    question: The question to answer.
+    image_path: The path to the image on which to answer the question. This should be a local path to downloaded image.
     """
 
     add_note = False
@@ -159,6 +159,7 @@ def visualizer(image_path: str, question: Optional[str] = None) -> str:
     if not isinstance(image_path, str):
         raise Exception("You should provide at least `image_path` string argument to this tool!")
 
+    mime_type, _ = mimetypes.guess_type(image_path)
     base64_image = encode_image(image_path)
 
     payload = {
@@ -168,11 +169,11 @@ def visualizer(image_path: str, question: Optional[str] = None) -> str:
                 "role": "user",
                 "content": [
                     {"type": "text", "text": question},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}},
                 ],
             }
         ],
-        "max_tokens": 500,
+        "max_tokens": 1000,
     }
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
     try:

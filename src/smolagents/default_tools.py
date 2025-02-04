@@ -76,7 +76,7 @@ class PythonInterpreterTool(Tool):
                 authorized_imports=self.authorized_imports,
             )[0]  # The second element is boolean is_final_answer
         )
-        return f"Stdout:\n{state['print_outputs']}\nOutput: {output}"
+        return f"Stdout:\n{str(state["_print_outputs"])}\nOutput: {output}"
 
 
 class FinalAnswerTool(Tool):

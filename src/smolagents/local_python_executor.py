@@ -629,7 +629,7 @@ def evaluate_call(
             raise InterpreterError("super() takes at most 2 arguments")
     else:
         if func_name == "print":
-            state["print_outputs"] += " ".join(map(str, args)) + "\n"
+            state["_print_outputs"] += " ".join(map(str, args)) + "\n"
             return None
         else:  # Assume it's a callable object
             if (
@@ -1337,7 +1337,7 @@ def evaluate_python_code(
         state (`Dict[str, Any]`):
             A dictionary mapping variable names to values. The `state` should contain the initial inputs but will be
             updated by this function to contain all variables as they are evaluated.
-            The print outputs will be stored in the state under the key 'print_outputs'.
+            The print outputs will be stored in the state under the key "_print_outputs".
     """
     try:
         expression = ast.parse(code)
@@ -1354,7 +1354,7 @@ def evaluate_python_code(
     static_tools = static_tools.copy() if static_tools is not None else {}
     custom_tools = custom_tools if custom_tools is not None else {}
     result = None
-    state["print_outputs"] = PrintContainer()
+    state["_print_outputs"] = PrintContainer()
     state["_operations_count"] = 0
 
     def final_answer(value):
@@ -1365,16 +1365,16 @@ def evaluate_python_code(
     try:
         for node in expression.body:
             result = evaluate_ast(node, state, static_tools, custom_tools, authorized_imports)
-        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length).value
+        state["_print_outputs"].value = truncate_content(str(state["_print_outputs"]), max_length=max_print_outputs_length)
         is_final_answer = False
         return result, is_final_answer
     except FinalAnswerException as e:
-        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length).value
+        state["_print_outputs"].value = truncate_content(str(state["_print_outputs"]), max_length=max_print_outputs_length)
         is_final_answer = True
         return e.value, is_final_answer
     except Exception as e:
         exception_type = type(e).__name__
-        state["print_outputs"] = truncate_content(state["print_outputs"], max_length=max_print_outputs_length).value
+        state["_print_outputs"].value = truncate_content(str(state["_print_outputs"]), max_length=max_print_outputs_length)
         raise InterpreterError(
             f"Code execution failed at line '{ast.get_source_segment(code, node)}' due to: {exception_type}:{str(e)}"
         )
@@ -1411,7 +1411,7 @@ class LocalPythonInterpreter:
             authorized_imports=self.authorized_imports,
             max_print_outputs_length=self.max_print_outputs_length,
         )
-        logs = self.state["print_outputs"]
+        logs = str(self.state["_print_outputs"])
         return output, logs, is_final_answer
 
 
