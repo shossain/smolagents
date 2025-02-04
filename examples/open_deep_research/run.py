@@ -10,7 +10,7 @@ from typing import List
 import datasets
 import pandas as pd
 from dotenv import load_dotenv
-from huggingface_hub import login, snapshot_download
+from huggingface_hub import login
 from scripts.reformulator import prepare_response
 from scripts.run_agents import (
     get_single_file_description,
@@ -93,13 +93,7 @@ custom_role_conversions = {"tool-call": "assistant", "tool-response": "user"}
 
 ### LOAD EVALUATION DATASET
 
-snapshot_download(
-    repo_id="gaia-benchmark/GAIA",
-    repo_type="dataset",
-    local_dir="data/gaia",
-    ignore_patterns=[".gitattributes", "README.md", "LICENSE"],
-)
-eval_ds = datasets.load_dataset("./data/gaia/GAIA.py", "2023_all", trust_remote_code=True)[SET]
+eval_ds = datasets.load_dataset("gaia-benchmark/GAIA", "2023_all")[SET]
 eval_ds = eval_ds.rename_columns({"Question": "question", "Final answer": "true_answer", "Level": "task"})
 
 
