@@ -11,24 +11,11 @@ chosen_inference = "transformers"
 
 print(f"Chose model: '{chosen_inference}'")
 
-if chosen_inference == "hf_api":
-    model = HfApiModel(model_id="meta-llama/Llama-3.3-70B-Instruct")
-
-elif chosen_inference == "transformers":
-    model = TransformersModel(model_id="HuggingFaceTB/SmolLM2-1.7B-Instruct", device_map="auto", max_new_tokens=1000)
-
-elif chosen_inference == "ollama":
-    model = LiteLLMModel(
-        model_id="ollama_chat/llama3.2",
-        api_base="http://localhost:11434",  # replace with remote open-ai compatible server if necessary
-        api_key="your-api-key",  # replace with API key if necessary
-        num_ctx=8192,  # ollama default is 2048 which will often fail horribly. 8192 works for easy tasks, more is better. Check https://huggingface.co/spaces/NyxKrage/LLM-Model-VRAM-Calculator to calculate how much VRAM this will need for the selected model.
-    )
-
-elif chosen_inference == "litellm":
-    # For anthropic: change model_id below to 'anthropic/claude-3-5-sonnet-latest'
-    model = LiteLLMModel(model_id="gpt-4o")
-
+model = LiteLLMModel(
+    model_id="openai/deepseek-ai/DeepSeek-R1",
+    api_base="https://huggingface.co/api/inference-proxy/together",
+    api_key=""
+)
 
 @tool
 def get_weather(location: str, celsius: Optional[bool] = False) -> str:
