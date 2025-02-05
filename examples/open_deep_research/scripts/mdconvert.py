@@ -623,6 +623,7 @@ class Mp3Converter(WavConverter):
             text_content=md_content.strip(),
         )
 
+<<<<<<< HEAD
 import os
 import tempfile
 import zipfile
@@ -681,6 +682,8 @@ class ZipConverter(DocumentConverter):
             text_content=md_content.strip()
         )
 
+=======
+>>>>>>> main
 
 class ImageConverter(MediaConverter):
     """
@@ -763,11 +766,19 @@ class ImageConverter(MediaConverter):
         return response.choices[0].message.content
 
 
+<<<<<<< HEAD
 class FileConversionException(Exception):
     pass
 
 
 class UnsupportedFormatException(Exception):
+=======
+class FileConversionException(BaseException):
+    pass
+
+
+class UnsupportedFormatException(BaseException):
+>>>>>>> main
     pass
 
 
@@ -804,7 +815,10 @@ class MarkdownConverter:
         self.register_page_converter(WavConverter())
         self.register_page_converter(Mp3Converter())
         self.register_page_converter(ImageConverter())
+<<<<<<< HEAD
         self.register_page_converter(ZipConverter())
+=======
+>>>>>>> main
         self.register_page_converter(PdfConverter())
 
     def convert(

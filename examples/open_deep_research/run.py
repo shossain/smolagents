@@ -40,7 +40,6 @@ from smolagents import (
 )
 
 
-
 AUTHORIZED_IMPORTS = [
     "requests",
     "zipfile",
@@ -140,7 +139,6 @@ def create_agent_hierarchy(model: Model):
         ArchiveSearchTool(browser),
         TextInspectorTool(model, text_limit),
     ]
-
     text_webbrowser_agent = ToolCallingAgent(
         model=model,
         tools=WEB_TOOLS,
