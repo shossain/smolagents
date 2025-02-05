@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import inspect
+import textwrap
 import time
 from collections import deque
 from logging import getLogger
@@ -499,34 +500,17 @@ You have been provided with these additional arguments, that you can access usin
                 "role": MessageRole.SYSTEM,
                 "content": [{"type": "text", "text": SYSTEM_PROMPT_FACTS}],
             }
-            message_prompt_task = {
-                "role": MessageRole.USER,
-                "content": [
-                    {
-                        "type": "text",
-                        "text": f"""Here is the task:
-```
-{task}
-```
-Now begin!""",
-                    }
-                ],
-            }
-            input_messages = [message_prompt_facts, message_prompt_task]
+            input_messages = [message_prompt_facts]
 
             chat_message_facts: ChatMessage = self.model(input_messages)
             answer_facts = chat_message_facts.content
 
-            message_system_prompt_plan = {
-                "role": MessageRole.SYSTEM,
-                "content": [{"type": "text", "text": SYSTEM_PROMPT_PLAN}],
-            }
-            message_user_prompt_plan = {
+            message_prompt_plan = {
                 "role": MessageRole.USER,
                 "content": [
                     {
                         "type": "text",
-                        "text": USER_PROMPT_PLAN.format(
+                        "text": SYSTEM_PROMPT_PLAN.format(
                             task=task,
                             tool_descriptions=get_tool_descriptions(self.tools, self.tool_description_template),
                             managed_agents_descriptions=(show_agents_descriptions(self.managed_agents)),
@@ -536,7 +520,7 @@ Now begin!""",
                 ],
             }
             chat_message_plan: ChatMessage = self.model(
-                [message_system_prompt_plan, message_user_prompt_plan],
+                [message_prompt_plan],
                 stop_sequences=["<end_plan>"],
             )
             answer_plan = chat_message_plan.content
@@ -571,32 +555,22 @@ Now begin!""",
             # Redact updated facts
             facts_update_system_prompt = {
                 "role": MessageRole.SYSTEM,
-                "content": [{"type": "text", "text": SYSTEM_PROMPT_FACTS_UPDATE}],
+                "content": [{"type": "text", "text": FACTS_UPDATE.format(memory_messages=memory_messages)}],
             }
-            facts_update_message = {
-                "role": MessageRole.USER,
-                "content": [{"type": "text", "text": USER_PROMPT_FACTS_UPDATE}],
-            }
-            input_messages = [facts_update_system_prompt] + memory_messages + [facts_update_message]
+            input_messages = [facts_update_system_prompt]
             chat_message_facts: ChatMessage = self.model(input_messages)
             facts_update = chat_message_facts.content
 
             # Redact updated plan
             plan_update_message = {
                 "role": MessageRole.SYSTEM,
-                "content": [{"type": "text", "text": SYSTEM_PROMPT_PLAN_UPDATE.format(task=task)}],
-            }
-            plan_update_message_user = {
-                "role": MessageRole.USER,
-                "content": [
-                    {
-                        "type": "text",
-                        "text": USER_PROMPT_PLAN_UPDATE.format(
+                "content": [{"type": "text", "text": USER_PROMPT_PLAN_UPDATE.format(
                             task=task,
                             tool_descriptions=get_tool_descriptions(self.tools, self.tool_description_template),
                             managed_agents_descriptions=(show_agents_descriptions(self.managed_agents)),
                             facts_update=facts_update,
                             remaining_steps=(self.max_steps - step),
+                            memory_messages=memory_messages
                         ),
                     }
                 ],
@@ -607,13 +581,24 @@ Now begin!""",
             )
 
             # Log final facts and plan
-            final_plan_redaction = PLAN_UPDATE_FINAL_PLAN_REDACTION.format(
-                task=task, plan_update=chat_message_plan.content
+            final_plan_redaction = textwrap.dedent(
+                f"""I still need to solve the task I was given:
+                ```
+                {task}
+                ```
+
+                Here is my new/updated plan of action to solve the task:
+                ```
+                {chat_message_plan.content}
+                ```"""
             )
-            final_facts_redaction = f"""Here is the updated list of the facts that I know:
-```
-{facts_update}
-```"""
+
+            final_facts_redaction = textwrap.dedent(
+                f"""Here is the updated list of the facts that I know:
+                ```
+                {facts_update}
+                ```"""
+            )
             self.memory.steps.append(
                 PlanningStep(
                     model_input_messages=input_messages,
