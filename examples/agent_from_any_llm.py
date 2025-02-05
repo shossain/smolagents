@@ -12,9 +12,8 @@ chosen_inference = "transformers"
 print(f"Chose model: '{chosen_inference}'")
 
 model = LiteLLMModel(
-    model_id="openai/deepseek-ai/DeepSeek-R1",
-    api_base="https://huggingface.co/api/inference-proxy/together",
-    api_key=""
+    model_id="hosted_vllm//fsx/anton/deepseek-r1-checkpoint",
+    api_base="http://ip-26-0-165-202:8000/v1/",
 )
 
 @tool
@@ -30,10 +29,6 @@ def get_weather(location: str, celsius: Optional[bool] = False) -> str:
     return "The weather is UNGODLY with torrential rains and temperatures below -10°C"
 
 
-agent = ToolCallingAgent(tools=[get_weather], model=model)
 
-print("ToolCallingAgent:", agent.run("What's the weather like in Paris?"))
-
-agent = CodeAgent(tools=[get_weather], model=model)
-
+agent = CodeAgent(tools=[get_weather], model=model, verbosity_level=2)
 print("CodeAgent:", agent.run("What's the weather like in Paris?"))

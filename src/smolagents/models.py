@@ -685,7 +685,7 @@ class LiteLLMModel(Model):
             messages=messages,
             stop_sequences=stop_sequences,
             grammar=grammar,
-            tools_to_call_from=tools_to_call_from,
+            #tools_to_call_from=tools_to_call_from,
             model=self.model_id,
             api_base=self.api_base,
             api_key=self.api_key,
