@@ -69,7 +69,7 @@ Then define your agent, give it the tools it needs and run it!
 ```py
 from smolagents import CodeAgent, DuckDuckGoSearchTool, HfApiModel
 
-mdoel = HfApiModel()
+model = HfApiModel()
 agent = CodeAgent(tools=[DuckDuckGoSearchTool()], model=model)
 
 agent.run("How many seconds would it take for a leopard at full speed to run through Pont des Arts?")
@@ -153,7 +153,7 @@ You can run agents from CLI using two commands: `smolagent` and `webagent`. `smo
 
 **Web Browser Agent in CLI**
 
-`webagent` allows users to automate web browsing tasks. It uses the [helium](https://github.com/helium) library to interact with web pages and uses defined tools to browse the web. Read more about this agent [here](https://github.com/huggingface/smolagents/blob/main/src/smolagents/vision_web_browser.py).
+`webagent` allows users to automate web browsing tasks. It uses the [helium](https://github.com/mherrmann/helium) library to interact with web pages and uses defined tools to browse the web. Read more about this agent [here](https://github.com/huggingface/smolagents/blob/main/src/smolagents/vision_web_browser.py).
 
 Run the following command to get started:
 ```bash
