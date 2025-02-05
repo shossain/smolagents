@@ -11,13 +11,17 @@ import datasets
 import pandas as pd
 from dotenv import load_dotenv
 from huggingface_hub import login
-from scripts.reformulator import prepare_response
-from scripts.run_agents import (
+import sys
+
+sys.path.append("scripts")
+
+from reformulator import prepare_response
+from run_agents import (
     get_single_file_description,
     get_zip_description,
 )
-from scripts.text_inspector_tool import TextInspectorTool
-from scripts.text_web_browser import (
+from text_inspector_tool import TextInspectorTool
+from text_web_browser import (
     ArchiveSearchTool,
     FinderTool,
     FindNextTool,
@@ -27,7 +31,7 @@ from scripts.text_web_browser import (
     SimpleTextBrowser,
     VisitTool,
 )
-from scripts.visual_qa import visualizer
+from visual_qa import visualizer
 from tqdm import tqdm
 
 from smolagents import (
@@ -181,10 +185,13 @@ def append_answer(entry: dict, jsonl_file: str) -> None:
 
 
 def answer_single_question(example, model_id, answers_file, visual_inspection_tool):
+    api_base, provider, key = "http://26.0.169.139:39876/v1/", "openai", "EMPTY"
+    model_id = "fsx/anton/deepseek-r1-checkpoint"
     model = LiteLLMModel(
-        model_id,
+        f"{provider}/{model_id}",
+        api_base=api_base,
         custom_role_conversions=custom_role_conversions,
-        max_completion_tokens=8192,
+        max_completion_tokens=32000,
         reasoning_effort="high",
     )
     # model = HfApiModel("Qwen/Qwen2.5-72B-Instruct", provider="together")
@@ -283,7 +290,7 @@ def main():
     answers_file = f"output/{SET}/{args.run_name}.jsonl"
     tasks_to_run = get_examples_to_answer(answers_file, eval_ds)
 
-    with ThreadPoolExecutor(max_workers=args.concurrency) as exe:
+    with ThreadPoolExecutor(max_workers=1) as exe:
         futures = [
             exe.submit(answer_single_question, example, args.model_id, answers_file, visualizer)
             for example in tasks_to_run
