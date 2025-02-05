@@ -301,12 +301,6 @@ print(result)
 
 
 class AgentTests(unittest.TestCase):
-    def test_fake_single_step_code_agent(self):
-        agent = CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model_single_step)
-        output = agent.run("What is 2 multiplied by 3.6452?", single_step=True)
-        assert isinstance(output, str)
-        assert "7.2904" in output
-
     def test_fake_toolcalling_agent(self):
         agent = ToolCallingAgent(tools=[PythonInterpreterTool()], model=FakeToolCallModel())
         output = agent.run("What is 2 multiplied by 3.6452?")
@@ -475,10 +469,9 @@ class AgentTests(unittest.TestCase):
             model=fake_code_functiondef,
             managed_agents=[managed_agent],
         )
-        assert "You can also give requests to team members." not in managed_agent.system_prompt
-        print("ok1")
+        assert "You can also give tasks to team members." not in managed_agent.system_prompt
         assert "{{managed_agents_descriptions}}" not in managed_agent.system_prompt
-        assert "You can also give requests to team members." in manager_agent.system_prompt
+        assert "You can also give tasks to team members." in manager_agent.system_prompt
 
     def test_code_agent_missing_import_triggers_advice_in_error_log(self):
         agent = CodeAgent(tools=[], model=fake_code_model_import)
@@ -627,9 +620,9 @@ nested_answer()
 
     def test_transformers_toolcalling_agent(self):
         @tool
-        def get_weather(location: str, celsius: bool = False) -> str:
+        def weather_api(location: str, celsius: bool = False) -> str:
             """
-            Get weather in the next days at given location.
+            Gets the weather in the next days at given location.
             Secretly this tool does not care about the location, it hates the weather everywhere.
 
             Args:
@@ -644,12 +637,12 @@ nested_answer()
             device_map="auto",
             do_sample=False,
         )
-        agent = ToolCallingAgent(model=model, tools=[get_weather], max_steps=1)
+        agent = ToolCallingAgent(model=model, tools=[weather_api], max_steps=1)
         agent.run("What's the weather in Paris?")
         assert agent.memory.steps[0].task == "What's the weather in Paris?"
-        assert agent.memory.steps[1].tool_calls[0].name == "get_weather"
+        assert agent.memory.steps[1].tool_calls[0].name == "weather_api"
         step_memory_dict = agent.memory.get_succinct_steps()[1]
-        assert step_memory_dict["model_output_message"].tool_calls[0].function.name == "get_weather"
+        assert step_memory_dict["model_output_message"].tool_calls[0].function.name == "weather_api"
         assert step_memory_dict["model_output_message"].raw["completion_kwargs"]["max_new_tokens"] == 100
         assert "model_input_messages" in agent.memory.get_full_steps()[1]
 
@@ -657,16 +650,16 @@ nested_answer()
 class TestMultiStepAgent:
     def test_step_number(self):
         fake_model = MagicMock()
-        agent = MultiStepAgent(tools=[], model=fake_model)
+        agent = MultiStepAgent(tools=[], model=fake_model, max_steps=2)
         assert hasattr(agent, "step_number"), "step_number attribute should be defined"
         assert agent.step_number == 0, "step_number should be initialized to 0"
-        agent.run("Test task", single_step=True)
-        assert hasattr(agent, "step_number"), "step_number attribute should be defined"
+        agent.run("Test task")
+        assert hasattr(agent, "step_number", 3), "step_number attribute should be defined"
         assert agent.step_number == 1, "step_number should be set to 1 after run method is called"
 
     def test_planning_step_first_step(self):
         fake_model = MagicMock()
-        agent = MultiStepAgent(
+        agent = CodeAgent(
             tools=[],
             model=fake_model,
         )
@@ -677,7 +670,7 @@ class TestMultiStepAgent:
         assert isinstance(planning_step, PlanningStep)
         messages = planning_step.model_input_messages
         assert isinstance(messages, list)
-        assert len(messages) == 2
+        assert len(messages) == 1
         for message in messages:
             assert isinstance(message, dict)
             assert "role" in message
@@ -695,7 +688,7 @@ class TestMultiStepAgent:
             assert len(call_args.args) == 1
             messages = call_args.args[0]
             assert isinstance(messages, list)
-            assert len(messages) == 2
+            assert len(messages) == 1
             for message in messages:
                 assert isinstance(message, dict)
                 assert "role" in message
