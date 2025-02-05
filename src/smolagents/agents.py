@@ -331,7 +331,6 @@ class MultiStepAgent:
         task: str,
         stream: bool = False,
         reset: bool = True,
-        single_step: bool = False,
         images: Optional[List[str]] = None,
         additional_args: Optional[Dict] = None,
     ):
@@ -342,7 +341,6 @@ class MultiStepAgent:
             task (`str`): Task to perform.
             stream (`bool`): Whether to run in a streaming way.
             reset (`bool`): Whether to reset the conversation or keep it going from previous run.
-            single_step (`bool`): Whether to run the agent in one-shot fashion.
             images (`list[str]`, *optional*): Paths to image(s).
             additional_args (`dict`): Any other variables that you want to pass to the agent run, for instance images or dataframes. Give them clear names!
 
@@ -374,16 +372,6 @@ You have been provided with these additional arguments, that you can access usin
         )
 
         self.memory.steps.append(TaskStep(task=self.task, task_images=images))
-        if single_step:
-            self.step_number = 1
-            step_start_time = time.time()
-            memory_step = ActionStep(start_time=step_start_time, observations_images=images)
-            memory_step.end_time = time.time()
-            memory_step.duration = memory_step.end_time - step_start_time
-
-            # Run the agent's step
-            result = self.step(memory_step)
-            return result
 
         if stream:
             # The steps are returned as they are executed through a generator to iterate on.
