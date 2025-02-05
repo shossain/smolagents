@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import traceback
+import zipfile
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, quote, unquote, urlparse, urlunparse
 
@@ -623,14 +624,6 @@ class Mp3Converter(WavConverter):
             text_content=md_content.strip(),
         )
 
-<<<<<<< HEAD
-import os
-import tempfile
-import zipfile
-from typing import Any, List, Union
-import os
-import zipfile
-from typing import Any, Union
 
 class ZipConverter(DocumentConverter):
     """
@@ -660,13 +653,13 @@ class ZipConverter(DocumentConverter):
 
         # Extract all files and build list
         extracted_files = []
-        with zipfile.ZipFile(local_path, 'r') as zip_ref:
+        with zipfile.ZipFile(local_path, "r") as zip_ref:
             # Extract all files
             zip_ref.extractall(self.extract_dir)
             # Get list of all files
             for file_path in zip_ref.namelist():
                 # Skip directories
-                if not file_path.endswith('/'):
+                if not file_path.endswith("/"):
                     extracted_files.append(self.extract_dir + "/" + file_path)
 
         # Sort files for consistent output
@@ -677,13 +670,8 @@ class ZipConverter(DocumentConverter):
         for file in extracted_files:
             md_content += f"* {file}\n"
 
-        return DocumentConverterResult(
-            title="Extracted Files",
-            text_content=md_content.strip()
-        )
+        return DocumentConverterResult(title="Extracted Files", text_content=md_content.strip())
 
-=======
->>>>>>> main
 
 class ImageConverter(MediaConverter):
     """
@@ -766,19 +754,11 @@ class ImageConverter(MediaConverter):
         return response.choices[0].message.content
 
 
-<<<<<<< HEAD
 class FileConversionException(Exception):
     pass
 
 
 class UnsupportedFormatException(Exception):
-=======
-class FileConversionException(BaseException):
-    pass
-
-
-class UnsupportedFormatException(BaseException):
->>>>>>> main
     pass
 
 
@@ -815,10 +795,7 @@ class MarkdownConverter:
         self.register_page_converter(WavConverter())
         self.register_page_converter(Mp3Converter())
         self.register_page_converter(ImageConverter())
-<<<<<<< HEAD
         self.register_page_converter(ZipConverter())
-=======
->>>>>>> main
         self.register_page_converter(PdfConverter())
 
     def convert(

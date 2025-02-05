@@ -156,7 +156,7 @@ class PlanningStep(MemoryStep):
             )
         )
 
-        if not summary_mode:
+        if not summary_mode:  # This step is not shown to a model writing a plan to avoid influencing the new plan
             messages.append(
                 Message(
                     role=MessageRole.ASSISTANT, content=[{"type": "text", "text": f"[PLAN]:\n{self.plan.strip()}"}]

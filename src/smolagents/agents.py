@@ -15,12 +15,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import inspect
+import os
+import re
 import textwrap
 import time
 from collections import deque
 from logging import getLogger
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
 
+import yaml
+from jinja2 import StrictUndefined, Template
 from rich.console import Group
 from rich.panel import Panel
 from rich.rule import Rule
@@ -57,70 +61,24 @@ from .models import (
     MessageRole,
 )
 from .monitoring import Monitor
-from .prompts import (
-    CODE_SYSTEM_PROMPT,
-    MANAGED_AGENT_PROMPT,
-    PLAN_UPDATE_FINAL_PLAN_REDACTION,
-    SYSTEM_PROMPT_FACTS,
-    SYSTEM_PROMPT_FACTS_UPDATE,
-    SYSTEM_PROMPT_PLAN,
-    SYSTEM_PROMPT_PLAN_UPDATE,
-    TOOL_CALLING_SYSTEM_PROMPT,
-    USER_PROMPT_FACTS_UPDATE,
-    USER_PROMPT_PLAN,
-    USER_PROMPT_PLAN_UPDATE,
-)
-from .tools import (
-    DEFAULT_TOOL_DESCRIPTION_TEMPLATE,
-    Tool,
-    get_tool_description_with_args,
-)
+from .prompts import TOOL_CALLING_SYSTEM_PROMPT
+from .tools import Tool
 
 
 logger = getLogger(__name__)
 
 
-def get_tool_descriptions(tools: Dict[str, Tool], tool_description_template: str) -> str:
-    return "\n".join([get_tool_description_with_args(tool, tool_description_template) for tool in tools.values()])
+def get_variable_names(self, template: str) -> Set[str]:
+    pattern = re.compile(r"\{\{([^{}]+)\}\}")
+    return {match.group(1).strip() for match in pattern.finditer(template)}
 
 
-def format_prompt_with_tools(tools: Dict[str, Tool], prompt_template: str, tool_description_template: str) -> str:
-    tool_descriptions = get_tool_descriptions(tools, tool_description_template)
-    prompt = prompt_template.replace("{{tool_descriptions}}", tool_descriptions)
-    if "{{tool_names}}" in prompt:
-        prompt = prompt.replace(
-            "{{tool_names}}",
-            ", ".join([f"'{tool.name}'" for tool in tools.values()]),
-        )
-    return prompt
-
-
-def show_agents_descriptions(managed_agents: Dict):
-    managed_agents_descriptions = """
-You can also give requests to team members.
-Calling a team member works the same as for calling a tool: simply, the only argument you can give in the call is 'request', a long string explaining your request.
-Given that this team member is a real human, you should be very verbose in your request.
-Here is a list of the team members that you can call:"""
-    for agent in managed_agents.values():
-        managed_agents_descriptions += f"\n- {agent.name}: {agent.description}"
-    return managed_agents_descriptions
-
-
-def format_prompt_with_managed_agents_descriptions(
-    prompt_template,
-    managed_agents,
-    agent_descriptions_placeholder: Optional[str] = None,
-) -> str:
-    if agent_descriptions_placeholder is None:
-        agent_descriptions_placeholder = "{{managed_agents_descriptions}}"
-    if agent_descriptions_placeholder not in prompt_template:
-        raise ValueError(
-            f"Provided prompt template does not contain the managed agents descriptions placeholder '{agent_descriptions_placeholder}'"
-        )
-    if len(managed_agents.keys()) > 0:
-        return prompt_template.replace(agent_descriptions_placeholder, show_agents_descriptions(managed_agents))
-    else:
-        return prompt_template.replace(agent_descriptions_placeholder, "")
+def populate_template(template: str, variables: Dict[str, Any]) -> str:
+    compiled_template = Template(template, undefined=StrictUndefined)
+    try:
+        return compiled_template.render(**variables)
+    except Exception as e:
+        raise Exception(f"Error during jinja template rendering: {type(e).__name__}: {e}")
 
 
 class MultiStepAgent:
@@ -132,7 +90,6 @@ class MultiStepAgent:
         tools (`list[Tool]`): [`Tool`]s that the agent can use.
         model (`Callable[[list[dict[str, str]]], ChatMessage]`): Model that will generate the agent's actions.
         system_prompt (`str`, *optional*): System prompt that will be used to generate the agent's actions.
-        tool_description_template (`str`, *optional*): Template used to describe the tools in the system prompt.
         max_steps (`int`, default `6`): Maximum number of steps the agent can take to solve the task.
         tool_parser (`Callable`, *optional*): Function used to parse the tool calls from the LLM output.
         add_base_tools (`bool`, default `False`): Whether to add the base tools to the agent's tools.
@@ -145,6 +102,7 @@ class MultiStepAgent:
         description (`str`, *optional*): Necessary for a managed agent only - the description of this agent.
         managed_agent_prompt (`str`, *optional*): Custom prompt for the managed agent. Defaults to None.
         provide_run_summary (`bool`, *optional*): Wether to provide a run summary when called as a managed agent.
+        additional_prompting (`str`, *optional*): Additional promptint to pass to this managed agent whenever called.
     """
 
     def __init__(
@@ -152,7 +110,6 @@ class MultiStepAgent:
         tools: List[Tool],
         model: Callable[[List[Dict[str, str]]], ChatMessage],
         system_prompt: Optional[str] = None,
-        tool_description_template: Optional[str] = None,
         max_steps: int = 6,
         tool_parser: Optional[Callable] = None,
         add_base_tools: bool = False,
@@ -165,17 +122,15 @@ class MultiStepAgent:
         description: Optional[str] = None,
         managed_agent_prompt: Optional[str] = None,
         provide_run_summary: bool = False,
+        additional_prompting: Optional[str] = None,
     ):
         if system_prompt is None:
-            system_prompt = CODE_SYSTEM_PROMPT
+            system_prompt = ""
         if tool_parser is None:
             tool_parser = parse_json_tool_call
         self.agent_name = self.__class__.__name__
         self.model = model
         self.system_prompt_template = system_prompt
-        self.tool_description_template = (
-            tool_description_template if tool_description_template else DEFAULT_TOOL_DESCRIPTION_TEMPLATE
-        )
         self.max_steps = max_steps
         self.step_number: int = 0
         self.tool_parser = tool_parser
@@ -184,7 +139,6 @@ class MultiStepAgent:
         self.state = {}
         self.name = name
         self.description = description
-        self.managed_agent_prompt = managed_agent_prompt if managed_agent_prompt else MANAGED_AGENT_PROMPT
         self.provide_run_summary = provide_run_summary
 
         self.managed_agents = {}
@@ -212,6 +166,7 @@ class MultiStepAgent:
         self.monitor = Monitor(self.model, self.logger)
         self.step_callbacks = step_callbacks if step_callbacks is not None else []
         self.step_callbacks.append(self.monitor.update_metrics)
+        self.additional_prompting = additional_prompting if additional_prompting else ""
 
     @property
     def logs(self):
@@ -221,13 +176,8 @@ class MultiStepAgent:
         return [self.memory.system_prompt] + self.memory.steps
 
     def initialize_system_prompt(self):
-        system_prompt = format_prompt_with_tools(
-            self.tools,
-            self.system_prompt_template,
-            self.tool_description_template,
-        )
-        system_prompt = format_prompt_with_managed_agents_descriptions(system_prompt, self.managed_agents)
-        return system_prompt
+        """To be implemented in child classes"""
+        pass
 
     def write_memory_to_messages(
         self,
@@ -359,10 +309,10 @@ class MultiStepAgent:
             return observation
         except Exception as e:
             if tool_name in self.tools:
-                tool_description = get_tool_description_with_args(available_tools[tool_name])
+                tool = self.tools[tool_name]
                 error_msg = (
-                    f"Error in tool call execution: {type(e).__name__}: {e}\nYou should only use this tool with a correct input.\n"
-                    f"As a reminder, this tool's description is the following:\n{tool_description}"
+                    f"Error whene executing tool {tool_name} with arguments {arguments}: {type(e).__name__}: {e}\nYou should only use this tool with a correct input.\n"
+                    f"As a reminder, this tool's description is the following: '{tool.description}'.\nIt takes inputs: {tool.inputs} and returns output type {tool.output_type}"
                 )
                 raise AgentExecutionError(error_msg, self.logger)
             elif tool_name in self.managed_agents:
@@ -516,7 +466,7 @@ You have been provided with these additional arguments, that you can access usin
         if is_first_step:
             message_prompt_facts = {
                 "role": MessageRole.SYSTEM,
-                "content": [{"type": "text", "text": SYSTEM_PROMPT_FACTS}],
+                "content": [{"type": "text", "text": self.prompt_templates["planning"]["initial_facts"]}],
             }
             input_messages = [message_prompt_facts]
 
@@ -528,11 +478,14 @@ You have been provided with these additional arguments, that you can access usin
                 "content": [
                     {
                         "type": "text",
-                        "text": SYSTEM_PROMPT_PLAN.format(
-                            task=task,
-                            tool_descriptions=get_tool_descriptions(self.tools, self.tool_description_template),
-                            managed_agents_descriptions=(show_agents_descriptions(self.managed_agents)),
-                            answer_facts=answer_facts,
+                        "text": populate_template(
+                            self.prompt_templates["planning"]["initial_plan"],
+                            variables={
+                                "task": task,
+                                "tools": self.tools,
+                                "managed_agents": self.managed_agents,
+                                "answer_facts": answer_facts,
+                            },
                         ),
                     }
                 ],
@@ -571,30 +524,50 @@ You have been provided with these additional arguments, that you can access usin
             )  # This will not log the plan but will log facts
 
             # Redact updated facts
-            facts_update_system_prompt = {
+            facts_update_pre_messages = {
                 "role": MessageRole.SYSTEM,
-                "content": [{"type": "text", "text": FACTS_UPDATE.format(memory_messages=memory_messages)}],
+                "content": [{"type": "text", "text": self.prompt_templates["planning"]["update_facts_pre_messages"]}],
             }
-            input_messages = [facts_update_system_prompt]
+            facts_update_post_messages = {
+                "role": MessageRole.SYSTEM,
+                "content": [{"type": "text", "text": self.prompt_templates["planning"]["update_facts_post_messages"]}],
+            }
+            input_messages = [facts_update_pre_messages] + memory_messages + [facts_update_post_messages]
             chat_message_facts: ChatMessage = self.model(input_messages)
             facts_update = chat_message_facts.content
 
             # Redact updated plan
-            plan_update_message = {
+            update_plan_pre_messages = {
                 "role": MessageRole.SYSTEM,
-                "content": [{"type": "text", "text": USER_PROMPT_PLAN_UPDATE.format(
-                            task=task,
-                            tool_descriptions=get_tool_descriptions(self.tools, self.tool_description_template),
-                            managed_agents_descriptions=(show_agents_descriptions(self.managed_agents)),
-                            facts_update=facts_update,
-                            remaining_steps=(self.max_steps - step),
-                            memory_messages=memory_messages
+                "content": [
+                    {
+                        "type": "text",
+                        "text": populate_template(
+                            self.prompt_templates["planning"]["update_plan_pre_messages"], variables={"task": task}
+                        ),
+                    }
+                ],
+            }
+            update_plan_post_messages = {
+                "role": MessageRole.SYSTEM,
+                "content": [
+                    {
+                        "type": "text",
+                        "text": populate_template(
+                            self.prompt_templates["planning"]["update_plan_pre_messages"],
+                            variables={
+                                "task": task,
+                                "tools": self.tools,
+                                "managed_agents": self.managed_agents,
+                                "facts_update": facts_update,
+                                "remaining_steps": (self.max_steps - step),
+                            },
                         ),
                     }
                 ],
             }
             chat_message_plan: ChatMessage = self.model(
-                [plan_update_message] + memory_messages + [plan_update_message_user],
+                [update_plan_pre_messages] + memory_messages + [update_plan_post_messages],
                 stop_sequences=["<end_plan>"],
             )
 
@@ -641,20 +614,25 @@ You have been provided with these additional arguments, that you can access usin
         """
         self.memory.replay(self.logger, detailed=detailed)
 
-    def __call__(self, request: str, **kwargs):
+    def __call__(self, task: str, **kwargs):
         """
         This methd is called only by a manager agent.
         Adds additional prompting for the managed agent, runs it, and wraps the output.
         """
-        full_task = self.managed_agent_prompt.format(name=self.name, task=request).strip()
-        output = self.run(full_task, **kwargs)
-        answer = f"Here is the final answer from your managed agent '{self.name}':\n{str(output)}"
+        full_task = populate_template(
+            self.prompt_templates["managed_agent"]["task"],
+            variables=dict(name=self.name, task=task, additional_prompting=self.additional_prompting),
+        )
+        report = self.run(full_task, **kwargs)
+        answer = populate_template(
+            self.prompt_templates["managed_agent"]["report"], variables=dict(name=self.name, final_answer=report)
+        )
         if self.provide_run_summary:
-            answer += f"\n\nFor more detail, find below a summary of this agent's work:\nSUMMARY OF WORK FROM AGENT '{self.name}':\n"
+            answer += "\n\nFor more detail, find below a summary of this agent's work:\n<summary_of_work>\n"
             for message in self.write_memory_to_messages(summary_mode=True):
                 content = message["content"]
                 answer += "\n" + truncate_content(str(content)) + "\n---"
-            answer += f"\nEND OF SUMMARY OF WORK FROM AGENT '{self.name}'."
+            answer += "\n</summary_of_work>"
         return answer
 
 
@@ -681,6 +659,9 @@ class ToolCallingAgent(MultiStepAgent):
     ):
         if system_prompt is None:
             system_prompt = TOOL_CALLING_SYSTEM_PROMPT
+        yaml_path = os.path.join(os.path.dirname(__file__), "prompts", "toolcalling_agent.yaml")
+        with open(yaml_path, "r") as f:
+            self.prompt_templates = yaml.safe_load(f)
         super().__init__(
             tools=tools,
             model=model,
@@ -688,6 +669,13 @@ class ToolCallingAgent(MultiStepAgent):
             planning_interval=planning_interval,
             **kwargs,
         )
+
+    def initialize_system_prompt(self) -> str:
+        system_prompt = populate_template(
+            self.prompt_templates["system_prompt"],
+            variables={"tools": self.tools, "managed_agents": self.managed_agents},
+        )
+        return system_prompt
 
     def step(self, memory_step: ActionStep) -> Union[None, Any]:
         """
@@ -794,7 +782,7 @@ class CodeAgent(MultiStepAgent):
         self,
         tools: List[Tool],
         model: Callable[[List[Dict[str, str]]], ChatMessage],
-        system_prompt: Optional[str] = None,
+        prompts_path: Optional[str] = None,
         grammar: Optional[Dict[str, str]] = None,
         additional_authorized_imports: Optional[List[str]] = None,
         planning_interval: Optional[int] = None,
@@ -802,17 +790,17 @@ class CodeAgent(MultiStepAgent):
         max_print_outputs_length: Optional[int] = None,
         **kwargs,
     ):
-        if system_prompt is None:
-            system_prompt = CODE_SYSTEM_PROMPT
-
         self.additional_authorized_imports = additional_authorized_imports if additional_authorized_imports else []
         self.authorized_imports = list(set(BASE_BUILTIN_MODULES) | set(self.additional_authorized_imports))
-        if "{{authorized_imports}}" not in system_prompt:
-            raise ValueError("Tag '{{authorized_imports}}' should be provided in the prompt.")
+        # if "{{authorized_imports}}" not in system_prompt:
+        #     raise ValueError("Tag '{{authorized_imports}}' should be provided in the prompt.")
+
+        yaml_path = os.path.join(os.path.dirname(__file__), "prompts", "code_agent.yaml")
+        with open(yaml_path, "r") as f:
+            self.prompt_templates = yaml.safe_load(f)
         super().__init__(
             tools=tools,
             model=model,
-            system_prompt=system_prompt,
             grammar=grammar,
             planning_interval=planning_interval,
             **kwargs,
@@ -842,17 +830,20 @@ class CodeAgent(MultiStepAgent):
                 max_print_outputs_length=max_print_outputs_length,
             )
 
-    def initialize_system_prompt(self):
-        self.system_prompt = super().initialize_system_prompt()
-        self.system_prompt = self.system_prompt.replace(
-            "{{authorized_imports}}",
-            (
-                "You can import from any package you want."
-                if "*" in self.authorized_imports
-                else str(self.authorized_imports)
-            ),
+    def initialize_system_prompt(self) -> str:
+        system_prompt = populate_template(
+            self.prompt_templates["system_prompt"],
+            variables={
+                "tools": self.tools,
+                "managed_agents": self.managed_agents,
+                "authorized_imports": (
+                    "You can import from any package you want."
+                    if "*" in self.authorized_imports
+                    else str(self.authorized_imports)
+                ),
+            },
         )
-        return self.system_prompt
+        return system_prompt
 
     def step(self, memory_step: ActionStep) -> Union[None, Any]:
         """
