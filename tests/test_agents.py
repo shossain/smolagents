@@ -650,6 +650,8 @@ nested_answer()
 class TestMultiStepAgent:
     def test_step_number(self):
         fake_model = MagicMock()
+        fake_model.last_input_token_count = 10
+        fake_model.last_output_token_count = 20
         agent = MultiStepAgent(tools=[], model=fake_model, max_steps=2)
         assert hasattr(agent, "step_number"), "step_number attribute should be defined"
         assert agent.step_number == 0, "step_number should be initialized to 0"
