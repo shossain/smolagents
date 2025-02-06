@@ -88,7 +88,7 @@ class MultiStepAgent:
     Args:
         tools (`list[Tool]`): [`Tool`]s that the agent can use.
         model (`Callable[[list[dict[str, str]]], ChatMessage]`): Model that will generate the agent's actions.
-        prompts_path (`str`, *optional*): The path to the prompts to use in the agent.
+        prompts_path (`str`, *optional*): The path from which to load this agent's prompt dictionary.
         max_steps (`int`, default `6`): Maximum number of steps the agent can take to solve the task.
         tool_parser (`Callable`, *optional*): Function used to parse the tool calls from the LLM output.
         add_base_tools (`bool`, default `False`): Whether to add the base tools to the agent's tools.
@@ -99,9 +99,8 @@ class MultiStepAgent:
         planning_interval (`int`, *optional*): Interval at which the agent will run a planning step.
         name (`str`, *optional*): Necessary for a managed agent only - the name by which this agent can be called.
         description (`str`, *optional*): Necessary for a managed agent only - the description of this agent.
-        managed_agent_prompt (`str`, *optional*): Custom prompt for the managed agent. Defaults to None.
-        provide_run_summary (`bool`, *optional*): Wether to provide a run summary when called as a managed agent.
-        additional_prompting (`str`, *optional*): Additional promptint to pass to this managed agent whenever called.
+        provide_run_summary (`bool`, *optional*): Whether to provide a run summary when called as a managed agent.
+        final_answer_checks (`list`, *optional*): List of Callables to run before returning a final answer for checking validity.
     """
 
     def __init__(
@@ -119,9 +118,8 @@ class MultiStepAgent:
         planning_interval: Optional[int] = None,
         name: Optional[str] = None,
         description: Optional[str] = None,
-        managed_agent_prompt: Optional[str] = None,
         provide_run_summary: bool = False,
-        additional_prompting: Optional[str] = None,
+        final_answer_checks: Optional[List[Callable]] = None,
     ):
         if tool_parser is None:
             tool_parser = parse_json_tool_call
@@ -162,7 +160,7 @@ class MultiStepAgent:
         self.monitor = Monitor(self.model, self.logger)
         self.step_callbacks = step_callbacks if step_callbacks is not None else []
         self.step_callbacks.append(self.monitor.update_metrics)
-        self.additional_prompting = additional_prompting if additional_prompting else ""
+        self.final_answer_checks = final_answer_checks
 
     @property
     def logs(self):
@@ -365,6 +363,7 @@ You have been provided with these additional arguments, that you can access usin
             content=self.task.strip(),
             subtitle=f"{type(self.model).__name__} - {(self.model.model_id if hasattr(self.model, 'model_id') else '')}",
             level=LogLevel.INFO,
+            title=self.name if hasattr(self, "name") else None,
         )
 
         self.memory.steps.append(TaskStep(task=self.task, task_images=images))
@@ -403,6 +402,13 @@ You have been provided with these additional arguments, that you can access usin
 
                 # Run one step!
                 final_answer = self.step(memory_step)
+                if final_answer and self.final_answer_checks:
+                    for check_function in self.final_answer_checks:
+                        try:
+                            assert check_function(final_answer, self.memory)
+                        except Exception as e:
+                            final_answer = None
+                            raise AgentError(f"Check {check_function.__name__} failed with error: {e}", self.logger)
             except AgentError as e:
                 memory_step.error = e
             finally:
@@ -605,7 +611,7 @@ You have been provided with these additional arguments, that you can access usin
         """
         full_task = populate_template(
             self.prompt_templates["managed_agent"]["task"],
-            variables=dict(name=self.name, task=task, additional_prompting=self.additional_prompting),
+            variables=dict(name=self.name, task=task),
         )
         report = self.run(full_task, **kwargs)
         answer = populate_template(
@@ -627,10 +633,9 @@ class ToolCallingAgent(MultiStepAgent):
     Args:
         tools (`list[Tool]`): [`Tool`]s that the agent can use.
         model (`Callable[[list[dict[str, str]]], ChatMessage]`): Model that will generate the agent's actions.
-        prompts_path (`str`, *optional*): The path to the prompts to use in the agent.
+        prompts_path (`str`, *optional*): The path from which to load this agent's prompt dictionary.
         planning_interval (`int`, *optional*): Interval at which the agent will run a planning step.
         **kwargs: Additional keyword arguments.
-
     """
 
     def __init__(
@@ -750,7 +755,7 @@ class CodeAgent(MultiStepAgent):
     Args:
         tools (`list[Tool]`): [`Tool`]s that the agent can use.
         model (`Callable[[list[dict[str, str]]], ChatMessage]`): Model that will generate the agent's actions.
-        prompts_path (`str`, *optional*): The path to the prompts to use in the agent.
+        prompts_path (`str`, *optional*): The path from which to load this agent's prompt dictionary.
         grammar (`dict[str, str]`, *optional*): Grammar used to parse the LLM output.
         additional_authorized_imports (`list[str]`, *optional*): Additional authorized imports for the agent.
         planning_interval (`int`, *optional*): Interval at which the agent will run a planning step.

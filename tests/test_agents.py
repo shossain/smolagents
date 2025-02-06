@@ -600,6 +600,9 @@ final_answer("Final report.")
         report = manager_toolcalling_agent.run("Fake question.")
         assert report == "Final report."
 
+        # Test that visualization works
+        manager_code_agent.visualize()
+
     def test_code_nontrivial_final_answer_works(self):
         def fake_code_model_final_answer(messages, stop_sequences=None, grammar=None):
             return ChatMessage(
@@ -645,6 +648,14 @@ nested_answer()
         assert step_memory_dict["model_output_message"].tool_calls[0].function.name == "weather_api"
         assert step_memory_dict["model_output_message"].raw["completion_kwargs"]["max_new_tokens"] == 100
         assert "model_input_messages" in agent.memory.get_full_steps()[1]
+
+    def test_final_answer_checks(self):
+        def check_always_fails(final_answer, agent_memory):
+            assert False, "Error raised in check"
+
+        agent = CodeAgent(model=fake_code_model, tools=[], final_answer_checks=[check_always_fails])
+        agent.run("Dummy task.")
+        assert "Error raised in check" in str(agent.write_memory_to_messages())
 
 
 class TestMultiStepAgent:
