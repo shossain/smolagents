@@ -402,7 +402,7 @@ You have been provided with these additional arguments, that you can access usin
 
                 # Run one step!
                 final_answer = self.step(memory_step)
-                if final_answer and self.final_answer_checks:
+                if final_answer is not None and self.final_answer_checks is not None:
                     for check_function in self.final_answer_checks:
                         try:
                             assert check_function(final_answer, self.memory)

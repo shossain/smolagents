@@ -483,6 +483,8 @@ class AgentTests(unittest.TestCase):
 
     def test_multiagents(self):
         class FakeModelMultiagentsManagerAgent:
+            model_id = "fake_model"
+
             def __call__(
                 self,
                 messages,
@@ -549,6 +551,8 @@ final_answer("Final report.")
         manager_model = FakeModelMultiagentsManagerAgent()
 
         class FakeModelMultiagentsManagedAgent:
+            model_id = "fake_model"
+
             def __call__(
                 self,
                 messages,
