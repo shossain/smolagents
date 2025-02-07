@@ -27,6 +27,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
 
+import jinja2
 import yaml
 from huggingface_hub import create_repo, metadata_update, snapshot_download, upload_folder
 from jinja2 import StrictUndefined, Template
@@ -641,8 +642,9 @@ You have been provided with these additional arguments, that you can access usin
         Saves the relevant code files for your agent so it can be pushed to the Hub. This will copy the code of your
         agent in `output_dir` as well as autogenerate:
 
-        - a `{tool_name}.py` file containing the logic for each of the tools.
+        - a `tools`folder containing the logic for each of the tools under `tools/{tool_name}.py`.
         - an `agent.json` file containing a dictionary representing your agent.
+        - a `prompt.yaml` file containing the prompt templates used by your agent.
         - an `app.py` file providing an UI for your agent when it is exported to a Space with `agent.push_to_hub()`
         - a `requirements.txt` containing the names of the module used by your tool (as detected when inspecting its
           code)
@@ -691,36 +693,45 @@ You have been provided with these additional arguments, that you can access usin
             f.write("\n".join(requirements) + "\n")
 
         # Make agent.py file with Gradio UI
-        app_file = os.path.join(output_dir, "app.py")
-        app_header = f"from smolagents import GradioUI, {class_name}, {agent_dict['model']['class']}"
-        tool_definitions = ""
-        for tool in self.tools.values():
-            tool_class_name = tool.__class__.__name__
-            app_header += f"\nfrom scripts.{tool.name} import {tool_class_name}"
-            tool_definitions += f"\n{tool.name} = {tool_class_name}()"
+        app_template = textwrap.dedent("""
+            from smolagents import GradioUI, {{ class_name }}, {{ agent_dict['model']['class'] }}
 
-        app_header += f"\n\nmodel = {agent_dict['model']['class']}()"
+            {% for tool in tools.values() -%}
+            from scripts.{{ tool.name }} import {{ tool.__class__.__name__ }}
+            {% endfor %}
 
-        app_text = app_header + tool_definitions + "\n"
+            model = {{ agent_dict['model']['class'] }}(
+            {% for key in agent_dict['model']['data'] if key not in ['class', 'last_input_token_count', 'last_output_token_count'] -%}
+                {{ key }}={{ agent_dict['model']['data'][key]|repr }},
+            {% endfor %})
 
+            {% for tool in tools.values() -%}
+            {{ tool.name }} = {{ tool.__class__.__name__ }}()
+            {% endfor %}
+
+            agent = {{ class_name }}(
+                model=model,
+                tools=[{% for tool in tools.keys() %}{{ tool }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                {% for attribute_name, value in agent_dict.items() if attribute_name not in ["model", "tools", "prompt_templates"] -%}
+                {{ attribute_name }}={{ value }},
+                {% endfor %}prompts_path='./prompts.yaml'
+            )
+
+            GradioUI(agent).launch()
+            """)
+        template_env = jinja2.Environment(loader=jinja2.BaseLoader())
+        template_env.filters["repr"] = repr
+        template = template_env.from_string(app_template)
+
+        # Prepare the context variables for Jinja2 rendering
+        context = {"class_name": class_name, "agent_dict": agent_dict, "tools": self.tools}
+
+        # Render the app.py file from Jinja2 template
+        app_text = template.render(context)
         # TODO: Model objects with parameters
         # TODO: Tool objects with parameters
 
-        app_text += textwrap.dedent(f"""
-        agent = {class_name}(
-            model=model,
-            tools= [{", ".join(list(self.tools.keys()))}],""")
-
-        for attribute_name, value in agent_dict.items():
-            if attribute_name not in ["model", "tools", "prompt_templates"]:
-                app_text += f"\n    {attribute_name}={value},"
-        app_text += textwrap.dedent("""
-            prompts_path='./prompts.yaml'
-        )
-
-        GradioUI(agent).launch()
-        """)
-        with open(app_file, "w", encoding="utf-8") as f:
+        with open(os.path.join(output_dir, "app.py"), "w", encoding="utf-8") as f:
             f.write(app_text)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -860,7 +871,11 @@ You have been provided with these additional arguments, that you can access usin
         )
         repo_id = repo_url.repo_id
         metadata_update(
-            repo_id, {"tags": ["smolagents", "agent", "smolagent", "tool"]}, repo_type="space", token=token
+            repo_id,
+            {"tags": ["smolagents", "agent", "smolagent", "tool"]},
+            repo_type="space",
+            token=token,
+            overwrite=True,
         )
 
         with tempfile.TemporaryDirectory() as work_dir:
