@@ -341,6 +341,7 @@ class Model:
         }
         if hasattr(self, "custom_role_conversions"):
             model_dictionary["custom_role_conversions"] = self.custom_role_conversions
+        return model_dictionary
 
     @classmethod
     def from_dict(cls, model_dictionary: Dict[str, Any]) -> "Model":

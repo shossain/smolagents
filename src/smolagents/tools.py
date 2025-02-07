@@ -217,7 +217,7 @@ class Tool:
             tool_code = textwrap.dedent(
                 f"""
             from smolagents import Tool
-            from typing import Optional
+            from typing import Optional, Any
 
             class {class_name}(Tool):
                 name = "{self.name}"
@@ -257,15 +257,11 @@ class Tool:
 
             validate_tool_attributes(self.__class__)
 
-            tool_code = instance_to_source(self, base_cls=Tool)
+            tool_code = "from typing import Any, Optional\n" + instance_to_source(self, base_cls=Tool)
 
         requirements = {el for el in get_imports(tool_code) if el not in sys.stdlib_module_names} | {"smolagents"}
 
-        return {
-            "name": self.name,
-            "code": tool_code,
-            "requirements": requirements
-        }
+        return {"name": self.name, "code": tool_code, "requirements": requirements}
 
     def save(self, output_dir, tool_file_name: str = "tool.py"):
         """
@@ -298,7 +294,6 @@ class Tool:
                 textwrap.dedent(
                     f"""
             from smolagents import launch_gradio_demo
-            from typing import Optional
             from tool import {class_name}
 
             tool = {class_name}()
@@ -398,7 +393,9 @@ class Tool:
                 others will be passed along to its init.
         """
         if not trust_remote_code:
-            raise ValueError("Loading an tool from Hub requires to acknowledge you trust its code: to do so, pass `trust_remote_code=True`.")
+            raise ValueError(
+                "Loading an tool from Hub requires to acknowledge you trust its code: to do so, pass `trust_remote_code=True`."
+            )
 
         # Get the tool's tool.py file.
         tool_file = hf_hub_download(
@@ -421,6 +418,8 @@ class Tool:
     @classmethod
     def from_code(cls, tool_code: str, **kwargs):
         module = types.ModuleType("dynamic_tool")
+
+        print(tool_code)
 
         exec(tool_code, module.__dict__)
 

@@ -1,6 +1,5 @@
 import ast
 import builtins
-import inspect
 from typing import Set
 
 from .utils import BASE_BUILTIN_MODULES, get_source

@@ -19,17 +19,16 @@ import inspect
 import json
 import os
 import re
+import tempfile
 import textwrap
-from collections import Counter
-
 import time
-from collections import deque
+from collections import Counter, deque
 from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
 
 import yaml
-from huggingface_hub import hf_hub_download
+from huggingface_hub import create_repo, metadata_update, snapshot_download, upload_folder
 from jinja2 import StrictUndefined, Template
 from rich.console import Group
 from rich.panel import Panel
@@ -154,7 +153,9 @@ class MultiStepAgent:
             assert isinstance(tool, Tool), f"This element is not of class Tool: {str(tool)}"
 
         duplicate_tool_names = [name for name, count in Counter(tool.name for tool in tools).items() if count > 1]
-        assert len(duplicate_tool_names) == 0, f"There can be no two tools with the same name! You passed these duplicate tool names: {duplicate_tool_names}"
+        assert len(duplicate_tool_names) == 0, (
+            f"There can be no two tools with the same name! You passed these duplicate tool names: {duplicate_tool_names}"
+        )
         self.tools = {tool.name: tool for tool in tools}
         if add_base_tools:
             for tool_name, tool_class in TOOL_MAPPING.items():
@@ -659,12 +660,12 @@ You have been provided with these additional arguments, that you can access usin
         # Save prompts to yaml
         yaml_prompts = yaml.dump(
             self.prompt_templates,
-            default_style='|',  # This forces block literals for all strings
+            default_style="|",  # This forces block literals for all strings
             default_flow_style=False,
-            width=float('inf'),
+            width=float("inf"),
             sort_keys=False,
             allow_unicode=True,
-            indent=2
+            indent=2,
         )
 
         with open(os.path.join(output_dir, "prompts.yaml"), "w", encoding="utf-8") as f:
@@ -674,16 +675,18 @@ You have been provided with these additional arguments, that you can access usin
         agent_dict = self.to_dict()
         agent_dict["tools"] = [tool.name for tool in self.tools.values()]
         with open(os.path.join(output_dir, "agent.json"), "w", encoding="utf-8") as f:
-            f.write(json.dumps(agent_dict))
+            f.write(json.dumps(agent_dict, indent=4))
 
         # Save requirements
         requirements_file = os.path.join(output_dir, "requirements.txt")
         requirements = []
         if hasattr(self, "authorized_imports"):
-            requirements += [package.split('.')[0] for package in self.authorized_imports if package not in BASE_BUILTIN_MODULES]
+            requirements += [
+                package.split(".")[0] for package in self.authorized_imports if package not in BASE_BUILTIN_MODULES
+            ]
         for tool in self.tools.values():
             requirements += tool.to_dict()["requirements"]
-        requirements = list(set(requirements)) # Deduplicate valus
+        requirements = list(set(requirements))  # Deduplicate valus
         with open(requirements_file, "w", encoding="utf-8") as f:
             f.write("\n".join(requirements) + "\n")
 
@@ -696,7 +699,7 @@ You have been provided with these additional arguments, that you can access usin
             app_header += f"\nfrom scripts.{tool.name} import {tool_class_name}"
             tool_definitions += f"\n{tool.name} = {tool_class_name}()"
 
-        app_header += f"\n\nmodel = {agent_dict["model"]["class"]}()"
+        app_header += f"\n\nmodel = {agent_dict['model']['class']}()"
 
         app_text = app_header + tool_definitions + "\n"
 
@@ -719,7 +722,6 @@ You have been provided with these additional arguments, that you can access usin
         """)
         with open(app_file, "w", encoding="utf-8") as f:
             f.write(app_text)
-
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts agent into a dictionary."""
@@ -780,24 +782,31 @@ You have been provided with these additional arguments, that you can access usin
                 others will be passed along to its init.
         """
         if not trust_remote_code:
-            raise ValueError("Loading an agent from Hub requires to acknowledge you trust its code: to do so, pass `trust_remote_code=True`.")
+            raise ValueError(
+                "Loading an agent from Hub requires to acknowledge you trust its code: to do so, pass `trust_remote_code=True`."
+            )
 
         # Get the agents's Hub folder.
-        download_kwargs = {
-            "token": token,
-            "repo_type": "space"
-        } | {key: kwargs.pop(key) for key in ["cache_dir", "force_download", "resume_download", "proxies", "revision", "subfolder", "local_files_only"]}
+        download_kwargs = {"token": token, "repo_type": "space"} | {
+            key: kwargs.pop(key)
+            for key in [
+                "cache_dir",
+                "force_download",
+                "resume_download",
+                "proxies",
+                "revision",
+                "subfolder",
+                "local_files_only",
+            ]
+            if key in kwargs
+        }
 
-        agent_json_file = hf_hub_download(
-            repo_id,
-            "agent.json",
-            **download_kwargs
-        )
-        agent_dict = json.loads(Path(agent_json_file).read_text())
+        download_folder = Path(snapshot_download(repo_id=repo_id, **download_kwargs))
+        agent_dict = json.loads((download_folder / "agent.json").read_text())
 
         tools = []
-        for tool_name in agent_dict["tool_names"]:
-            tool_code = Path(agent_json_file / f"{tool_name}.py").read_text()
+        for tool_name in agent_dict["tools"]:
+            tool_code = (download_folder / "tools" / f"{tool_name}.py").read_text()
             tools.append(Tool.from_code(tool_code))
 
         model_class: Model = getattr(importlib.import_module("smolagents.models"), agent_dict["model"]["class"])
@@ -829,7 +838,7 @@ You have been provided with these additional arguments, that you can access usin
 
         Parameters:
             repo_id (`str`):
-                The name of the repository you want to push your tool to. It should contain your organization name when
+                The name of the repository you want to push to. It should contain your organization name when
                 pushing to a given organization.
             commit_message (`str`, *optional*, defaults to `"Upload tool"`):
                 Message to commit while pushing.
@@ -855,8 +864,6 @@ You have been provided with these additional arguments, that you can access usin
         with tempfile.TemporaryDirectory() as work_dir:
             # Save all files.
             self.save(work_dir)
-            with open(work_dir + "/tool.py", "r") as f:
-                print("\n".join(f.readlines()))
             logger.info(f"Uploading the following files to {repo_id}: {','.join(os.listdir(work_dir))}")
             return upload_folder(
                 repo_id=repo_id,
