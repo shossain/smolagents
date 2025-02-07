@@ -342,13 +342,13 @@ class Tool:
             space_sdk="gradio",
         )
         repo_id = repo_url.repo_id
-        metadata_update(repo_id, {"tags": ["tool"]}, repo_type="space", token=token)
+        metadata_update(
+            repo_id, {"tags": ["smolagents", "agent", "smolagent", "tool"]}, repo_type="space", token=token
+        )
 
         with tempfile.TemporaryDirectory() as work_dir:
             # Save all files.
             self.save(work_dir)
-            with open(work_dir + "/tool.py", "r") as f:
-                print("\n".join(f.readlines()))
             logger.info(f"Uploading the following files to {repo_id}: {','.join(os.listdir(work_dir))}")
             return upload_folder(
                 repo_id=repo_id,
