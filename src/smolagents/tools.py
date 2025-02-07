@@ -15,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import ast
-import importlib
 import inspect
 import json
 import logging
@@ -23,6 +22,7 @@ import os
 import sys
 import tempfile
 import textwrap
+import types
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
@@ -199,24 +199,9 @@ class Tool:
         """
         self.is_initialized = True
 
-    def save(self, output_dir):
-        """
-        Saves the relevant code files for your tool so it can be pushed to the Hub. This will copy the code of your
-        tool in `output_dir` as well as autogenerate:
-
-        - a `tool.py` file containing the logic for your tool.
-        - an `app.py` file providing an UI for your tool when it is exported to a Space with `tool.push_to_hub()`
-        - a `requirements.txt` containing the names of the module used by your tool (as detected when inspecting its
-          code)
-
-        Args:
-            output_dir (`str`): The folder in which you want to save your tool.
-        """
-        os.makedirs(output_dir, exist_ok=True)
+    def to_dict(self) -> dict:
+        """Returns a dictionary representing the tool"""
         class_name = self.__class__.__name__
-        tool_file = os.path.join(output_dir, "tool.py")
-
-        # Save tool file
         if type(self).__name__ == "SimpleTool":
             # Check that imports are self-contained
             source_code = get_source(self.forward).replace("@tool", "")
@@ -274,6 +259,35 @@ class Tool:
 
             tool_code = instance_to_source(self, base_cls=Tool)
 
+        requirements = {el for el in get_imports(tool_code) if el not in sys.stdlib_module_names} | {"smolagents"}
+
+        return {
+            "name": self.name,
+            "code": tool_code,
+            "requirements": requirements
+        }
+
+    def save(self, output_dir, tool_file_name: str = "tool.py"):
+        """
+        Saves the relevant code files for your tool so it can be pushed to the Hub. This will copy the code of your
+        tool in `output_dir` as well as autogenerate:
+
+        - a `tool.py` file containing the logic for your tool.
+        - an `app.py` file providing an UI for your tool when it is exported to a Space with `tool.push_to_hub()`
+        - a `requirements.txt` containing the names of the module used by your tool (as detected when inspecting its
+          code)
+
+        Args:
+            output_dir (`str`): The folder in which you want to save your tool.
+            tool_file_name (`str`): The file name in which you want to save your tool.
+        """
+        os.makedirs(output_dir, exist_ok=True)
+        class_name = self.__class__.__name__
+        tool_file = os.path.join(output_dir, tool_file_name)
+
+        tool_dict = self.to_dict()
+        tool_code = tool_dict["code"]
+
         with open(tool_file, "w", encoding="utf-8") as f:
             f.write(tool_code.replace(":true,", ":True,").replace(":true}", ":True}"))
 
@@ -295,10 +309,9 @@ class Tool:
             )
 
         # Save requirements file
-        imports = {el for el in get_imports(tool_file) if el not in sys.stdlib_module_names} | {"smolagents"}
         requirements_file = os.path.join(output_dir, "requirements.txt")
         with open(requirements_file, "w", encoding="utf-8") as f:
-            f.write("\n".join(imports) + "\n")
+            f.write("\n".join(tool_dict["requirements"]) + "\n")
 
     def push_to_hub(
         self,
@@ -310,14 +323,6 @@ class Tool:
     ) -> str:
         """
         Upload the tool to the Hub.
-
-        For this method to work properly, your tool must have been defined in a separate module (not `__main__`).
-        For instance:
-        ```
-        from my_tool_module import MyTool
-        my_tool = MyTool()
-        my_tool.push_to_hub("my-username/my-space")
-        ```
 
         Parameters:
             repo_id (`str`):
@@ -393,9 +398,7 @@ class Tool:
                 others will be passed along to its init.
         """
         if not trust_remote_code:
-            raise ValueError(
-                "Loading a tool from Hub requires to trust remote code. Make sure you've inspected the repo and pass `trust_remote_code=True` to load the tool."
-            )
+            raise ValueError("Loading an tool from Hub requires to acknowledge you trust its code: to do so, pass `trust_remote_code=True`.")
 
         # Get the tool's tool.py file.
         tool_file = hf_hub_download(
@@ -413,30 +416,23 @@ class Tool:
         )
 
         tool_code = Path(tool_file).read_text()
+        return Tool.from_code(tool_code, **kwargs)
 
-        # Find the Tool subclass in the namespace
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Save the code to a file
-            module_path = os.path.join(temp_dir, "tool.py")
-            with open(module_path, "w") as f:
-                f.write(tool_code)
+    @classmethod
+    def from_code(cls, tool_code: str, **kwargs):
+        module = types.ModuleType("dynamic_tool")
 
-            print("TOOL CODE:\n", tool_code)
+        exec(tool_code, module.__dict__)
 
-            # Load module from file path
-            spec = importlib.util.spec_from_file_location("tool", module_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+        # Find the Tool subclass
+        tool_class = None
+        for item in module.__dict__.values():
+            if isinstance(item, type) and issubclass(item, Tool) and item != Tool:
+                tool_class = item
+                break
 
-            # Find and instantiate the Tool class
-            for item_name in dir(module):
-                item = getattr(module, item_name)
-                if isinstance(item, type) and issubclass(item, Tool) and item != Tool:
-                    tool_class = item
-                    break
-
-            if tool_class is None:
-                raise ValueError("No Tool subclass found in the code.")
+        if tool_class is None:
+            raise ValueError("No Tool subclass found in the code.")
 
         if not isinstance(tool_class.inputs, dict):
             tool_class.inputs = ast.literal_eval(tool_class.inputs)

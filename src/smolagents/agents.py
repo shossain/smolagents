@@ -14,16 +14,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import importlib
 import inspect
+import json
 import os
 import re
 import textwrap
+from collections import Counter
+
 import time
 from collections import deque
 from logging import getLogger
+from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
 
 import yaml
+from huggingface_hub import hf_hub_download
 from jinja2 import StrictUndefined, Template
 from rich.console import Group
 from rich.panel import Panel
@@ -32,6 +38,7 @@ from rich.text import Text
 
 from smolagents.agent_types import AgentAudio, AgentImage, handle_agent_output_types
 from smolagents.memory import ActionStep, AgentMemory, PlanningStep, SystemPromptStep, TaskStep, ToolCall
+from smolagents.models import Model
 from smolagents.monitoring import (
     YELLOW_HEX,
     AgentLogger,
@@ -145,6 +152,9 @@ class MultiStepAgent:
 
         for tool in tools:
             assert isinstance(tool, Tool), f"This element is not of class Tool: {str(tool)}"
+
+        duplicate_tool_names = [name for name, count in Counter(tool.name for tool in tools).items() if count > 1]
+        assert len(duplicate_tool_names) == 0, f"There can be no two tools with the same name! You passed these duplicate tool names: {duplicate_tool_names}"
         self.tools = {tool.name: tool for tool in tools}
         if add_base_tools:
             for tool_name, tool_class in TOOL_MAPPING.items():
@@ -624,6 +634,238 @@ You have been provided with these additional arguments, that you can access usin
                 answer += "\n" + truncate_content(str(content)) + "\n---"
             answer += "\n</summary_of_work>"
         return answer
+
+    def save(self, output_dir):
+        """
+        Saves the relevant code files for your agent so it can be pushed to the Hub. This will copy the code of your
+        agent in `output_dir` as well as autogenerate:
+
+        - a `{tool_name}.py` file containing the logic for each of the tools.
+        - an `agent.json` file containing a dictionary representing your agent.
+        - an `app.py` file providing an UI for your agent when it is exported to a Space with `agent.push_to_hub()`
+        - a `requirements.txt` containing the names of the module used by your tool (as detected when inspecting its
+          code)
+
+        Args:
+            output_dir (`str`): The folder in which you want to save your tool.
+        """
+        os.makedirs(f"{output_dir}/tools", exist_ok=True)
+        class_name = self.__class__.__name__
+
+        # Save tools to different .py files
+        for tool in self.tools.values():
+            tool.save(output_dir, f"tools/{tool.name}.py")
+
+        # Save prompts to yaml
+        yaml_prompts = yaml.dump(
+            self.prompt_templates,
+            default_style='|',  # This forces block literals for all strings
+            default_flow_style=False,
+            width=float('inf'),
+            sort_keys=False,
+            allow_unicode=True,
+            indent=2
+        )
+
+        with open(os.path.join(output_dir, "prompts.yaml"), "w", encoding="utf-8") as f:
+            f.write(yaml_prompts)
+
+        # Save agent dictionary to json
+        agent_dict = self.to_dict()
+        agent_dict["tools"] = [tool.name for tool in self.tools.values()]
+        with open(os.path.join(output_dir, "agent.json"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(agent_dict))
+
+        # Save requirements
+        requirements_file = os.path.join(output_dir, "requirements.txt")
+        requirements = []
+        if hasattr(self, "authorized_imports"):
+            requirements += [package.split('.')[0] for package in self.authorized_imports if package not in BASE_BUILTIN_MODULES]
+        for tool in self.tools.values():
+            requirements += tool.to_dict()["requirements"]
+        requirements = list(set(requirements)) # Deduplicate valus
+        with open(requirements_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(requirements) + "\n")
+
+        # Make agent.py file with Gradio UI
+        app_file = os.path.join(output_dir, "app.py")
+        app_header = f"from smolagents import GradioUI, {class_name}, {agent_dict['model']['class']}"
+        tool_definitions = ""
+        for tool in self.tools.values():
+            tool_class_name = tool.__class__.__name__
+            app_header += f"\nfrom scripts.{tool.name} import {tool_class_name}"
+            tool_definitions += f"\n{tool.name} = {tool_class_name}()"
+
+        app_header += f"\n\nmodel = {agent_dict["model"]["class"]}()"
+
+        app_text = app_header + tool_definitions + "\n"
+
+        # TODO: Model objects with parameters
+        # TODO: Tool objects with parameters
+
+        app_text += textwrap.dedent(f"""
+        agent = {class_name}(
+            model=model,
+            tools= [{", ".join(list(self.tools.keys()))}],""")
+
+        for attribute_name, value in agent_dict.items():
+            if attribute_name not in ["model", "tools", "prompt_templates"]:
+                app_text += f"\n    {attribute_name}={value},"
+        app_text += textwrap.dedent("""
+            prompts_path='./prompts.yaml'
+        )
+
+        GradioUI(agent).launch()
+        """)
+        with open(app_file, "w", encoding="utf-8") as f:
+            f.write(app_text)
+
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts agent into a dictionary."""
+        # TODO: handle serializing step_callbacks and final_answer_checks
+        for attr in ["final_answer_checks", "step_callbacks", "step_memory_checks", "managed_agents"]:
+            if getattr(self, "final_answer_checks", None) is not None and len(self.final_answer_checks) > 0:
+                self.logger.log(f"This agent has {attr}: they will be ignored by this method.", LogLevel.INFO)
+
+        agent_dict = {
+            "tools": [tool.to_dict() for tool in self.tools.values()],
+            "model": {
+                "class": self.model.__class__.__name__,
+                "data": self.model.to_dict(),
+            },
+            "prompt_templates": self.prompt_templates,
+            "max_steps": self.max_steps,
+            "verbosity_level": int(self.logger.level),
+            "grammar": self.grammar,
+            "planning_interval": self.planning_interval,
+            "name": self.name,
+            "description": self.description,
+        }
+        if hasattr(self, "authorized_imports"):
+            agent_dict["authorized_imports"] = self.authorized_imports
+        return agent_dict
+
+    @classmethod
+    def from_hub(
+        cls,
+        repo_id: str,
+        token: Optional[str] = None,
+        trust_remote_code: bool = False,
+        **kwargs,
+    ):
+        """
+        Loads an agent defined on the Hub.
+
+        <Tip warning={true}>
+
+        Loading a tool from the Hub means that you'll download the tool and execute it locally.
+        ALWAYS inspect the tool you're downloading before loading it within your runtime, as you would do when
+        installing a package using pip/npm/apt.
+
+        </Tip>
+
+        Args:
+            repo_id (`str`):
+                The name of the repo on the Hub where your tool is defined.
+            token (`str`, *optional*):
+                The token to identify you on hf.co. If unset, will use the token generated when running
+                `huggingface-cli login` (stored in `~/.huggingface`).
+            trust_remote_code(`str`, *optional*, defaults to False):
+                This flags marks that you understand the risk of running remote code and that you trust this tool.
+                If not setting this to True, loading the tool from Hub will fail.
+            kwargs (additional keyword arguments, *optional*):
+                Additional keyword arguments that will be split in two: all arguments relevant to the Hub (such as
+                `cache_dir`, `revision`, `subfolder`) will be used when downloading the files for your tool, and the
+                others will be passed along to its init.
+        """
+        if not trust_remote_code:
+            raise ValueError("Loading an agent from Hub requires to acknowledge you trust its code: to do so, pass `trust_remote_code=True`.")
+
+        # Get the agents's Hub folder.
+        download_kwargs = {
+            "token": token,
+            "repo_type": "space"
+        } | {key: kwargs.pop(key) for key in ["cache_dir", "force_download", "resume_download", "proxies", "revision", "subfolder", "local_files_only"]}
+
+        agent_json_file = hf_hub_download(
+            repo_id,
+            "agent.json",
+            **download_kwargs
+        )
+        agent_dict = json.loads(Path(agent_json_file).read_text())
+
+        tools = []
+        for tool_name in agent_dict["tool_names"]:
+            tool_code = Path(agent_json_file / f"{tool_name}.py").read_text()
+            tools.append(Tool.from_code(tool_code))
+
+        model_class: Model = getattr(importlib.import_module("smolagents.models"), agent_dict["model"]["class"])
+        model = model_class.from_dict(agent_dict["model"]["data"])
+
+        agent = cls(
+            model=model,
+            tools=tools,
+            max_steps=agent_dict["max_steps"],
+            planning_interval=agent_dict["planning_interval"],
+            grammar=agent_dict["grammar"],
+            verbosity_level=agent_dict["verbosity_level"],
+            **kwargs,
+        )
+
+        # TODO: add managed_agents with managed_agents=[MultiStepAgent.from_dict(agent_data) for name, agent_data in data["managed_agents"].items()],
+        return agent
+
+    def push_to_hub(
+        self,
+        repo_id: str,
+        commit_message: str = "Upload tool",
+        private: Optional[bool] = None,
+        token: Optional[Union[bool, str]] = None,
+        create_pr: bool = False,
+    ) -> str:
+        """
+        Upload the agent to the Hub.
+
+        Parameters:
+            repo_id (`str`):
+                The name of the repository you want to push your tool to. It should contain your organization name when
+                pushing to a given organization.
+            commit_message (`str`, *optional*, defaults to `"Upload tool"`):
+                Message to commit while pushing.
+            private (`bool`, *optional*):
+                Whether to make the repo private. If `None` (default), the repo will be public unless the organization's default is private. This value is ignored if the repo already exists.
+            token (`bool` or `str`, *optional*):
+                The token to use as HTTP bearer authorization for remote files. If unset, will use the token generated
+                when running `huggingface-cli login` (stored in `~/.huggingface`).
+            create_pr (`bool`, *optional*, defaults to `False`):
+                Whether or not to create a PR with the uploaded files or directly commit.
+        """
+        repo_url = create_repo(
+            repo_id=repo_id,
+            token=token,
+            private=private,
+            exist_ok=True,
+            repo_type="space",
+            space_sdk="gradio",
+        )
+        repo_id = repo_url.repo_id
+        metadata_update(repo_id, {"tags": ["tool"]}, repo_type="space", token=token)
+
+        with tempfile.TemporaryDirectory() as work_dir:
+            # Save all files.
+            self.save(work_dir)
+            with open(work_dir + "/tool.py", "r") as f:
+                print("\n".join(f.readlines()))
+            logger.info(f"Uploading the following files to {repo_id}: {','.join(os.listdir(work_dir))}")
+            return upload_folder(
+                repo_id=repo_id,
+                commit_message=commit_message,
+                folder_path=work_dir,
+                token=token,
+                create_pr=create_pr,
+                repo_type="space",
+            )
 
 
 class ToolCallingAgent(MultiStepAgent):

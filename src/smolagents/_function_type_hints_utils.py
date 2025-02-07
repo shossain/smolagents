@@ -46,9 +46,9 @@ from huggingface_hub.utils import is_torch_available
 from .utils import _is_pillow_available
 
 
-def get_imports(filename: Union[str, os.PathLike]) -> List[str]:
+def get_imports(code: str) -> List[str]:
     """
-    Extracts all the libraries (not relative imports this time) that are imported in a file.
+    Extracts all the libraries (not relative imports) that are imported in a code.
 
     Args:
         filename (`str` or `os.PathLike`): The module file to inspect.
@@ -56,24 +56,21 @@ def get_imports(filename: Union[str, os.PathLike]) -> List[str]:
     Returns:
         `List[str]`: The list of all packages required to use the input module.
     """
-    with open(filename, "r", encoding="utf-8") as f:
-        content = f.read()
-
     # filter out try/except block so in custom code we can have try/except imports
-    content = re.sub(r"\s*try\s*:.*?except.*?:", "", content, flags=re.DOTALL)
+    code = re.sub(r"\s*try\s*:.*?except.*?:", "", code, flags=re.DOTALL)
 
     # filter out imports under is_flash_attn_2_available block for avoid import issues in cpu only environment
-    content = re.sub(
+    code = re.sub(
         r"if is_flash_attn[a-zA-Z0-9_]+available\(\):\s*(from flash_attn\s*.*\s*)+",
         "",
-        content,
+        code,
         flags=re.MULTILINE,
     )
 
     # Imports of the form `import xxx`
-    imports = re.findall(r"^\s*import\s+(\S+)\s*$", content, flags=re.MULTILINE)
+    imports = re.findall(r"^\s*import\s+(\S+)\s*$", code, flags=re.MULTILINE)
     # Imports of the form `from xxx import yyy`
-    imports += re.findall(r"^\s*from\s+(\S+)\s+import", content, flags=re.MULTILINE)
+    imports += re.findall(r"^\s*from\s+(\S+)\s+import", code, flags=re.MULTILINE)
     # Only keep the top-level module
     imports = [imp.split(".")[0] for imp in imports if not imp.startswith(".")]
     return list(set(imports))

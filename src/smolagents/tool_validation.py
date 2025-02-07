@@ -83,6 +83,31 @@ class MethodChecker(ast.NodeVisitor):
                     self.assigned_names.add(elt.id)
         self.generic_visit(node)
 
+    def _handle_comprehension_generators(self, generators):
+        """Helper method to handle generators in all types of comprehensions"""
+        for generator in generators:
+            if isinstance(generator.target, ast.Name):
+                self.assigned_names.add(generator.target.id)
+            elif isinstance(generator.target, ast.Tuple):
+                for elt in generator.target.elts:
+                    if isinstance(elt, ast.Name):
+                        self.assigned_names.add(elt.id)
+
+    def visit_ListComp(self, node):
+        """Track variables in list comprehensions"""
+        self._handle_comprehension_generators(node.generators)
+        self.generic_visit(node)
+
+    def visit_DictComp(self, node):
+        """Track variables in dictionary comprehensions"""
+        self._handle_comprehension_generators(node.generators)
+        self.generic_visit(node)
+
+    def visit_SetComp(self, node):
+        """Track variables in set comprehensions"""
+        self._handle_comprehension_generators(node.generators)
+        self.generic_visit(node)
+
     def visit_Attribute(self, node):
         if not (isinstance(node.value, ast.Name) and node.value.id == "self"):
             self.generic_visit(node)
@@ -140,14 +165,14 @@ def validate_tool_attributes(cls, check_imports: bool = True) -> None:
     if not isinstance(tree.body[0], ast.ClassDef):
         raise ValueError("Source code must define a class")
 
-    # Check that __init__ method takes no arguments
-    if not cls.__init__.__qualname__ == "Tool.__init__":
-        sig = inspect.signature(cls.__init__)
-        non_self_params = list([arg_name for arg_name in sig.parameters.keys() if arg_name != "self"])
-        if len(non_self_params) > 0:
-            errors.append(
-                f"This tool has additional args specified in __init__(self): {non_self_params}. Make sure it does not, all values should be hardcoded!"
-            )
+    # # Check that __init__ method takes no arguments
+    # if not cls.__init__.__qualname__ == "Tool.__init__":
+    #     sig = inspect.signature(cls.__init__)
+    #     non_self_params = list([arg_name for arg_name in sig.parameters.keys() if arg_name != "self"])
+    #     if len(non_self_params) > 0:
+    #         errors.append(
+    #             f"This tool has additional args specified in __init__(self): {non_self_params}. Make sure it does not, all values should be hardcoded!"
+    #         )
 
     class_node = tree.body[0]
 

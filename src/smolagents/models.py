@@ -329,6 +329,26 @@ class Model:
         """
         pass  # To be implemented in child classes!
 
+    def to_dict(self) -> Dict:
+        """
+        Converts the model into a JSON-compatible dictionary.
+        """
+        model_dictionary = {
+            **self.kwargs,
+            "last_input_token_count": self.last_input_token_count,
+            "last_output_token_count": self.last_output_token_count,
+            "model_id": self.model_id,
+        }
+        if hasattr(self, "custom_role_conversions"):
+            model_dictionary["custom_role_conversions"] = self.custom_role_conversions
+
+    @classmethod
+    def from_dict(cls, model_dictionary: Dict[str, Any]) -> "Model":
+        model_instance = cls(**model_dictionary)
+        model_instance.last_input_token_count = model_dictionary.pop("last_input_token_count", None)
+        model_instance.last_output_token_count = model_dictionary.pop("last_output_token_count", None)
+        return model_instance
+
 
 class HfApiModel(Model):
     """A class to interact with Hugging Face's Inference API for language model interaction.
