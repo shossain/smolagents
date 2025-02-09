@@ -1,5 +1,6 @@
 import ast
 import builtins
+import inspect
 from typing import Set
 
 from .utils import BASE_BUILTIN_MODULES, get_source
@@ -164,14 +165,19 @@ def validate_tool_attributes(cls, check_imports: bool = True) -> None:
     if not isinstance(tree.body[0], ast.ClassDef):
         raise ValueError("Source code must define a class")
 
-    # # Check that __init__ method takes no arguments
-    # if not cls.__init__.__qualname__ == "Tool.__init__":
-    #     sig = inspect.signature(cls.__init__)
-    #     non_self_params = list([arg_name for arg_name in sig.parameters.keys() if arg_name != "self"])
-    #     if len(non_self_params) > 0:
-    #         errors.append(
-    #             f"This tool has additional args specified in __init__(self): {non_self_params}. Make sure it does not, all values should be hardcoded!"
-    #         )
+    # Check that __init__ method only has arguments with defaults
+    if not cls.__init__.__qualname__ == "Tool.__init__":
+        sig = inspect.signature(cls.__init__)
+        non_default_params = [
+            arg_name
+            for arg_name, param in sig.parameters.items()
+            if arg_name != "self" and param.default == inspect.Parameter.empty
+        ]
+        if non_default_params:
+            errors.append(
+                f"This tool has required arguments in __init__: {non_default_params}. "
+                "All parameters of __init__ must have default values!"
+            )
 
     class_node = tree.body[0]
 
