@@ -695,10 +695,11 @@ You have been provided with these additional arguments, that you can access usin
 
         # Make agent.py file with Gradio UI
         app_template = textwrap.dedent("""
+            import yaml
             from smolagents import GradioUI, {{ class_name }}, {{ agent_dict['model']['class'] }}
 
             {% for tool in tools.values() -%}
-            from scripts.{{ tool.name }} import {{ tool.__class__.__name__ }}
+            from tools.{{ tool.name }} import {{ tool.__class__.__name__ }}
             {% endfor %}
 
             model = {{ agent_dict['model']['class'] }}(
@@ -710,12 +711,15 @@ You have been provided with these additional arguments, that you can access usin
             {{ tool.name }} = {{ tool.__class__.__name__ }}()
             {% endfor %}
 
+            with open("prompts.yaml", 'r') as stream:
+                prompt_templates = yaml.safe_load(stream)
+
             agent = {{ class_name }}(
                 model=model,
                 tools=[{% for tool in tools.keys() %}{{ tool }}{% if not loop.last %}, {% endif %}{% endfor %}],
-                {% for attribute_name, value in agent_dict.items() if attribute_name not in ["model", "tools", "prompt_templates"] -%}
+                {% for attribute_name, value in agent_dict.items() if attribute_name not in ["model", "tools", "prompt_templates", "authorized_imports"] -%}
                 {{ attribute_name }}={{ value }},
-                {% endfor %}prompts_path='./prompts.yaml'
+                {% endfor %}prompt_templates=prompt_templates
             )
 
             GradioUI(agent).launch()
@@ -738,7 +742,7 @@ You have been provided with these additional arguments, that you can access usin
     def to_dict(self) -> Dict[str, Any]:
         """Converts agent into a dictionary."""
         # TODO: handle serializing step_callbacks and final_answer_checks
-        for attr in ["final_answer_checks", "step_callbacks", "step_memory_checks", "managed_agents"]:
+        for attr in ["final_answer_checks", "step_callbacks", "managed_agents"]:
             if getattr(self, "final_answer_checks", None) is not None and len(self.final_answer_checks) > 0:
                 self.logger.log(f"This agent has {attr}: they will be ignored by this method.", LogLevel.INFO)
 
@@ -822,7 +826,13 @@ You have been provided with these additional arguments, that you can access usin
             tools.append(Tool.from_code(tool_code))
 
         model_class: Model = getattr(importlib.import_module("smolagents.models"), agent_dict["model"]["class"])
-        model = model_class.from_dict(agent_dict["model"]["data"])
+        model = model_class.from_dict(
+            {
+                k: v
+                for k, v in agent_dict["model"]["data"].items()
+                if k not in ["class", "last_input_token_count", "last_output_token_count"]
+            }
+        )
 
         agent = cls(
             model=model,
