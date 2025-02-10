@@ -679,7 +679,7 @@ You have been provided with these additional arguments, that you can access usin
         # Recursively saved managed agents
         if self.managed_agents:
             for agent_name, agent in self.managed_agents.items():
-                os.makedirs(f"{output_dir}/{agent_name}", exist_ok=True)
+                os.makedirs(os.path.join(output_dir, agent_name), exist_ok=True)
                 agent.save(os.path.join(output_dir, agent_name))
 
         os.makedirs(os.path.join(output_dir, "tools"), exist_ok=True)
