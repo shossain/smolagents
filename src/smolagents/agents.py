@@ -746,7 +746,7 @@ You have been provided with these additional arguments, that you can access usin
                 "class_name": class_name,
                 "agent_dict": agent_dict,
                 "tools": self.tools,
-                "managed_agents": self.managed_agents,
+                "managed_agents": {agent.name: agent.__class__.__name__ for agent in self.managed_agents.values()},
             }
         )
         # TODO: Model objects with parameters
@@ -768,7 +768,9 @@ You have been provided with these additional arguments, that you can access usin
                 "class": self.model.__class__.__name__,
                 "data": self.model.to_dict(),
             },
-            "managed_agents": [managed_agent.name for managed_agent in self.managed_agents.values()],
+            "managed_agents": {
+                managed_agent.name: managed_agent.__class__.__name__ for managed_agent in self.managed_agents.values()
+            },
             "prompt_templates": self.prompt_templates,
             "max_steps": self.max_steps,
             "verbosity_level": int(self.logger.level),
@@ -838,14 +840,16 @@ You have been provided with these additional arguments, that you can access usin
         return cls.from_folder(download_folder)
 
     @classmethod
-    def from_folder(cls, folder: Path):
+    def from_folder(cls, folder: Union[str, Path]):
         """Loads an agent from a local folder"""
+        folder = Path(folder)
         agent_dict = json.loads((folder / "agent.json").read_text())
 
         # Recursively get managed agents
         managed_agents = []
         for managed_agent_name in agent_dict["managed_agents"]:
-            managed_agents.append(cls.from_folder(folder / managed_agent_name))
+            agent_cls = globals()[agent_dict["managed_agents"][managed_agent_name]]
+            managed_agents.append(agent_cls.from_folder(folder / managed_agent_name))
 
         tools = []
         for tool_name in agent_dict["tools"]:
@@ -853,15 +857,9 @@ You have been provided with these additional arguments, that you can access usin
             tools.append(Tool.from_code(tool_code))
 
         model_class: Model = getattr(importlib.import_module("smolagents.models"), agent_dict["model"]["class"])
-        model = model_class.from_dict(
-            {
-                k: v
-                for k, v in agent_dict["model"]["data"].items()
-                if k not in ["class", "last_input_token_count", "last_output_token_count"]
-            }
-        )
+        model = model_class.from_dict(agent_dict["model"]["data"])
 
-        return cls(
+        args = dict(
             model=model,
             tools=tools,
             managed_agents=managed_agents,
@@ -872,6 +870,10 @@ You have been provided with these additional arguments, that you can access usin
             grammar=agent_dict["grammar"],
             verbosity_level=agent_dict["verbosity_level"],
         )
+        print("KKKK", cls.__name__, agent_dict)
+        if cls.__name__ == "CodeAgent":
+            args["additional_authorized_imports"] = agent_dict["authorized_imports"]
+        return cls(**args)
 
     def push_to_hub(
         self,

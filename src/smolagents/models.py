@@ -339,13 +339,34 @@ class Model:
             "last_output_token_count": self.last_output_token_count,
             "model_id": self.model_id,
         }
-        if hasattr(self, "custom_role_conversions"):
-            model_dictionary["custom_role_conversions"] = self.custom_role_conversions
+        for attribute in [
+            "custom_role_conversion",
+            "temperature",
+            "max_tokens",
+            "provider",
+            "token",
+            "timeout",
+            "api_base",
+            "api_key",
+            "torch_dtype",
+            "device_map",
+            "organization",
+            "project",
+            "azure_endpoint",
+        ]:
+            if hasattr(self, attribute):
+                model_dictionary[attribute] = getattr(self, attribute)
         return model_dictionary
 
     @classmethod
     def from_dict(cls, model_dictionary: Dict[str, Any]) -> "Model":
-        model_instance = cls(**model_dictionary)
+        model_instance = cls(
+            **{
+                k: v
+                for k, v in model_dictionary.items()
+                if k not in ["last_input_token_count", "last_output_token_count"]
+            }
+        )
         model_instance.last_input_token_count = model_dictionary.pop("last_input_token_count", None)
         model_instance.last_output_token_count = model_dictionary.pop("last_output_token_count", None)
         return model_instance

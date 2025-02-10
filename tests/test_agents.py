@@ -30,12 +30,13 @@ from smolagents.agents import (
     ToolCall,
     ToolCallingAgent,
 )
-from smolagents.default_tools import PythonInterpreterTool
+from smolagents.default_tools import DuckDuckGoSearchTool, PythonInterpreterTool, VisitWebpageTool
 from smolagents.memory import PlanningStep
 from smolagents.models import (
     ChatMessage,
     ChatMessageToolCall,
     ChatMessageToolCallDefinition,
+    HfApiModel,
     MessageRole,
     TransformersModel,
 )
@@ -435,10 +436,9 @@ class AgentTests(unittest.TestCase):
         assert len(agent.tools) == 1  # when no tools are provided, only the final_answer tool is added by default
 
         toolset_2 = [PythonInterpreterTool(), PythonInterpreterTool()]
-        agent = CodeAgent(tools=toolset_2, model=fake_code_model)
-        assert (
-            len(agent.tools) == 2
-        )  # deduplication of tools, so only one python_interpreter tool is added in addition to final_answer
+        with pytest.raises(AssertionError) as e:
+            agent = CodeAgent(tools=toolset_2, model=fake_code_model)
+        assert "There can be no two tools with the same name!" in str(e)
 
         # check that python_interpreter base tool does not get added to CodeAgent
         agent = CodeAgent(tools=[], model=fake_code_model, add_base_tools=True)
@@ -482,6 +482,158 @@ class AgentTests(unittest.TestCase):
             agent.run("Count to 3")
         str_output = capture.get()
         assert "`additional_authorized_imports`" in str_output.replace("\n", "")
+
+    def test_code_nontrivial_final_answer_works(self):
+        def fake_code_model_final_answer(messages, stop_sequences=None, grammar=None):
+            return ChatMessage(
+                role="assistant",
+                content="""Code:
+```py
+def nested_answer():
+    final_answer("Correct!")
+
+nested_answer()
+```<end_code>""",
+            )
+
+        agent = CodeAgent(tools=[], model=fake_code_model_final_answer)
+
+        output = agent.run("Count to 3")
+        assert output == "Correct!"
+
+    def test_transformers_toolcalling_agent(self):
+        @tool
+        def weather_api(location: str, celsius: bool = False) -> str:
+            """
+            Gets the weather in the next days at given location.
+            Secretly this tool does not care about the location, it hates the weather everywhere.
+
+            Args:
+                location: the location
+                celsius: the temperature type
+            """
+            return "The weather is UNGODLY with torrential rains and temperatures below -10°C"
+
+        model = TransformersModel(
+            model_id="HuggingFaceTB/SmolLM2-360M-Instruct",
+            max_new_tokens=100,
+            device_map="auto",
+            do_sample=False,
+        )
+        agent = ToolCallingAgent(model=model, tools=[weather_api], max_steps=1)
+        agent.run("What's the weather in Paris?")
+        assert agent.memory.steps[0].task == "What's the weather in Paris?"
+        assert agent.memory.steps[1].tool_calls[0].name == "weather_api"
+        step_memory_dict = agent.memory.get_succinct_steps()[1]
+        assert step_memory_dict["model_output_message"].tool_calls[0].function.name == "weather_api"
+        assert step_memory_dict["model_output_message"].raw["completion_kwargs"]["max_new_tokens"] == 100
+        assert "model_input_messages" in agent.memory.get_full_steps()[1]
+
+    def test_final_answer_checks(self):
+        def check_always_fails(final_answer, agent_memory):
+            assert False, "Error raised in check"
+
+        agent = CodeAgent(model=fake_code_model, tools=[], final_answer_checks=[check_always_fails])
+        agent.run("Dummy task.")
+        assert "Error raised in check" in str(agent.write_memory_to_messages())
+
+
+class TestMultiStepAgent:
+    def test_instantiation_disables_logging_to_terminal(self):
+        fake_model = MagicMock()
+        agent = MultiStepAgent(tools=[], model=fake_model)
+        assert agent.logger.level == -1, "logging to terminal should be disabled for testing using a fixture"
+
+    def test_instantiation_with_prompt_templates(self, prompt_templates):
+        agent = MultiStepAgent(tools=[], model=MagicMock(), prompt_templates=prompt_templates)
+        assert agent.prompt_templates == prompt_templates
+        assert agent.prompt_templates["system_prompt"] == "This is a test system prompt."
+        assert "managed_agent" in agent.prompt_templates
+        assert agent.prompt_templates["managed_agent"]["task"] == "Task for {{name}}: {{task}}"
+        assert agent.prompt_templates["managed_agent"]["report"] == "Report for {{name}}: {{final_answer}}"
+
+    def test_step_number(self):
+        fake_model = MagicMock()
+        fake_model.last_input_token_count = 10
+        fake_model.last_output_token_count = 20
+        max_steps = 2
+        agent = MultiStepAgent(tools=[], model=fake_model, max_steps=max_steps)
+        assert hasattr(agent, "step_number"), "step_number attribute should be defined"
+        assert agent.step_number == 0, "step_number should be initialized to 0"
+        agent.run("Test task")
+        assert hasattr(agent, "step_number"), "step_number attribute should be defined"
+        assert agent.step_number == max_steps + 1, "step_number should be max_steps + 1 after run method is called"
+
+    def test_planning_step_first_step(self):
+        fake_model = MagicMock()
+        agent = CodeAgent(
+            tools=[],
+            model=fake_model,
+        )
+        task = "Test task"
+        agent.planning_step(task, is_first_step=True, step=0)
+        assert len(agent.memory.steps) == 1
+        planning_step = agent.memory.steps[0]
+        assert isinstance(planning_step, PlanningStep)
+        messages = planning_step.model_input_messages
+        assert isinstance(messages, list)
+        assert len(messages) == 1
+        for message in messages:
+            assert isinstance(message, dict)
+            assert "role" in message
+            assert "content" in message
+            assert isinstance(message["role"], MessageRole)
+            assert isinstance(message["content"], list)
+            assert len(message["content"]) == 1
+            for content in message["content"]:
+                assert isinstance(content, dict)
+                assert "type" in content
+                assert "text" in content
+        # Test calls to model
+        assert len(fake_model.call_args_list) == 2
+        for call_args in fake_model.call_args_list:
+            assert len(call_args.args) == 1
+            messages = call_args.args[0]
+            assert isinstance(messages, list)
+            assert len(messages) == 1
+            for message in messages:
+                assert isinstance(message, dict)
+                assert "role" in message
+                assert "content" in message
+                assert isinstance(message["role"], MessageRole)
+                assert isinstance(message["content"], list)
+                assert len(message["content"]) == 1
+                for content in message["content"]:
+                    assert isinstance(content, dict)
+                    assert "type" in content
+                    assert "text" in content
+
+
+class MultiAgentsTests(unittest.TestCase):
+    def test_multiagents_save(self):
+        model = HfApiModel("Qwen/Qwen2.5-Coder-32B-Instruct", max_tokens=2096, temperature=0.5)
+
+        web_agent = ToolCallingAgent(
+            model=model,
+            tools=[DuckDuckGoSearchTool(max_results=2), VisitWebpageTool()],
+            name="web_agent",
+            description="does web searches",
+        )
+        code_agent = CodeAgent(model=model, tools=[], name="useless", description="does nothing in particular")
+
+        agent = CodeAgent(
+            model=model,
+            tools=[],
+            additional_authorized_imports=["pandas", "datetime"],
+            managed_agents=[web_agent, code_agent],
+        )
+        agent.save("agent_export")
+        agent2 = CodeAgent.from_folder("agent_export")
+        assert set(agent2.authorized_imports) == set(["pandas", "datetime"] + BASE_BUILTIN_MODULES)
+        assert (
+            agent2.managed_agents["web_agent"].tools["web_search"].max_results == 10
+        )  # For now tool init parameters are forgotten
+        assert agent2.model.kwargs["temperature"] == 0.5
 
     def test_multiagents(self):
         class FakeModelMultiagentsManagerAgent:
@@ -608,131 +760,6 @@ final_answer("Final report.")
 
         # Test that visualization works
         manager_code_agent.visualize()
-
-    def test_code_nontrivial_final_answer_works(self):
-        def fake_code_model_final_answer(messages, stop_sequences=None, grammar=None):
-            return ChatMessage(
-                role="assistant",
-                content="""Code:
-```py
-def nested_answer():
-    final_answer("Correct!")
-
-nested_answer()
-```<end_code>""",
-            )
-
-        agent = CodeAgent(tools=[], model=fake_code_model_final_answer)
-
-        output = agent.run("Count to 3")
-        assert output == "Correct!"
-
-    def test_transformers_toolcalling_agent(self):
-        @tool
-        def weather_api(location: str, celsius: bool = False) -> str:
-            """
-            Gets the weather in the next days at given location.
-            Secretly this tool does not care about the location, it hates the weather everywhere.
-
-            Args:
-                location: the location
-                celsius: the temperature type
-            """
-            return "The weather is UNGODLY with torrential rains and temperatures below -10°C"
-
-        model = TransformersModel(
-            model_id="HuggingFaceTB/SmolLM2-360M-Instruct",
-            max_new_tokens=100,
-            device_map="auto",
-            do_sample=False,
-        )
-        agent = ToolCallingAgent(model=model, tools=[weather_api], max_steps=1)
-        agent.run("What's the weather in Paris?")
-        assert agent.memory.steps[0].task == "What's the weather in Paris?"
-        assert agent.memory.steps[1].tool_calls[0].name == "weather_api"
-        step_memory_dict = agent.memory.get_succinct_steps()[1]
-        assert step_memory_dict["model_output_message"].tool_calls[0].function.name == "weather_api"
-        assert step_memory_dict["model_output_message"].raw["completion_kwargs"]["max_new_tokens"] == 100
-        assert "model_input_messages" in agent.memory.get_full_steps()[1]
-
-    def test_final_answer_checks(self):
-        def check_always_fails(final_answer, agent_memory):
-            assert False, "Error raised in check"
-
-        agent = CodeAgent(model=fake_code_model, tools=[], final_answer_checks=[check_always_fails])
-        agent.run("Dummy task.")
-        assert "Error raised in check" in str(agent.write_memory_to_messages())
-
-
-class TestMultiStepAgent:
-    def test_instantiation_disables_logging_to_terminal(self):
-        fake_model = MagicMock()
-        agent = MultiStepAgent(tools=[], model=fake_model)
-        assert agent.logger.level == -1, "logging to terminal should be disabled for testing using a fixture"
-
-    def test_instantiation_with_prompt_templates(self, prompt_templates):
-        agent = MultiStepAgent(tools=[], model=MagicMock(), prompt_templates=prompt_templates)
-        assert agent.prompt_templates == prompt_templates
-        assert agent.prompt_templates["system_prompt"] == "This is a test system prompt."
-        assert "managed_agent" in agent.prompt_templates
-        assert agent.prompt_templates["managed_agent"]["task"] == "Task for {{name}}: {{task}}"
-        assert agent.prompt_templates["managed_agent"]["report"] == "Report for {{name}}: {{final_answer}}"
-
-    def test_step_number(self):
-        fake_model = MagicMock()
-        fake_model.last_input_token_count = 10
-        fake_model.last_output_token_count = 20
-        max_steps = 2
-        agent = MultiStepAgent(tools=[], model=fake_model, max_steps=max_steps)
-        assert hasattr(agent, "step_number"), "step_number attribute should be defined"
-        assert agent.step_number == 0, "step_number should be initialized to 0"
-        agent.run("Test task")
-        assert hasattr(agent, "step_number"), "step_number attribute should be defined"
-        assert agent.step_number == max_steps + 1, "step_number should be max_steps + 1 after run method is called"
-
-    def test_planning_step_first_step(self):
-        fake_model = MagicMock()
-        agent = CodeAgent(
-            tools=[],
-            model=fake_model,
-        )
-        task = "Test task"
-        agent.planning_step(task, is_first_step=True, step=0)
-        assert len(agent.memory.steps) == 1
-        planning_step = agent.memory.steps[0]
-        assert isinstance(planning_step, PlanningStep)
-        messages = planning_step.model_input_messages
-        assert isinstance(messages, list)
-        assert len(messages) == 1
-        for message in messages:
-            assert isinstance(message, dict)
-            assert "role" in message
-            assert "content" in message
-            assert isinstance(message["role"], MessageRole)
-            assert isinstance(message["content"], list)
-            assert len(message["content"]) == 1
-            for content in message["content"]:
-                assert isinstance(content, dict)
-                assert "type" in content
-                assert "text" in content
-        # Test calls to model
-        assert len(fake_model.call_args_list) == 2
-        for call_args in fake_model.call_args_list:
-            assert len(call_args.args) == 1
-            messages = call_args.args[0]
-            assert isinstance(messages, list)
-            assert len(messages) == 1
-            for message in messages:
-                assert isinstance(message, dict)
-                assert "role" in message
-                assert "content" in message
-                assert isinstance(message["role"], MessageRole)
-                assert isinstance(message["content"], list)
-                assert len(message["content"]) == 1
-                for content in message["content"]:
-                    assert isinstance(content, dict)
-                    assert "type" in content
-                    assert "text" in content
 
 
 @pytest.fixture
