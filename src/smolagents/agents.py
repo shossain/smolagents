@@ -772,8 +772,6 @@ You have been provided with these additional arguments, that you can access usin
                 "managed_agents": self.managed_agents,
             }
         )
-        # TODO: Model objects with parameters
-        # TODO: Tool objects with parameters
 
         with open(os.path.join(output_dir, "app.py"), "w", encoding="utf-8") as f:
             f.write(app_text + "\n")  # Append newline at the end
