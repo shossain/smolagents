@@ -682,7 +682,7 @@ You have been provided with these additional arguments, that you can access usin
                 os.makedirs(f"{output_dir}/{agent_name}", exist_ok=True)
                 agent.save(f"{output_dir}/{agent_name}")
 
-        os.makedirs(f"{output_dir}/tools", exist_ok=True)
+        os.makedirs(os.path.join(output_dir, "tools"), exist_ok=True)
         class_name = self.__class__.__name__
 
         # Save tools to different .py files
