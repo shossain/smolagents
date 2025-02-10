@@ -731,8 +731,8 @@ You have been provided with these additional arguments, that you can access usin
             {% for tool in tools.values() -%}
             from tools.{{ tool.name }} import {{ tool.__class__.__name__ }}
             {% endfor %}
-            {% for agent in managed_agents.values() -%}
-            from {{ agent.name }} import agent_{{ agent.name }}
+            {% for managed_agent in managed_agents.values() -%}
+            from {{ managed_agent.name }}.app import agent_{{ managed_agent.name }}
             {% endfor %}
 
             model = {{ agent_dict['model']['class'] }}(
@@ -758,7 +758,7 @@ You have been provided with these additional arguments, that you can access usin
             if __name__ == "__main__":
                 GradioUI({{ agent_name }}).launch()
             """).strip()
-        template_env = jinja2.Environment(loader=jinja2.BaseLoader())
+        template_env = jinja2.Environment(loader=jinja2.BaseLoader(), undefined=jinja2.StrictUndefined)
         template_env.filters["repr"] = repr
         template = template_env.from_string(app_template)
 
@@ -769,7 +769,7 @@ You have been provided with these additional arguments, that you can access usin
                 "class_name": class_name,
                 "agent_dict": agent_dict,
                 "tools": self.tools,
-                "managed_agents": {agent.name: agent.__class__.__name__ for agent in self.managed_agents.values()},
+                "managed_agents": self.managed_agents,
             }
         )
         # TODO: Model objects with parameters
