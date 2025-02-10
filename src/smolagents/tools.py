@@ -424,11 +424,14 @@ class Tool:
         exec(tool_code, module.__dict__)
 
         # Find the Tool subclass
-        tool_class = None
-        for item in module.__dict__.values():
-            if isinstance(item, type) and issubclass(item, Tool) and item != Tool:
-                tool_class = item
-                break
+        tool_class = next(
+            (
+                obj
+                for _, obj in inspect.getmembers(module, inspect.isclass)
+                if issubclass(obj, Tool) and obj is not Tool
+            ),
+            None,
+        )
 
         if tool_class is None:
             raise ValueError("No Tool subclass found in the code.")
