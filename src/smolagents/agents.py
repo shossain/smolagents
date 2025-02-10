@@ -653,6 +653,13 @@ You have been provided with these additional arguments, that you can access usin
         Args:
             output_dir (`str`): The folder in which you want to save your tool.
         """
+        # Recursively saved managed agents
+        if self.managed_agents:
+            for agent_name, agent in self.managed_agents.items():
+                os.makedirs(f"{output_dir}/{agent_name}", exist_ok=True)
+                agent.save(f"{output_dir}/{agent_name}")
+
+
         os.makedirs(f"{output_dir}/tools", exist_ok=True)
         class_name = self.__class__.__name__
 
@@ -694,12 +701,16 @@ You have been provided with these additional arguments, that you can access usin
             f.write("\n".join(requirements) + "\n")
 
         # Make agent.py file with Gradio UI
+        agent_name = "agent_" + self.name if hasattr(self, "name") and self.name else "agent"
         app_template = textwrap.dedent("""
             import yaml
             from smolagents import GradioUI, {{ class_name }}, {{ agent_dict['model']['class'] }}
 
             {% for tool in tools.values() -%}
             from tools.{{ tool.name }} import {{ tool.__class__.__name__ }}
+            {% endfor %}
+            {% for agent in managed_agents.values() -%}
+            from {{ agent.name }} import agent_{{ agent.name }}
             {% endfor %}
 
             model = {{ agent_dict['model']['class'] }}(
@@ -714,30 +725,34 @@ You have been provided with these additional arguments, that you can access usin
             with open("prompts.yaml", 'r') as stream:
                 prompt_templates = yaml.safe_load(stream)
 
-            agent = {{ class_name }}(
+            {{ agent_name }} = {{ class_name }}(
                 model=model,
-                tools=[{% for tool in tools.keys() %}{{ tool }}{% if not loop.last %}, {% endif %}{% endfor %}],
-                {% for attribute_name, value in agent_dict.items() if attribute_name not in ["model", "tools", "prompt_templates", "authorized_imports"] -%}
-                {{ attribute_name }}={{ value }},
+                tools=[{% for tool_name in tools.keys() if tool_name != "final_answer" %}{{ tool_name }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                managed_agents=[{% for subagent_name in managed_agents.keys() %}agent_{{ subagent_name }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                {% for attribute_name, value in agent_dict.items() if attribute_name not in ["model", "tools", "prompt_templates", "authorized_imports", "managed_agents"] -%}
+                {{ attribute_name }}={{ value|repr }},
                 {% endfor %}prompt_templates=prompt_templates
             )
 
-            GradioUI(agent).launch()
-            """)
+            GradioUI({{ agent_name }}).launch()
+            """).strip()
         template_env = jinja2.Environment(loader=jinja2.BaseLoader())
         template_env.filters["repr"] = repr
         template = template_env.from_string(app_template)
 
-        # Prepare the context variables for Jinja2 rendering
-        context = {"class_name": class_name, "agent_dict": agent_dict, "tools": self.tools}
-
         # Render the app.py file from Jinja2 template
-        app_text = template.render(context)
+        app_text = template.render({
+            "agent_name": agent_name,
+            "class_name": class_name,
+            "agent_dict": agent_dict,
+            "tools": self.tools,
+            "managed_agents": self.managed_agents,
+        })
         # TODO: Model objects with parameters
         # TODO: Tool objects with parameters
 
         with open(os.path.join(output_dir, "app.py"), "w", encoding="utf-8") as f:
-            f.write(app_text)
+            f.write(app_text + "\n") # Append newline at the end
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts agent into a dictionary."""
@@ -820,7 +835,10 @@ You have been provided with these additional arguments, that you can access usin
         download_folder = Path(snapshot_download(repo_id=repo_id, **download_kwargs))
         agent_dict = json.loads((download_folder / "agent.json").read_text())
 
-        tools = []
+        # Recursively get managed agents
+        # for managed_agent in 
+
+        # tools = []
         for tool_name in agent_dict["tools"]:
             tool_code = (download_folder / "tools" / f"{tool_name}.py").read_text()
             tools.append(Tool.from_code(tool_code))

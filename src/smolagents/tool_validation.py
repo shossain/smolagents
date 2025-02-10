@@ -171,7 +171,9 @@ def validate_tool_attributes(cls, check_imports: bool = True) -> None:
         non_default_params = [
             arg_name
             for arg_name, param in sig.parameters.items()
-            if arg_name != "self" and param.default == inspect.Parameter.empty
+            if arg_name != "self"
+            and param.default == inspect.Parameter.empty
+            and param.kind != inspect.Parameter.VAR_KEYWORD  # Excludes **kwargs
         ]
         if non_default_params:
             errors.append(
@@ -228,5 +230,5 @@ def validate_tool_attributes(cls, check_imports: bool = True) -> None:
             errors += [f"- {node.name}: {error}" for error in method_checker.errors]
 
     if errors:
-        raise ValueError("Tool validation failed:\n" + "\n".join(errors))
+        raise ValueError(f"Tool validation failed for {cls.__name__}:\n" + "\n".join(errors))
     return
