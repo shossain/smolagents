@@ -687,7 +687,7 @@ You have been provided with these additional arguments, that you can access usin
 
         # Save tools to different .py files
         for tool in self.tools.values():
-            tool.save(output_dir, f"tools/{tool.name}.py")
+            tool.save(output_dir, os.path.join("tools", "f{tool.name}.py"))
 
         # Save prompts to yaml
         yaml_prompts = yaml.dump(
