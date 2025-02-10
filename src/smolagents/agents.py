@@ -711,14 +711,16 @@ You have been provided with these additional arguments, that you can access usin
 
         # Save requirements
         requirements_file = os.path.join(output_dir, "requirements.txt")
-        requirements = []
+        requirements = set()
         if hasattr(self, "authorized_imports"):
-            requirements += [
-                package.split(".")[0] for package in self.authorized_imports if package not in BASE_BUILTIN_MODULES
-            ]
+            requirements.update(
+                set(
+                    package.split(".")[0] for package in self.authorized_imports if package not in BASE_BUILTIN_MODULES
+                )
+            )
         for tool in self.tools.values():
-            requirements += tool.to_dict()["requirements"]
-        requirements = list(set(requirements))  # Deduplicate valus
+            requirements.update(set(tool.to_dict()["requirements"]))
+
         with open(requirements_file, "w", encoding="utf-8") as f:
             f.write("\n".join(requirements) + "\n")
 
