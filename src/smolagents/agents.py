@@ -893,7 +893,6 @@ You have been provided with these additional arguments, that you can access usin
             grammar=agent_dict["grammar"],
             verbosity_level=agent_dict["verbosity_level"],
         )
-        print("KKKK", cls.__name__, agent_dict)
         if cls.__name__ == "CodeAgent":
             args["additional_authorized_imports"] = agent_dict["authorized_imports"]
         return cls(**args)
