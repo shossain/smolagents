@@ -659,7 +659,6 @@ You have been provided with these additional arguments, that you can access usin
                 os.makedirs(f"{output_dir}/{agent_name}", exist_ok=True)
                 agent.save(f"{output_dir}/{agent_name}")
 
-
         os.makedirs(f"{output_dir}/tools", exist_ok=True)
         class_name = self.__class__.__name__
 
@@ -733,31 +732,33 @@ You have been provided with these additional arguments, that you can access usin
                 {{ attribute_name }}={{ value|repr }},
                 {% endfor %}prompt_templates=prompt_templates
             )
-
-            GradioUI({{ agent_name }}).launch()
+            if __name__ == "__main__":
+                GradioUI({{ agent_name }}).launch()
             """).strip()
         template_env = jinja2.Environment(loader=jinja2.BaseLoader())
         template_env.filters["repr"] = repr
         template = template_env.from_string(app_template)
 
         # Render the app.py file from Jinja2 template
-        app_text = template.render({
-            "agent_name": agent_name,
-            "class_name": class_name,
-            "agent_dict": agent_dict,
-            "tools": self.tools,
-            "managed_agents": self.managed_agents,
-        })
+        app_text = template.render(
+            {
+                "agent_name": agent_name,
+                "class_name": class_name,
+                "agent_dict": agent_dict,
+                "tools": self.tools,
+                "managed_agents": self.managed_agents,
+            }
+        )
         # TODO: Model objects with parameters
         # TODO: Tool objects with parameters
 
         with open(os.path.join(output_dir, "app.py"), "w", encoding="utf-8") as f:
-            f.write(app_text + "\n") # Append newline at the end
+            f.write(app_text + "\n")  # Append newline at the end
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts agent into a dictionary."""
         # TODO: handle serializing step_callbacks and final_answer_checks
-        for attr in ["final_answer_checks", "step_callbacks", "managed_agents"]:
+        for attr in ["final_answer_checks", "step_callbacks"]:
             if getattr(self, "final_answer_checks", None) is not None and len(self.final_answer_checks) > 0:
                 self.logger.log(f"This agent has {attr}: they will be ignored by this method.", LogLevel.INFO)
 
@@ -767,6 +768,7 @@ You have been provided with these additional arguments, that you can access usin
                 "class": self.model.__class__.__name__,
                 "data": self.model.to_dict(),
             },
+            "managed_agents": [managed_agent.name for managed_agent in self.managed_agents.values()],
             "prompt_templates": self.prompt_templates,
             "max_steps": self.max_steps,
             "verbosity_level": int(self.logger.level),
@@ -833,14 +835,21 @@ You have been provided with these additional arguments, that you can access usin
         }
 
         download_folder = Path(snapshot_download(repo_id=repo_id, **download_kwargs))
-        agent_dict = json.loads((download_folder / "agent.json").read_text())
+        return cls.from_folder(download_folder)
+
+    @classmethod
+    def from_folder(cls, folder: Path):
+        """Loads an agent from a local folder"""
+        agent_dict = json.loads((folder / "agent.json").read_text())
 
         # Recursively get managed agents
-        # for managed_agent in 
+        managed_agents = []
+        for managed_agent_name in agent_dict["managed_agents"]:
+            managed_agents.append(cls.from_folder(folder / managed_agent_name))
 
-        # tools = []
+        tools = []
         for tool_name in agent_dict["tools"]:
-            tool_code = (download_folder / "tools" / f"{tool_name}.py").read_text()
+            tool_code = (folder / "tools" / f"{tool_name}.py").read_text()
             tools.append(Tool.from_code(tool_code))
 
         model_class: Model = getattr(importlib.import_module("smolagents.models"), agent_dict["model"]["class"])
@@ -852,18 +861,17 @@ You have been provided with these additional arguments, that you can access usin
             }
         )
 
-        agent = cls(
+        return cls(
             model=model,
             tools=tools,
+            managed_agents=managed_agents,
+            name=agent_dict["name"],
+            description=agent_dict["description"],
             max_steps=agent_dict["max_steps"],
             planning_interval=agent_dict["planning_interval"],
             grammar=agent_dict["grammar"],
             verbosity_level=agent_dict["verbosity_level"],
-            **kwargs,
         )
-
-        # TODO: add managed_agents with managed_agents=[MultiStepAgent.from_dict(agent_data) for name, agent_data in data["managed_agents"].items()],
-        return agent
 
     def push_to_hub(
         self,
