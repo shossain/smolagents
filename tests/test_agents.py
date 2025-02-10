@@ -438,7 +438,13 @@ class AgentTests(unittest.TestCase):
         toolset_2 = [PythonInterpreterTool(), PythonInterpreterTool()]
         with pytest.raises(AssertionError) as e:
             agent = CodeAgent(tools=toolset_2, model=fake_code_model)
-        assert "There can be no two tools with the same name!" in str(e)
+        assert "Each tool or managed_agent should have a unique name!" in str(e)
+
+        with pytest.raises(AssertionError) as e:
+            agent.name = "python_interpreter"
+            agent.description="empty"
+            CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model, managed_agents=[agent])
+        assert "Each tool or managed_agent should have a unique name!" in str(e)
 
         # check that python_interpreter base tool does not get added to CodeAgent
         agent = CodeAgent(tools=[], model=fake_code_model, add_base_tools=True)

@@ -154,9 +154,13 @@ class MultiStepAgent:
         for tool in tools:
             assert isinstance(tool, Tool), f"This element is not of class Tool: {str(tool)}"
 
-        duplicate_tool_names = [name for name, count in Counter(tool.name for tool in tools).items() if count > 1]
+        duplicate_tool_names = [
+            name
+            for name, count in Counter([tool.name for tool in tools] + list(self.managed_agents.keys())).items()
+            if count > 1
+        ]
         assert len(duplicate_tool_names) == 0, (
-            f"There can be no two tools with the same name! You passed these duplicate tool names: {duplicate_tool_names}"
+            f"Each tool or managed_agent should have a unique name! You passed these duplicate names: {duplicate_tool_names}"
         )
         self.tools = {tool.name: tool for tool in tools}
         if add_base_tools:
