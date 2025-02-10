@@ -217,7 +217,7 @@ class Tool:
             tool_code = textwrap.dedent(
                 f"""
             from smolagents import Tool
-            from typing import Optional, Any
+            from typing import Any, Optional
 
             class {class_name}(Tool):
                 name = "{self.name}"

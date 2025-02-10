@@ -442,7 +442,7 @@ class AgentTests(unittest.TestCase):
 
         with pytest.raises(AssertionError) as e:
             agent.name = "python_interpreter"
-            agent.description="empty"
+            agent.description = "empty"
             CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model, managed_agents=[agent])
         assert "Each tool or managed_agent should have a unique name!" in str(e)
 

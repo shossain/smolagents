@@ -150,7 +150,8 @@ def test_e2e_class_tool_save():
         assert set(os.listdir(tmp_dir)) == {"requirements.txt", "app.py", "tool.py"}
         assert (
             pathlib.Path(tmp_dir, "tool.py").read_text()
-            == """from smolagents.tools import Tool
+            == """from typing import Any, Optional
+from smolagents.tools import Tool
 import IPython
 
 class TestTool(Tool):
@@ -173,7 +174,6 @@ class TestTool(Tool):
         assert (
             pathlib.Path(tmp_dir, "app.py").read_text()
             == """from smolagents import launch_gradio_demo
-from typing import Optional
 from tool import TestTool
 
 tool = TestTool()
@@ -207,7 +207,8 @@ def test_e2e_ipython_class_tool_save():
         assert set(os.listdir(tmp_dir)) == {"requirements.txt", "app.py", "tool.py"}
         assert (
             pathlib.Path(tmp_dir, "tool.py").read_text()
-            == """from smolagents.tools import Tool
+            == """from typing import Any, Optional
+from smolagents.tools import Tool
 import IPython
 
 class TestTool(Tool):
@@ -230,7 +231,6 @@ class TestTool(Tool):
         assert (
             pathlib.Path(tmp_dir, "app.py").read_text()
             == """from smolagents import launch_gradio_demo
-from typing import Optional
 from tool import TestTool
 
 tool = TestTool()
@@ -259,7 +259,7 @@ def test_e2e_function_tool_save():
         assert (
             pathlib.Path(tmp_dir, "tool.py").read_text()
             == """from smolagents import Tool
-from typing import Optional
+from typing import Any, Optional
 
 class SimpleTool(Tool):
     name = "test_tool"
@@ -283,7 +283,6 @@ class SimpleTool(Tool):
         assert (
             pathlib.Path(tmp_dir, "app.py").read_text()
             == """from smolagents import launch_gradio_demo
-from typing import Optional
 from tool import SimpleTool
 
 tool = SimpleTool()
@@ -318,7 +317,7 @@ def test_e2e_ipython_function_tool_save():
         assert (
             pathlib.Path(tmp_dir, "tool.py").read_text()
             == """from smolagents import Tool
-from typing import Optional
+from typing import Any, Optional
 
 class SimpleTool(Tool):
     name = "test_tool"
@@ -342,7 +341,6 @@ class SimpleTool(Tool):
         assert (
             pathlib.Path(tmp_dir, "app.py").read_text()
             == """from smolagents import launch_gradio_demo
-from typing import Optional
 from tool import SimpleTool
 
 tool = SimpleTool()
