@@ -658,14 +658,15 @@ You have been provided with these additional arguments, that you can access usin
             answer += "\n</summary_of_work>"
         return answer
 
-    def save(self, output_dir: str):
+    def save(self, output_dir: str, tool_file_name: str = "tool.py", make_gradio_app: bool = False):
         """
-        Saves the relevant code files for your agent so it can be pushed to the Hub. This will copy the code of your
-        agent in `output_dir` as well as autogenerate:
+        Saves the relevant code files for your agent. This will copy the code of your agent in `output_dir` as well as autogenerate:
 
-        - a `tools`folder containing the logic for each of the tools under `tools/{tool_name}.py`.
+        - a `tools` folder containing the logic for each of the tools under `tools/{tool_name}.py`.
+        - a `managed_agents` folder containing the logic for each of the managed agents.
         - an `agent.json` file containing a dictionary representing your agent.
         - a `prompt.yaml` file containing the prompt templates used by your agent.
+        If you pass `make_gradio_app=True`, this will also write:
         - an `app.py` file providing a UI for your agent when it is exported to a Space with `agent.push_to_hub()`
         - a `requirements.txt` containing the names of the modules used by your tool (as detected when inspecting its
           code)
@@ -677,7 +678,7 @@ You have been provided with these additional arguments, that you can access usin
         if self.managed_agents:
             for agent_name, agent in self.managed_agents.items():
                 os.makedirs(os.path.join(output_dir, "managed_agents", agent_name), exist_ok=True)
-                agent.save(os.path.join(output_dir, "managed_agents", agent_name))
+                agent.save(os.path.join(output_dir, "managed_agents", agent_name), make_gradio_app=False)
 
         class_name = self.__class__.__name__
 
@@ -705,73 +706,65 @@ You have been provided with these additional arguments, that you can access usin
         with open(os.path.join(output_dir, "agent.json"), "w", encoding="utf-8") as f:
             json.dump(agent_dict, f, indent=4)
 
-        # Save requirements
-        requirements_file = os.path.join(output_dir, "requirements.txt")
-        requirements = {req for tool in self.tools.values() for req in tool.to_dict()["requirements"]}
-        if hasattr(self, "authorized_imports"):
-            requirements.update({
-                package.split(".")[0]
-                for package in self.authorized_imports
-                if package not in BASE_BUILTIN_MODULES
-            })
+        if make_gradio_app:
+            # Save requirements
+            with open(os.path.join(output_dir, "requirements.txt"), "w", encoding="utf-8") as f:
+                f.writelines(f"{r}\n" for r in agent_dict["requirements"])
 
-        with open(requirements_file, "w", encoding="utf-8") as f:
-            f.writelines(f"{r}\n" for r in requirements)
+            # Make agent.py file with Gradio UI
+            agent_name = f"agent_{self.name}" if getattr(self, "name", None) else "agent"
+            app_template = textwrap.dedent("""
+                import yaml
+                from smolagents import GradioUI, {{ class_name }}, {{ agent_dict['model']['class'] }}
 
-        # Make agent.py file with Gradio UI
-        agent_name = f"agent_{self.name}" if getattr(self, "name", None) else "agent"
-        app_template = textwrap.dedent("""
-            import yaml
-            from smolagents import GradioUI, {{ class_name }}, {{ agent_dict['model']['class'] }}
+                {% for tool in tools.values() -%}
+                from tools.{{ tool.name }} import {{ tool.__class__.__name__ }} as {{ tool.name | camelcase }}
+                {% endfor %}
+                {% for managed_agent in managed_agents.values() -%}
+                from managed_agents.{{ managed_agent.name }}.app import agent_{{ managed_agent.name }}
+                {% endfor %}
 
-            {% for tool in tools.values() -%}
-            from tools.{{ tool.name }} import {{ tool.__class__.__name__ }} as {{ tool.name | camelcase }}
-            {% endfor %}
-            {% for managed_agent in managed_agents.values() -%}
-            from {{ managed_agent.name }}.app import agent_{{ managed_agent.name }}
-            {% endfor %}
+                model = {{ agent_dict['model']['class'] }}(
+                {% for key in agent_dict['model']['data'] if key not in ['class', 'last_input_token_count', 'last_output_token_count'] -%}
+                    {{ key }}={{ agent_dict['model']['data'][key]|repr }},
+                {% endfor %})
 
-            model = {{ agent_dict['model']['class'] }}(
-            {% for key in agent_dict['model']['data'] if key not in ['class', 'last_input_token_count', 'last_output_token_count'] -%}
-                {{ key }}={{ agent_dict['model']['data'][key]|repr }},
-            {% endfor %})
+                {% for tool in tools.values() -%}
+                {{ tool.name }} = {{ tool.name | camelcase }}()
+                {% endfor %}
 
-            {% for tool in tools.values() -%}
-            {{ tool.name }} = {{ tool.name | camelcase }}()
-            {% endfor %}
+                with open("prompts.yaml", 'r') as stream:
+                    prompt_templates = yaml.safe_load(stream)
 
-            with open("prompts.yaml", 'r') as stream:
-                prompt_templates = yaml.safe_load(stream)
+                {{ agent_name }} = {{ class_name }}(
+                    model=model,
+                    tools=[{% for tool_name in tools.keys() if tool_name != "final_answer" %}{{ tool_name }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                    managed_agents=[{% for subagent_name in managed_agents.keys() %}agent_{{ subagent_name }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                    {% for attribute_name, value in agent_dict.items() if attribute_name not in ["model", "tools", "prompt_templates", "authorized_imports", "managed_agents"] -%}
+                    {{ attribute_name }}={{ value|repr }},
+                    {% endfor %}prompt_templates=prompt_templates
+                )
+                if __name__ == "__main__":
+                    GradioUI({{ agent_name }}).launch()
+                """).strip()
+            template_env = jinja2.Environment(loader=jinja2.BaseLoader(), undefined=jinja2.StrictUndefined)
+            template_env.filters["repr"] = repr
+            template_env.filters["camelcase"] = lambda value: "".join(word.capitalize() for word in value.split("_"))
+            template = template_env.from_string(app_template)
 
-            {{ agent_name }} = {{ class_name }}(
-                model=model,
-                tools=[{% for tool_name in tools.keys() if tool_name != "final_answer" %}{{ tool_name }}{% if not loop.last %}, {% endif %}{% endfor %}],
-                managed_agents=[{% for subagent_name in managed_agents.keys() %}agent_{{ subagent_name }}{% if not loop.last %}, {% endif %}{% endfor %}],
-                {% for attribute_name, value in agent_dict.items() if attribute_name not in ["model", "tools", "prompt_templates", "authorized_imports", "managed_agents"] -%}
-                {{ attribute_name }}={{ value|repr }},
-                {% endfor %}prompt_templates=prompt_templates
+            # Render the app.py file from Jinja2 template
+            app_text = template.render(
+                {
+                    "agent_name": agent_name,
+                    "class_name": class_name,
+                    "agent_dict": agent_dict,
+                    "tools": self.tools,
+                    "managed_agents": self.managed_agents,
+                }
             )
-            if __name__ == "__main__":
-                GradioUI({{ agent_name }}).launch()
-            """).strip()
-        template_env = jinja2.Environment(loader=jinja2.BaseLoader(), undefined=jinja2.StrictUndefined)
-        template_env.filters["repr"] = repr
-        template_env.filters["camelcase"] = lambda value: "".join(word.capitalize() for word in value.split("_"))
-        template = template_env.from_string(app_template)
 
-        # Render the app.py file from Jinja2 template
-        app_text = template.render(
-            {
-                "agent_name": agent_name,
-                "class_name": class_name,
-                "agent_dict": agent_dict,
-                "tools": self.tools,
-                "managed_agents": self.managed_agents,
-            }
-        )
-
-        with open(os.path.join(output_dir, "app.py"), "w", encoding="utf-8") as f:
-            f.write(app_text + "\n")  # Append newline at the end
+            with open(os.path.join(output_dir, "app.py"), "w", encoding="utf-8") as f:
+                f.write(app_text + "\n")  # Append newline at the end
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts agent into a dictionary."""
@@ -780,8 +773,19 @@ You have been provided with these additional arguments, that you can access usin
             if getattr(self, attr, None):
                 self.logger.log(f"This agent has {attr}: they will be ignored by this method.", LogLevel.INFO)
 
+        tool_dicts = [tool.to_dict() for tool in self.tools.values()]
+        tool_requirements = {req for tool in self.tools.values() for req in tool.to_dict()["requirements"]}
+        managed_agents_requirements = {
+            req for managed_agent in self.managed_agents.values() for req in managed_agent.to_dict()["requirements"]
+        }
+        requirements = tool_requirements | managed_agents_requirements
+        if hasattr(self, "authorized_imports"):
+            requirements.update(
+                {package.split(".")[0] for package in self.authorized_imports if package not in BASE_BUILTIN_MODULES}
+            )
+
         agent_dict = {
-            "tools": [tool.to_dict() for tool in self.tools.values()],
+            "tools": tool_dicts,
             "model": {
                 "class": self.model.__class__.__name__,
                 "data": self.model.to_dict(),
@@ -796,6 +800,7 @@ You have been provided with these additional arguments, that you can access usin
             "planning_interval": self.planning_interval,
             "name": self.name,
             "description": self.description,
+            "requirements": list(requirements),
         }
         if hasattr(self, "authorized_imports"):
             agent_dict["authorized_imports"] = self.authorized_imports
@@ -935,7 +940,7 @@ You have been provided with these additional arguments, that you can access usin
         )
 
         with tempfile.TemporaryDirectory() as work_dir:
-            self.save(work_dir)
+            self.save(work_dir, make_gradio_app=True)
             logger.info(f"Uploading the following files to {repo_id}: {','.join(os.listdir(work_dir))}")
             return upload_folder(
                 repo_id=repo_id,
