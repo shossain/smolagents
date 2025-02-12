@@ -666,7 +666,7 @@ You have been provided with these additional arguments, that you can access usin
         - a `tools`folder containing the logic for each of the tools under `tools/{tool_name}.py`.
         - an `agent.json` file containing a dictionary representing your agent.
         - a `prompt.yaml` file containing the prompt templates used by your agent.
-        - an `app.py` file providing an UI for your agent when it is exported to a Space with `agent.push_to_hub()`
+        - an `app.py` file providing a UI for your agent when it is exported to a Space with `agent.push_to_hub()`
         - a `requirements.txt` containing the names of the modules used by your tool (as detected when inspecting its
           code)
 
