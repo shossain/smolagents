@@ -670,13 +670,44 @@ class MultiAgentsTests(unittest.TestCase):
             additional_authorized_imports=["pandas", "datetime"],
             managed_agents=[web_agent, code_agent],
         )
-        agent.save("agent_export")
+        agent.save("agent_export", make_gradio_app=True)
+
+        expected_structure = {
+            "managed_agents": {
+                "useless": {"tools": {"files": ["final_answer.py"]}, "files": ["agent.json", "prompts.yaml"]},
+                "web_agent": {
+                    "tools": {"files": ["final_answer.py", "visit_webpage.py", "web_search.py"]},
+                    "files": ["agent.json", "prompts.yaml"],
+                },
+            },
+            "tools": {"files": ["final_answer.py"]},
+            "files": ["app.py", "requirements.txt", "agent.json", "prompts.yaml"],
+        }
+
+        def verify_structure(current_path: Path, structure: dict):
+            for dir_name, contents in structure.items():
+                if dir_name != "files":
+                    # For directories, verify they exist and recurse into them
+                    dir_path = current_path / dir_name
+                    assert dir_path.exists(), f"Directory {dir_path} does not exist"
+                    assert dir_path.is_dir(), f"{dir_path} is not a directory"
+                    verify_structure(dir_path, contents)
+                else:
+                    # For files, verify each exists in the current path
+                    for file_name in contents:
+                        file_path = current_path / file_name
+                        assert file_path.exists(), f"File {file_path} does not exist"
+                        assert file_path.is_file(), f"{file_path} is not a file"
+
+        verify_structure(Path("agent_export"), expected_structure)
+
+        # Test that re-loaded agents work as expected.
         agent2 = CodeAgent.from_folder("agent_export")
         assert set(agent2.authorized_imports) == set(["pandas", "datetime"] + BASE_BUILTIN_MODULES)
         assert (
             agent2.managed_agents["web_agent"].tools["web_search"].max_results == 10
         )  # For now tool init parameters are forgotten
-        assert agent2.model.kwargs["temperature"] == 0.5
+        assert agent2.model.kwargs["temperature"] == pytest.approx(0.5)
 
     def test_multiagents(self):
         class FakeModelMultiagentsManagerAgent:

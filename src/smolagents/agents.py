@@ -872,7 +872,7 @@ You have been provided with these additional arguments, that you can access usin
         managed_agents = []
         for managed_agent_name in agent_dict["managed_agents"]:
             agent_cls = globals()[agent_dict["managed_agents"][managed_agent_name]]
-            managed_agents.append(agent_cls.from_folder(folder / managed_agent_name))
+            managed_agents.append(agent_cls.from_folder(folder / "managed_agents" / managed_agent_name))
 
         tools = []
         for tool_name in agent_dict["tools"]:
