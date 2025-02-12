@@ -22,7 +22,7 @@ import re
 import tempfile
 import textwrap
 import time
-from collections import Counter, deque
+from collections import deque
 from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
