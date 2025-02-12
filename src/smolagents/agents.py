@@ -828,7 +828,7 @@ You have been provided with these additional arguments, that you can access usin
             token (`str`, *optional*):
                 The token to identify you on hf.co. If unset, will use the token generated when running
                 `huggingface-cli login` (stored in `~/.huggingface`).
-            trust_remote_code(`str`, *optional*, defaults to False):
+            trust_remote_code(`bool`, *optional*, defaults to False):
                 This flags marks that you understand the risk of running remote code and that you trust this tool.
                 If not setting this to True, loading the tool from Hub will fail.
             kwargs (additional keyword arguments, *optional*):
