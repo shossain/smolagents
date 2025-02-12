@@ -269,8 +269,8 @@ class Tool:
         tool in `output_dir` as well as autogenerate:
 
         - a `tool.py` file containing the logic for your tool.
-        - an `app.py` file providing an UI for your tool when it is exported to a Space with `tool.push_to_hub()`
-        - a `requirements.txt` containing the names of the module used by your tool (as detected when inspecting its
+        - an `app.py` file providing a UI for your tool when it is exported to a Space with `tool.push_to_hub()`
+        - a `requirements.txt` containing the names of the modules used by your tool (as detected when inspecting its
           code)
 
         Args:
