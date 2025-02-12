@@ -343,7 +343,7 @@ class Tool:
         )
         repo_id = repo_url.repo_id
         metadata_update(
-            repo_id, {"tags": ["smolagents", "agent", "smolagent", "tool"]}, repo_type="space", token=token
+            repo_id, {"tags": ["smolagents", "tool"]}, repo_type="space", token=token
         )
 
         with tempfile.TemporaryDirectory() as work_dir:
