@@ -263,7 +263,7 @@ class Tool:
 
         return {"name": self.name, "code": tool_code, "requirements": requirements}
 
-    def save(self, output_dir, tool_file_name: str = "tool.py"):
+    def save(self, output_dir: str, tool_file_name: str = "tool.py"):
         """
         Saves the relevant code files for your tool so it can be pushed to the Hub. This will copy the code of your
         tool in `output_dir` as well as autogenerate:
