@@ -687,7 +687,7 @@ You have been provided with these additional arguments, that you can access usin
             tool.save(os.path.join(output_dir, "tools"), f"{tool.name}.py")
 
         # Save prompts to yaml
-        yaml_prompts = yaml.dump(
+        yaml_prompts = yaml.safe_dump(
             self.prompt_templates,
             default_style="|",  # This forces block literals for all strings
             default_flow_style=False,
