@@ -779,7 +779,7 @@ You have been provided with these additional arguments, that you can access usin
         """Converts agent into a dictionary."""
         # TODO: handle serializing step_callbacks and final_answer_checks
         for attr in ["final_answer_checks", "step_callbacks"]:
-            if getattr(self, "final_answer_checks", None) is not None and len(self.final_answer_checks) > 0:
+            if getattr(self, attr, None):
                 self.logger.log(f"This agent has {attr}: they will be ignored by this method.", LogLevel.INFO)
 
         agent_dict = {
