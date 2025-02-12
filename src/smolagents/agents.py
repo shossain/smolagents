@@ -230,15 +230,19 @@ class MultiStepAgent:
                 )
             self.managed_agents = {agent.name: agent for agent in managed_agents}
 
-        for tool in tools:
-            assert isinstance(tool, Tool), f"This element is not of class Tool: {str(tool)}"
-        self.tools = {tool.name: tool for tool in tools}
-        tool_and_managed_agent_names = list(self.tools.keys()) + list(self.managed_agents.keys())
+        tool_and_managed_agent_names = [tool.name for tool in tools]
+        if managed_agents is not None:
+            tool_and_managed_agent_names += [agent.name for agent in managed_agents]
         if len(tool_and_managed_agent_names) != len(set(tool_and_managed_agent_names)):
             raise ValueError(
                 "Each tool or managed_agent should have a unique name! You passed these duplicate names: "
                 f"{[name for name in tool_and_managed_agent_names if tool_and_managed_agent_names.count(name) > 1]}"
             )
+
+        for tool in tools:
+            assert isinstance(tool, Tool), f"This element is not of class Tool: {str(tool)}"
+        self.tools = {tool.name: tool for tool in tools}
+
         if add_base_tools:
             for tool_name, tool_class in TOOL_MAPPING.items():
                 if tool_name != "python_interpreter" or self.__class__.__name__ == "ToolCallingAgent":

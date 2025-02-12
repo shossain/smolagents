@@ -437,11 +437,11 @@ class AgentTests(unittest.TestCase):
         assert len(agent.tools) == 1  # when no tools are provided, only the final_answer tool is added by default
 
         toolset_2 = [PythonInterpreterTool(), PythonInterpreterTool()]
-        with pytest.raises(AssertionError) as e:
+        with pytest.raises(ValueError) as e:
             agent = CodeAgent(tools=toolset_2, model=fake_code_model)
         assert "Each tool or managed_agent should have a unique name!" in str(e)
 
-        with pytest.raises(AssertionError) as e:
+        with pytest.raises(ValueError) as e:
             agent.name = "python_interpreter"
             agent.description = "empty"
             CodeAgent(tools=[PythonInterpreterTool()], model=fake_code_model, managed_agents=[agent])
