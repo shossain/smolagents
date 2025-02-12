@@ -704,7 +704,7 @@ You have been provided with these additional arguments, that you can access usin
         agent_dict = self.to_dict()
         agent_dict["tools"] = [tool.name for tool in self.tools.values()]
         with open(os.path.join(output_dir, "agent.json"), "w", encoding="utf-8") as f:
-            f.write(json.dumps(agent_dict, indent=4))
+            json.dump(agent_dict, f, indent=4)
 
         # Save requirements
         requirements_file = os.path.join(output_dir, "requirements.txt")
