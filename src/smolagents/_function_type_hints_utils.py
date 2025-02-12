@@ -53,7 +53,7 @@ def get_imports(code: str) -> List[str]:
         code (`str`): Code text to inspect.
 
     Returns:
-        `List[str]`: The list of all packages required to use the input module.
+        `list[str]`: List of all packages required to use the input code.
     """
     # filter out try/except block so in custom code we can have try/except imports
     code = re.sub(r"\s*try\s*:.*?except.*?:", "", code, flags=re.DOTALL)
