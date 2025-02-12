@@ -870,8 +870,8 @@ You have been provided with these additional arguments, that you can access usin
 
         # Recursively get managed agents
         managed_agents = []
-        for managed_agent_name in agent_dict["managed_agents"]:
-            agent_cls = globals()[agent_dict["managed_agents"][managed_agent_name]]
+        for managed_agent_name, managed_agent_class in agent_dict["managed_agents"].items():
+            agent_cls = getattr(importlib.import_module("smolagents.agents"), managed_agent_class)
             managed_agents.append(agent_cls.from_folder(folder / "managed_agents" / managed_agent_name))
 
         tools = []
