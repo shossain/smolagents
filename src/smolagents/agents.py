@@ -153,16 +153,13 @@ class MultiStepAgent:
 
         for tool in tools:
             assert isinstance(tool, Tool), f"This element is not of class Tool: {str(tool)}"
-
-        duplicate_tool_names = [
-            name
-            for name, count in Counter([tool.name for tool in tools] + list(self.managed_agents.keys())).items()
-            if count > 1
-        ]
-        assert len(duplicate_tool_names) == 0, (
-            f"Each tool or managed_agent should have a unique name! You passed these duplicate names: {duplicate_tool_names}"
-        )
         self.tools = {tool.name: tool for tool in tools}
+        tool_and_managed_agent_names = list(self.tools.keys()) + list(self.managed_agents.keys())
+        if len(tool_and_managed_agent_names) != len(set(tool_and_managed_agent_names)):
+            raise ValueError(
+                "Each tool or managed_agent should have a unique name! You passed these duplicate names: "
+                f"{[name for name in tool_and_managed_agent_names if tool_and_managed_agent_names.count(name) > 1]}"
+            )
         if add_base_tools:
             for tool_name, tool_class in TOOL_MAPPING.items():
                 if tool_name != "python_interpreter" or self.__class__.__name__ == "ToolCallingAgent":
