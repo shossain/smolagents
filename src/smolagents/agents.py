@@ -676,10 +676,9 @@ You have been provided with these additional arguments, that you can access usin
         # Recursively saved managed agents
         if self.managed_agents:
             for agent_name, agent in self.managed_agents.items():
-                os.makedirs(os.path.join(output_dir, agent_name), exist_ok=True)
-                agent.save(os.path.join(output_dir, agent_name))
+                os.makedirs(os.path.join(output_dir, "managed_agents", agent_name), exist_ok=True)
+                agent.save(os.path.join(output_dir, "managed_agents", agent_name))
 
-        os.makedirs(os.path.join(output_dir, "tools"), exist_ok=True)
         class_name = self.__class__.__name__
 
         # Save tools to different .py files
@@ -708,18 +707,16 @@ You have been provided with these additional arguments, that you can access usin
 
         # Save requirements
         requirements_file = os.path.join(output_dir, "requirements.txt")
-        requirements = set()
+        requirements = {req for tool in self.tools.values() for req in tool.to_dict()["requirements"]}
         if hasattr(self, "authorized_imports"):
-            requirements.update(
-                set(
-                    package.split(".")[0] for package in self.authorized_imports if package not in BASE_BUILTIN_MODULES
-                )
-            )
-        for tool in self.tools.values():
-            requirements.update(set(tool.to_dict()["requirements"]))
+            requirements.update({
+                package.split(".")[0]
+                for package in self.authorized_imports
+                if package not in BASE_BUILTIN_MODULES
+            })
 
         with open(requirements_file, "w", encoding="utf-8") as f:
-            f.write("\n".join(requirements) + "\n")
+            f.writelines(f"{r}\n" for r in requirements)
 
         # Make agent.py file with Gradio UI
         agent_name = f"agent_{self.name}" if getattr(self, "name", None) else "agent"
