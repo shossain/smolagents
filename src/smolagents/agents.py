@@ -931,7 +931,7 @@ You have been provided with these additional arguments, that you can access usin
         repo_id = repo_url.repo_id
         metadata_update(
             repo_id,
-            {"tags": ["smolagents", "agent", "smolagent", "tool"]},
+            {"tags": ["smolagents", "agent"]},
             repo_type="space",
             token=token,
             overwrite=True,
