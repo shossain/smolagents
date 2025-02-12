@@ -297,7 +297,7 @@ class Tool:
                     textwrap.dedent(
                         f"""
                 from smolagents import launch_gradio_demo
-                from tool import {class_name}
+                from {tool_file_name} import {class_name}
 
                 tool = {class_name}()
 
