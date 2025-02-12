@@ -897,7 +897,7 @@ You have been provided with these additional arguments, that you can access usin
     def push_to_hub(
         self,
         repo_id: str,
-        commit_message: str = "Upload tool",
+        commit_message: str = "Upload agent",
         private: Optional[bool] = None,
         token: Optional[Union[bool, str]] = None,
         create_pr: bool = False,
@@ -909,7 +909,7 @@ You have been provided with these additional arguments, that you can access usin
             repo_id (`str`):
                 The name of the repository you want to push to. It should contain your organization name when
                 pushing to a given organization.
-            commit_message (`str`, *optional*, defaults to `"Upload tool"`):
+            commit_message (`str`, *optional*, defaults to `"Upload agent"`):
                 Message to commit while pushing.
             private (`bool`, *optional*):
                 Whether to make the repo private. If `None` (default), the repo will be public unless the organization's default is private. This value is ignored if the repo already exists.
