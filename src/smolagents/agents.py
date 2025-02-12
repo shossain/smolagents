@@ -728,7 +728,7 @@ You have been provided with these additional arguments, that you can access usin
             from smolagents import GradioUI, {{ class_name }}, {{ agent_dict['model']['class'] }}
 
             {% for tool in tools.values() -%}
-            from tools.{{ tool.name }} import {{ tool.__class__.__name__ }}
+            from tools.{{ tool.name }} import {{ tool.__class__.__name__ }} as {{ tool.name | camelcase }}
             {% endfor %}
             {% for managed_agent in managed_agents.values() -%}
             from {{ managed_agent.name }}.app import agent_{{ managed_agent.name }}
@@ -740,7 +740,7 @@ You have been provided with these additional arguments, that you can access usin
             {% endfor %})
 
             {% for tool in tools.values() -%}
-            {{ tool.name }} = {{ tool.__class__.__name__ }}()
+            {{ tool.name }} = {{ tool.name | camelcase }}()
             {% endfor %}
 
             with open("prompts.yaml", 'r') as stream:
@@ -759,6 +759,7 @@ You have been provided with these additional arguments, that you can access usin
             """).strip()
         template_env = jinja2.Environment(loader=jinja2.BaseLoader(), undefined=jinja2.StrictUndefined)
         template_env.filters["repr"] = repr
+        template_env.filters["camelcase"] = lambda value: "".join(word.capitalize() for word in value.split("_"))
         template = template_env.from_string(app_template)
 
         # Render the app.py file from Jinja2 template
