@@ -722,7 +722,7 @@ You have been provided with these additional arguments, that you can access usin
             f.write("\n".join(requirements) + "\n")
 
         # Make agent.py file with Gradio UI
-        agent_name = "agent_" + self.name if hasattr(self, "name") and self.name else "agent"
+        agent_name = f"agent_{self.name}" if getattr(self, "name", None) else "agent"
         app_template = textwrap.dedent("""
             import yaml
             from smolagents import GradioUI, {{ class_name }}, {{ agent_dict['model']['class'] }}
