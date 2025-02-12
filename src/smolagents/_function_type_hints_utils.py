@@ -50,7 +50,7 @@ def get_imports(code: str) -> List[str]:
     Extracts all the libraries (not relative imports) that are imported in a code.
 
     Args:
-        filename (`str` or `os.PathLike`): The module file to inspect.
+        code (`str`): Code text to inspect.
 
     Returns:
         `List[str]`: The list of all packages required to use the input module.
