@@ -658,7 +658,7 @@ You have been provided with these additional arguments, that you can access usin
             answer += "\n</summary_of_work>"
         return answer
 
-    def save(self, output_dir):
+    def save(self, output_dir: str):
         """
         Saves the relevant code files for your agent so it can be pushed to the Hub. This will copy the code of your
         agent in `output_dir` as well as autogenerate:
