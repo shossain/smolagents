@@ -394,7 +394,7 @@ class Tool:
         """
         if not trust_remote_code:
             raise ValueError(
-                "Loading an tool from Hub requires to acknowledge you trust its code: to do so, pass `trust_remote_code=True`."
+                "Loading a tool from Hub requires to acknowledge you trust its code: to do so, pass `trust_remote_code=True`."
             )
 
         # Get the tool's tool.py file.
