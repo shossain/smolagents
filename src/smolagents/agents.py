@@ -912,8 +912,8 @@ You have been provided with these additional arguments, that you can access usin
                 pushing to a given organization.
             commit_message (`str`, *optional*, defaults to `"Upload agent"`):
                 Message to commit while pushing.
-            private (`bool`, *optional*):
-                Whether to make the repo private. If `None` (default), the repo will be public unless the organization's default is private. This value is ignored if the repo already exists.
+            private (`bool`, *optional*, defaults to `None`):
+                Whether to make the repo private. If `None`, the repo will be public unless the organization's default is private. This value is ignored if the repo already exists.
             token (`bool` or `str`, *optional*):
                 The token to use as HTTP bearer authorization for remote files. If unset, will use the token generated
                 when running `huggingface-cli login` (stored in `~/.huggingface`).
