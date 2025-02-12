@@ -841,7 +841,7 @@ You have been provided with these additional arguments, that you can access usin
                 "Loading an agent from Hub requires to acknowledge you trust its code: to do so, pass `trust_remote_code=True`."
             )
 
-        # Get the agents's Hub folder.
+        # Get the agent's Hub folder.
         download_kwargs = {"token": token, "repo_type": "space"} | {
             key: kwargs.pop(key)
             for key in [
