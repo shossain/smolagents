@@ -347,7 +347,6 @@ class Model:
             "token",
             "timeout",
             "api_base",
-            "api_key",
             "torch_dtype",
             "device_map",
             "organization",
@@ -356,6 +355,10 @@ class Model:
         ]:
             if hasattr(self, attribute):
                 model_dictionary[attribute] = getattr(self, attribute)
+        if hasattr(self, "api_key"):
+            print(
+                "For security reasons, we do not export the `api_key` attribute of your model. Please export it manually."
+            )
         return model_dictionary
 
     @classmethod
