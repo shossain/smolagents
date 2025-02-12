@@ -918,7 +918,7 @@ You have been provided with these additional arguments, that you can access usin
                 The token to use as HTTP bearer authorization for remote files. If unset, will use the token generated
                 when running `huggingface-cli login` (stored in `~/.huggingface`).
             create_pr (`bool`, *optional*, defaults to `False`):
-                Whether or not to create a PR with the uploaded files or directly commit.
+                Whether to create a PR with the uploaded files or directly commit.
         """
         repo_url = create_repo(
             repo_id=repo_id,
