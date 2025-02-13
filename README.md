@@ -157,12 +157,12 @@ You can run agents from CLI using two commands: `smolagent` and `webagent`. `smo
 
 Run the following command to get started:
 ```bash
-webagent {YOUR_PROMPT_HERE} --model "LiteLLMModel" --model-id "gpt-4o"
+webagent {YOUR_PROMPT_HERE} --model-type "LiteLLMModel" --model-id "gpt-4o"
 ```
 
 For instance:
 ```bash
-webagent --prompt "go to xyz.com/women, get to sale section, click the first clothing item you see. Get the product details, and the price, return them. note that I'm shopping from France"
+webagent "go to xyz.com/women, get to sale section, click the first clothing item you see. Get the product details, and the price, return them. note that I'm shopping from France"
 ```
 We redacted the website here, modify it with the website of your choice.
 
