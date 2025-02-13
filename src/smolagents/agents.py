@@ -727,7 +727,7 @@ You have been provided with these additional arguments, that you can access usin
             answer += "\n</summary_of_work>"
         return answer
 
-    def save(self, output_dir: str, tool_file_name: str = "tool.py", relative_path: Optional[str] = None):
+    def save(self, output_dir: str, relative_path: Optional[str] = None):
         """
         Saves the relevant code files for your agent. This will copy the code of your agent in `output_dir` as well as autogenerate:
 
@@ -758,7 +758,7 @@ You have been provided with these additional arguments, that you can access usin
         # Save tools to different .py files
         for tool in self.tools.values():
             make_init_file(os.path.join(output_dir, "tools"))
-            tool.save(os.path.join(output_dir, "tools"), f"{tool.name}.py", make_gradio_app=False)
+            tool.save(os.path.join(output_dir, "tools"), tool_file_name=tool.name, make_gradio_app=False)
 
         # Save prompts to yaml
         yaml_prompts = yaml.safe_dump(

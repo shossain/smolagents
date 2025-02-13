@@ -263,7 +263,7 @@ class Tool:
 
         return {"name": self.name, "code": tool_code, "requirements": requirements}
 
-    def save(self, output_dir: str, tool_file_name: str = "tool.py", make_gradio_app: bool = True):
+    def save(self, output_dir: str, tool_file_name: str = "tool", make_gradio_app: bool = True):
         """
         Saves the relevant code files for your tool so it can be pushed to the Hub. This will copy the code of your
         tool in `output_dir` as well as autogenerate:
@@ -281,7 +281,7 @@ class Tool:
         """
         os.makedirs(output_dir, exist_ok=True)
         class_name = self.__class__.__name__
-        tool_file = os.path.join(output_dir, tool_file_name)
+        tool_file = os.path.join(output_dir, f"{tool_file_name}.py")
 
         tool_dict = self.to_dict()
         tool_code = tool_dict["code"]

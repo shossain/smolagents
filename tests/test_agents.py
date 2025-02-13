@@ -759,7 +759,7 @@ class MultiAgentsTests(unittest.TestCase):
             additional_authorized_imports=["pandas", "datetime"],
             managed_agents=[web_agent, code_agent],
         )
-        agent.save("agent_export", make_gradio_app=True)
+        agent.save("agent_export")
 
         expected_structure = {
             "managed_agents": {
