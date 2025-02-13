@@ -791,7 +791,8 @@ class MultiAgentsTests(unittest.TestCase):
         verify_structure(Path("agent_export"), expected_structure)
 
         # Test that re-loaded agents work as expected.
-        agent2 = CodeAgent.from_folder("agent_export")
+        agent2 = CodeAgent.from_folder("agent_export", planning_interval=5)
+        assert agent2.planning_interval == 5  # Check that kwargs are used
         assert set(agent2.authorized_imports) == set(["pandas", "datetime"] + BASE_BUILTIN_MODULES)
         assert (
             agent2.managed_agents["web_agent"].tools["web_search"].max_results == 10

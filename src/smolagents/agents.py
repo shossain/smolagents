@@ -915,7 +915,7 @@ You have been provided with these additional arguments, that you can access usin
                 If not setting this to True, loading the tool from Hub will fail.
             kwargs (additional keyword arguments, *optional*):
                 Additional keyword arguments that will be split in two: all arguments relevant to the Hub (such as
-                `cache_dir`, `revision`, `subfolder`) will be used when downloading the files for your tool, and the
+                `cache_dir`, `revision`, `subfolder`) will be used when downloading the files for your agent, and the
                 others will be passed along to its init.
         """
         if not trust_remote_code:
@@ -939,10 +939,10 @@ You have been provided with these additional arguments, that you can access usin
         }
 
         download_folder = Path(snapshot_download(repo_id=repo_id, **download_kwargs))
-        return cls.from_folder(download_folder)
+        return cls.from_folder(download_folder, **kwargs)
 
     @classmethod
-    def from_folder(cls, folder: Union[str, Path]):
+    def from_folder(cls, folder: Union[str, Path], **kwargs):
         """Loads an agent from a local folder"""
         folder = Path(folder)
         agent_dict = json.loads((folder / "agent.json").read_text())
@@ -974,6 +974,7 @@ You have been provided with these additional arguments, that you can access usin
         )
         if cls.__name__ == "CodeAgent":
             args["additional_authorized_imports"] = agent_dict["authorized_imports"]
+        args.update(kwargs)
         return cls(**args)
 
     def push_to_hub(
