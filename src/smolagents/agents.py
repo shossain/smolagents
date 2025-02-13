@@ -36,26 +36,7 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.text import Text
 
-from smolagents.agent_types import AgentAudio, AgentImage, handle_agent_output_types
-from smolagents.memory import ActionStep, AgentMemory, PlanningStep, SystemPromptStep, TaskStep, ToolCall
-from smolagents.models import Model
-from smolagents.monitoring import (
-    YELLOW_HEX,
-    AgentLogger,
-    LogLevel,
-)
-from smolagents.utils import (
-    AgentError,
-    AgentExecutionError,
-    AgentGenerationError,
-    AgentMaxStepsError,
-    AgentParsingError,
-    parse_code_blobs,
-    parse_json_tool_call,
-    truncate_content,
-)
-
-from .agent_types import AgentType
+from .agent_types import AgentAudio, AgentImage, AgentType, handle_agent_output_types
 from .default_tools import TOOL_MAPPING, FinalAnswerTool
 from .e2b_executor import E2BExecutor
 from .local_python_executor import (
@@ -63,12 +44,30 @@ from .local_python_executor import (
     LocalPythonInterpreter,
     fix_final_answer_code,
 )
+from .memory import ActionStep, AgentMemory, PlanningStep, SystemPromptStep, TaskStep, ToolCall
 from .models import (
     ChatMessage,
     MessageRole,
+    Model,
 )
-from .monitoring import Monitor
+from .monitoring import (
+    YELLOW_HEX,
+    AgentLogger,
+    LogLevel,
+    Monitor,
+)
 from .tools import Tool
+from .utils import (
+    AgentError,
+    AgentExecutionError,
+    AgentGenerationError,
+    AgentMaxStepsError,
+    AgentParsingError,
+    make_init_file,
+    parse_code_blobs,
+    parse_json_tool_call,
+    truncate_content,
+)
 
 
 logger = getLogger(__name__)
@@ -728,7 +727,7 @@ You have been provided with these additional arguments, that you can access usin
             answer += "\n</summary_of_work>"
         return answer
 
-    def save(self, output_dir: str, tool_file_name: str = "tool.py", make_gradio_app: bool = False):
+    def save(self, output_dir: str, tool_file_name: str = "tool.py", relative_path: Optional[str] = None):
         """
         Saves the relevant code files for your agent. This will copy the code of your agent in `output_dir` as well as autogenerate:
 
@@ -736,7 +735,6 @@ You have been provided with these additional arguments, that you can access usin
         - a `managed_agents` folder containing the logic for each of the managed agents.
         - an `agent.json` file containing a dictionary representing your agent.
         - a `prompt.yaml` file containing the prompt templates used by your agent.
-        If you pass `make_gradio_app=True`, this will also write:
         - an `app.py` file providing a UI for your agent when it is exported to a Space with `agent.push_to_hub()`
         - a `requirements.txt` containing the names of the modules used by your tool (as detected when inspecting its
           code)
@@ -744,17 +742,23 @@ You have been provided with these additional arguments, that you can access usin
         Args:
             output_dir (`str`): The folder in which you want to save your tool.
         """
-        # Recursively saved managed agents
+        make_init_file(output_dir)
+
+        # Recursively save managed agents
         if self.managed_agents:
+            make_init_file(os.path.join(output_dir, "managed_agents"))
             for agent_name, agent in self.managed_agents.items():
-                os.makedirs(os.path.join(output_dir, "managed_agents", agent_name), exist_ok=True)
-                agent.save(os.path.join(output_dir, "managed_agents", agent_name), make_gradio_app=False)
+                agent_suffix = f"managed_agents.{agent_name}"
+                if relative_path:
+                    agent_suffix = relative_path + "." + agent_suffix
+                agent.save(os.path.join(output_dir, "managed_agents", agent_name), relative_path=agent_suffix)
 
         class_name = self.__class__.__name__
 
         # Save tools to different .py files
         for tool in self.tools.values():
-            tool.save(os.path.join(output_dir, "tools"), f"{tool.name}.py")
+            make_init_file(os.path.join(output_dir, "tools"))
+            tool.save(os.path.join(output_dir, "tools"), f"{tool.name}.py", make_gradio_app=False)
 
         # Save prompts to yaml
         yaml_prompts = yaml.safe_dump(
@@ -776,65 +780,70 @@ You have been provided with these additional arguments, that you can access usin
         with open(os.path.join(output_dir, "agent.json"), "w", encoding="utf-8") as f:
             json.dump(agent_dict, f, indent=4)
 
-        if make_gradio_app:
-            # Save requirements
-            with open(os.path.join(output_dir, "requirements.txt"), "w", encoding="utf-8") as f:
-                f.writelines(f"{r}\n" for r in agent_dict["requirements"])
+        # Save requirements
+        with open(os.path.join(output_dir, "requirements.txt"), "w", encoding="utf-8") as f:
+            f.writelines(f"{r}\n" for r in agent_dict["requirements"])
 
-            # Make agent.py file with Gradio UI
-            agent_name = f"agent_{self.name}" if getattr(self, "name", None) else "agent"
-            app_template = textwrap.dedent("""
-                import yaml
-                from smolagents import GradioUI, {{ class_name }}, {{ agent_dict['model']['class'] }}
+        # Make agent.py file with Gradio UI
+        agent_name = f"agent_{self.name}" if getattr(self, "name", None) else "agent"
+        managed_agent_relative_path = relative_path + "." if relative_path is not None else ""
+        app_template = textwrap.dedent("""
+            import yaml
+            import os
+            from smolagents import GradioUI, {{ class_name }}, {{ agent_dict['model']['class'] }}
 
-                {% for tool in tools.values() -%}
-                from tools.{{ tool.name }} import {{ tool.__class__.__name__ }} as {{ tool.name | camelcase }}
-                {% endfor %}
-                {% for managed_agent in managed_agents.values() -%}
-                from managed_agents.{{ managed_agent.name }}.app import agent_{{ managed_agent.name }}
-                {% endfor %}
+            # Get current directory path
+            CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-                model = {{ agent_dict['model']['class'] }}(
-                {% for key in agent_dict['model']['data'] if key not in ['class', 'last_input_token_count', 'last_output_token_count'] -%}
-                    {{ key }}={{ agent_dict['model']['data'][key]|repr }},
-                {% endfor %})
+            {% for tool in tools.values() -%}
+            from {{managed_agent_relative_path}}tools.{{ tool.name }} import {{ tool.__class__.__name__ }} as {{ tool.name | camelcase }}
+            {% endfor %}
+            {% for managed_agent in managed_agents.values() -%}
+            from {{managed_agent_relative_path}}managed_agents.{{ managed_agent.name }}.app import agent_{{ managed_agent.name }}
+            {% endfor %}
 
-                {% for tool in tools.values() -%}
-                {{ tool.name }} = {{ tool.name | camelcase }}()
-                {% endfor %}
+            model = {{ agent_dict['model']['class'] }}(
+            {% for key in agent_dict['model']['data'] if key not in ['class', 'last_input_token_count', 'last_output_token_count'] -%}
+                {{ key }}={{ agent_dict['model']['data'][key]|repr }},
+            {% endfor %})
 
-                with open("prompts.yaml", 'r') as stream:
-                    prompt_templates = yaml.safe_load(stream)
+            {% for tool in tools.values() -%}
+            {{ tool.name }} = {{ tool.name | camelcase }}()
+            {% endfor %}
 
-                {{ agent_name }} = {{ class_name }}(
-                    model=model,
-                    tools=[{% for tool_name in tools.keys() if tool_name != "final_answer" %}{{ tool_name }}{% if not loop.last %}, {% endif %}{% endfor %}],
-                    managed_agents=[{% for subagent_name in managed_agents.keys() %}agent_{{ subagent_name }}{% if not loop.last %}, {% endif %}{% endfor %}],
-                    {% for attribute_name, value in agent_dict.items() if attribute_name not in ["model", "tools", "prompt_templates", "authorized_imports", "managed_agents"] -%}
-                    {{ attribute_name }}={{ value|repr }},
-                    {% endfor %}prompt_templates=prompt_templates
-                )
-                if __name__ == "__main__":
-                    GradioUI({{ agent_name }}).launch()
-                """).strip()
-            template_env = jinja2.Environment(loader=jinja2.BaseLoader(), undefined=jinja2.StrictUndefined)
-            template_env.filters["repr"] = repr
-            template_env.filters["camelcase"] = lambda value: "".join(word.capitalize() for word in value.split("_"))
-            template = template_env.from_string(app_template)
+            with open(os.path.join(CURRENT_DIR, "prompts.yaml"), 'r') as stream:
+                prompt_templates = yaml.safe_load(stream)
 
-            # Render the app.py file from Jinja2 template
-            app_text = template.render(
-                {
-                    "agent_name": agent_name,
-                    "class_name": class_name,
-                    "agent_dict": agent_dict,
-                    "tools": self.tools,
-                    "managed_agents": self.managed_agents,
-                }
+            {{ agent_name }} = {{ class_name }}(
+                model=model,
+                tools=[{% for tool_name in tools.keys() if tool_name != "final_answer" %}{{ tool_name }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                managed_agents=[{% for subagent_name in managed_agents.keys() %}agent_{{ subagent_name }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                {% for attribute_name, value in agent_dict.items() if attribute_name not in ["model", "tools", "prompt_templates", "authorized_imports", "managed_agents", "requirements"] -%}
+                {{ attribute_name }}={{ value|repr }},
+                {% endfor %}prompt_templates=prompt_templates
             )
+            if __name__ == "__main__":
+                GradioUI({{ agent_name }}).launch()
+            """).strip()
+        template_env = jinja2.Environment(loader=jinja2.BaseLoader(), undefined=jinja2.StrictUndefined)
+        template_env.filters["repr"] = repr
+        template_env.filters["camelcase"] = lambda value: "".join(word.capitalize() for word in value.split("_"))
+        template = template_env.from_string(app_template)
 
-            with open(os.path.join(output_dir, "app.py"), "w", encoding="utf-8") as f:
-                f.write(app_text + "\n")  # Append newline at the end
+        # Render the app.py file from Jinja2 template
+        app_text = template.render(
+            {
+                "agent_name": agent_name,
+                "class_name": class_name,
+                "agent_dict": agent_dict,
+                "tools": self.tools,
+                "managed_agents": self.managed_agents,
+                "managed_agent_relative_path": managed_agent_relative_path,
+            }
+        )
+
+        with open(os.path.join(output_dir, "app.py"), "w", encoding="utf-8") as f:
+            f.write(app_text + "\n")  # Append newline at the end
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts agent into a dictionary."""
@@ -1010,7 +1019,7 @@ You have been provided with these additional arguments, that you can access usin
         )
 
         with tempfile.TemporaryDirectory() as work_dir:
-            self.save(work_dir, make_gradio_app=True)
+            self.save(work_dir)
             logger.info(f"Uploading the following files to {repo_id}: {','.join(os.listdir(work_dir))}")
             return upload_folder(
                 repo_id=repo_id,

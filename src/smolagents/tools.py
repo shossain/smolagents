@@ -263,7 +263,7 @@ class Tool:
 
         return {"name": self.name, "code": tool_code, "requirements": requirements}
 
-    def save(self, output_dir: str, tool_file_name: str = "tool.py", make_gradio_app: bool = False):
+    def save(self, output_dir: str, tool_file_name: str = "tool.py", make_gradio_app: bool = True):
         """
         Saves the relevant code files for your tool so it can be pushed to the Hub. This will copy the code of your
         tool in `output_dir` as well as autogenerate:
@@ -277,7 +277,7 @@ class Tool:
         Args:
             output_dir (`str`): The folder in which you want to save your tool.
             tool_file_name (`str`, *optional*): The file name in which you want to save your tool.
-            make_gradio_app (`bool`, *optional*, defaults to False): Whether to also export a `requirements.txt` file and Gradio UI.
+            make_gradio_app (`bool`, *optional*, defaults to True): Whether to also export a `requirements.txt` file and Gradio UI.
         """
         os.makedirs(output_dir, exist_ok=True)
         class_name = self.__class__.__name__
