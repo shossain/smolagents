@@ -38,11 +38,6 @@ For a `CodeAgent`, it looks like the figure below.
 
 <div class="flex justify-center">
     <img
-        class="block dark:hidden"
-        src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smolagents/codeagent_docs.png"
-    />
-    <img
-        class="hidden dark:block"
         src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smolagents/codeagent_docs.png"
     />
 </div>
@@ -59,8 +54,6 @@ Here is a video overview of how that works:
         src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/Agent_ManimCE.gif"
     />
 </div>
-
-![Framework of a React Agent](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/open-source-llms-as-agents/ReAct.png)
 
 We implement two versions of agents: 
 - [`CodeAgent`] is the preferred type of agent: it generates its tool calls as blobs of code.
