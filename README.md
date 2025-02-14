@@ -183,7 +183,7 @@ flowchart TB
     class Task,Answer io
 ```
 
-Actions are now python code snippets. Hence, tool calls will be performed like python function calls. For instance, here is how the agent can perform web search over several websites in one single action:
+Actions are now Python code snippets. Hence, tool calls will be performed as Python function calls. For instance, here is how the agent can perform web search over several websites in one single action:
 ```py
 requests_to_search = ["gulf of mexico america", "greenland denmark", "tariffs"]
 for request in requests_to_search:
