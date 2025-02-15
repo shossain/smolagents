@@ -143,8 +143,8 @@ class TestLiteLLMModel:
         "model_id, error_flag",
         [
             ("groq/llama-3.3-70b", "Missing API Key"),
-            ("cerebras/llama-3.3-70b", "Wrong API Key"),
-            ("ollama/llama2", "not found"),
+            ("cerebras/llama-3.3-70b", "The api_key client option must be set"),
+            ("mistral/mistral-tiny", "The api_key client option must be set"),
         ],
     )
     def test_call_different_providers_without_key(self, model_id, error_flag):
