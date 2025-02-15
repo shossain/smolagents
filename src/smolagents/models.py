@@ -842,17 +842,8 @@ class LiteLLMModel(Model):
         custom_role_conversions: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
-        try:
-            import litellm
-        except ModuleNotFoundError:
-            raise ModuleNotFoundError(
-                "Please install 'litellm' extra to use LiteLLMModel: `pip install 'smolagents[litellm]'`"
-            )
-
         super().__init__(**kwargs)
         self.model_id = model_id
-        # IMPORTANT - Set this to TRUE to add the function to the prompt for Non OpenAI LLMs
-        litellm.add_function_to_prompt = True
         self.api_base = api_base
         self.api_key = api_key
         self.custom_role_conversions = custom_role_conversions
@@ -870,7 +861,12 @@ class LiteLLMModel(Model):
         tools_to_call_from: Optional[List[Tool]] = None,
         **kwargs,
     ) -> ChatMessage:
-        import litellm
+        try:
+            import litellm
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                "Please install 'litellm' extra to use LiteLLMModel: `pip install 'smolagents[litellm]'`"
+            )
 
         completion_kwargs = self._prepare_completion_kwargs(
             messages=messages,
