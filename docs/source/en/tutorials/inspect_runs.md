@@ -58,19 +58,11 @@ python -m phoenix.server.main serve
 Finally, set up `SmolagentsInstrumentor` to trace your agents and send the traces to Phoenix at the endpoint defined below.
 
 ```python
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
+from phoenix.otel import register
 from openinference.instrumentation.smolagents import SmolagentsInstrumentor
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
 
-endpoint = "http://0.0.0.0:6006/v1/traces"
-trace_provider = TracerProvider()
-trace_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-
-SmolagentsInstrumentor().instrument(tracer_provider=trace_provider)
+register()
+SmolagentsInstrumentor().instrument()
 ```
 Then you can run your agents!
 
