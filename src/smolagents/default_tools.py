@@ -138,7 +138,7 @@ class GoogleSearchTool(Tool):
     }
     output_type = "string"
 
-    def __init__(self, provider: Optional[str] = None):
+    def __init__(self, provider: str = "serpapi"):
         super().__init__(self)
         import os
 
