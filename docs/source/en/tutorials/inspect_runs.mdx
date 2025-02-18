@@ -54,7 +54,7 @@ Then run the collector in the background.
 python -m phoenix.server.main serve
 ```
 
-Finally, set up `SmolagentsInstrumentor` to trace your agents and send the traces to Phoenix at the endpoint defined below.
+Finally, set up `SmolagentsInstrumentor` to trace your agents and send the traces to Phoenix default endpoint.
 
 ```python
 from phoenix.otel import register
