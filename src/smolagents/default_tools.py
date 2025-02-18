@@ -142,7 +142,7 @@ class GoogleSearchTool(Tool):
         super().__init__(self)
         import os
 
-        self.provider = provider if provider else "serpapi"
+        self.provider = provider
         if provider == "serpapi":
             self.organic_key = "organic_results"
             api_key_env_name = "SERPAPI_API_KEY"
