@@ -141,6 +141,7 @@ class GoogleSearchTool(Tool):
     def __init__(self, provider: Optional[str] = None):
         super().__init__(self)
         import os
+
         self.provider = provider if provider else "serpapi"
         if provider == "serpapi":
             self.organic_key = "organic_results"
