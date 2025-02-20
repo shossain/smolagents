@@ -1396,8 +1396,7 @@ class LocalPythonInterpreter:
         }
         # TODO: assert self.authorized imports are all installed locally
 
-    def __call__(self, code_action: str, additional_variables: Dict) -> Tuple[Any, str, bool]:
-        self.state.update(additional_variables)
+    def __call__(self, code_action: str) -> Tuple[Any, str, bool]:
         output, is_final_answer = evaluate_python_code(
             code_action,
             static_tools=self.static_tools,

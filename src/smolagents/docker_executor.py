@@ -11,14 +11,14 @@ from PIL import Image
 from .tool_validation import validate_tool_attributes
 from .tools import Tool
 from .utils import BASE_BUILTIN_MODULES, instance_to_source
-
+import socket
 
 class DockerExecutor:
     """
     Executes Python code within a Docker container.
     """
 
-    def __init__(self, additional_imports: List[str], tools: List[Tool], logger, host="127.0.0.1", port=65432):
+    def __init__(self, additional_imports: List[str], tools: List[Tool], logger, initial_state, host="127.0.0.1", port=65432):
         """
         Initializes the Docker executor.
 
@@ -62,12 +62,23 @@ class DockerExecutor:
             if exit_code != 0:
                 raise Exception(f"Error installing {imp}: {output.decode()}")
 
-        # Generate and inject tool definitions
-        tool_definition_code = self._generate_tool_code(tools)
-        self._inject_code_into_container("/app/tools.py", tool_definition_code)
-        exit_code, output = self.container.exec_run("python /app/tools.py")
-        if exit_code != 0:
-            raise Exception(f"Tools setup failed: {output.decode()}")
+        # # Generate and inject tool definitions
+        # tool_definition_code = self._generate_tool_code(tools)
+        # self._inject_code_into_container("/app/tools.py", tool_definition_code)
+        # exit_code, output = self.container.exec_run("python /app/tools.py")
+        # if exit_code != 0:
+        #     raise Exception(f"Tools setup failed: {output.decode()}")
+        # Start a single persistent Python interactive session
+        self.python_session = self.container.exec_run(
+            "python -i",
+            stdin=True,
+            stream=True,  # To handle continuous I/O
+            demux=True  # Get separate stdout/stderr streams
+        )
+        # Connect with socket
+        self.sock = socket.create_connection(("localhost", 65432))
+
+
 
     def _generate_tool_code(self, tools: List[Tool]) -> str:
         """
@@ -100,71 +111,87 @@ class DockerExecutor:
         tool_definition_code += "\n\n".join(tool_codes)
         return tool_definition_code
 
-    def _inject_code_into_container(self, path: str, code: str):
-        """
-        Injects Python code into the Docker container at the specified path.
+    def send_variables_to_server(self, state):
+        """Pickle state to server"""
+        state_path = "/app/state.pkl"
 
-        Args:
-            path (str): Path inside the container where the code will be written.
-            code (str): Python code to write.
-        """
-        stream = BytesIO()
-        with tarfile.open(fileobj=stream, mode="w") as tar:
-            code_data = code.encode("utf-8")
-            info = tarfile.TarInfo(name=path.lstrip("/"))
-            info.size = len(code_data)
-            tar.addfile(info, BytesIO(code_data))
-        stream.seek(0)
-        self.container.put_archive("/", stream)
+        pickle.dump(state, state_path)
+        remote_unloading_code = """import pickle
+import os
+print("File path", os.path.getsize('/home/state.pkl'))
+with open('/home/state.pkl', 'rb') as f:
+pickle_dict = pickle.load(f)
+locals().update({key: value for key, value in pickle_dict.items()})
+"""
+        execution = self.run_code_raise_errors(remote_unloading_code)
+        execution_logs = "\n".join([str(log) for log in execution.logs.stdout])
+        self.logger.log(execution_logs, 1)
 
-    def __call__(self, code_action: str, additional_args: dict) -> Tuple[Any, str, bool]:
+    def __call__(self, code_action: str) -> Tuple[Any, str, bool]:
+        """Check if code is a final answer and run it accordingly"""
+        return self.run_code(code_action, return_final_answer=self.final_answer_pattern.match(code_action))
+
+    def run_code(self, code_action: str, return_final_answer=False) -> Tuple[Any, str, bool]:
         """
         Executes the provided Python code in the Docker container.
 
         Args:
             code_action (str): Python code to execute.
-            additional_args (dict): Additional arguments to pass to the code.
 
         Returns:
             Tuple[Any, str, bool]: A tuple containing the result, execution logs, and a flag indicating if this is a final answer.
         """
-        # Handle additional_args by pickling into the container
-        if additional_args:
-            state_path = "/app/state.pkl"
-            with BytesIO() as bio:
-                pickle.dump(additional_args, bio)
-                bio.seek(0)
-                self._inject_code_into_container(state_path, bio.getvalue().decode("latin1"))
-                setup_code = textwrap.dedent(f"""
-                    import pickle
-                    with open('{state_path}', 'rb') as f:
-                        state = pickle.load(f)
-                    locals().update(state)
-                """)
-                code_action = setup_code + code_action
-
-        # Check if this is a final answer
-        if self.final_answer_pattern.match(code_action):
-            self.final_answer = True
 
         # Inject and execute the code
-        code_action = "from tools import *\n" + code_action
-        self._inject_code_into_container("/app/code.py", code_action)
-        exit_code, output = self.container.exec_run(
-            "python /app/code.py",
-            demux=True,  # Separate stdout and stderr
-        )
-        stdout, stderr = output
-        stdout = stdout.decode() if stdout else ""
-        stderr = stderr.decode() if stderr else ""
-        execution_logs = stdout + "\n" + stderr
+        marked_code = f"""
+{code_action}
+print('---END---')
+"""
+        if return_final_answer:
+            marked_code += """with open('/app/result.pkl', 'wb') as f:
+    pickle.dump(_result, f)
+print('---OUTPUT_END---')
+"""
 
-        if exit_code != 0:
-            raise ValueError(f"Code execution failed:\n{execution_logs}")
+        print("FLAGG", dir(self.python_session.output))
 
-        # Parse output for final answer or specific results
-        result = self._parse_output(stdout)
-        return result, execution_logs, self.final_answer
+        self.python_session.write(marked_code.encode('utf-8'))
+        self.python_session.flush()
+
+        # Read output until we see our marker
+        output = ""
+        for line in self.python_session.output:
+            if line:
+                output += line.decode()
+            if "---END---" in output:
+                break
+        with open('/tmp/smolagents/result.pkl', 'rb') as f:
+            result = pickle.load(f)
+        print("OK reached eth end")
+
+        # Return both the object and the printed output
+        output = output.replace("---END---", "").strip()
+        return result, output
+
+        stderr=False
+
+        if stderr:
+            raise ValueError(f"Code execution failed:\n{output}")
+        else:
+            if return_final_answer:
+                while "---OUTPUT_END---" not in output:
+                    out, err = self.python_session.output  # Get both streams
+                    if out:
+                        output += out.decode()
+                    if err:
+                        stderr += err.decode()
+
+                # Load output for final answer or specific results
+                with open('/tmp/smolagents/result.pkl', 'rb') as f:  # Note path on host side
+                    result = pickle.load(f)
+            else:
+                result = None
+            return result, execution_logs, return_final_answer
 
     def _parse_output(self, stdout: str) -> Any:
         """

@@ -37,7 +37,7 @@ except ModuleNotFoundError:
 
 
 class E2BExecutor:
-    def __init__(self, additional_imports: List[str], tools: List[Tool], logger):
+    def __init__(self, additional_imports: List[str], tools: List[Tool], logger, initial_state):
         self.logger = logger
         try:
             from e2b_code_interpreter import Sandbox
@@ -91,6 +91,8 @@ class E2BExecutor:
         tool_definition_execution = self.run_code_raise_errors(tool_definition_code)
         self.logger.log(tool_definition_execution.logs)
 
+        self.send_variables_to_server(initial_state)
+
     def run_code_raise_errors(self, code: str):
         if self.final_answer_pattern.search(code) is not None:
             self.final_answer = True
@@ -107,27 +109,27 @@ class E2BExecutor:
             raise ValueError(logs)
         return execution
 
-    def __call__(self, code_action: str, additional_args: dict) -> Tuple[Any, Any]:
-        if len(additional_args) > 0:
-            # Pickle additional_args to server
-            import tempfile
+    def send_variables_to_server(self, additional_args):
+        """Pickle additional_args to server"""
+        import tempfile
 
-            with tempfile.NamedTemporaryFile() as f:
-                pickle.dump(additional_args, f)
-                f.flush()
-                with open(f.name, "rb") as file:
-                    self.sbx.files.write("/home/state.pkl", file)
-            remote_unloading_code = """import pickle
+        with tempfile.NamedTemporaryFile() as f:
+            pickle.dump(additional_args, f)
+            f.flush()
+            with open(f.name, "rb") as file:
+                self.sbx.files.write("/home/state.pkl", file)
+        remote_unloading_code = """import pickle
 import os
 print("File path", os.path.getsize('/home/state.pkl'))
 with open('/home/state.pkl', 'rb') as f:
-    pickle_dict = pickle.load(f)
+pickle_dict = pickle.load(f)
 locals().update({key: value for key, value in pickle_dict.items()})
 """
-            execution = self.run_code_raise_errors(remote_unloading_code)
-            execution_logs = "\n".join([str(log) for log in execution.logs.stdout])
-            self.logger.log(execution_logs, 1)
+        execution = self.run_code_raise_errors(remote_unloading_code)
+        execution_logs = "\n".join([str(log) for log in execution.logs.stdout])
+        self.logger.log(execution_logs, 1)
 
+    def __call__(self, code_action: str) -> Tuple[Any, Any]:
         execution = self.run_code_raise_errors(code_action)
         execution_logs = "\n".join([str(log) for log in execution.logs.stdout])
         if not execution.results:

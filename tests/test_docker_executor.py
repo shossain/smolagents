@@ -11,22 +11,24 @@ class TestDockerExecutor(TestCase):
     def setUp(self):
         self.logger = logging.getLogger("DockerExecutorTest")
         self.executor = DockerExecutor(
-            additional_imports=["pillow"],  # Ensure PIL is installed
+            additional_imports=["pillow", "numpy"],
             tools=[],
             logger=self.logger,
+            initial_state={}
         )
 
     def test_initialization(self):
         """Check if DockerExecutor initializes without errors"""
         self.assertIsNotNone(self.executor.container, "Container should be initialized")
 
-    def test_execute_basic_code(self):
-        """Test executing a simple print statement"""
-        code_action = 'print("Hello, Docker!")'
-        result, logs, final_answer = self.executor(code_action, {})
+    def test_state_persistence(self):
+        """Test that variables and imports form one snippet persist in the next"""
+        code_action = 'import numpy as np; a = 2'
+        self.executor(code_action)
 
-        self.assertIn("Hello, Docker!", logs, "Output should contain 'Hello, Docker!'")
-        self.assertFalse(final_answer, "Final answer flag should be False")
+        code_action = 'print(np.float(a))'
+        result, logs, final_answer = self.executor(code_action)
+        assert "2.0" in logs
 
     def test_execute_image_output(self):
         """Test execution that returns a base64 image"""
@@ -41,7 +43,7 @@ img.save(buffer, format="PNG")
 encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
 print("IMAGE_BASE64:" + encoded)
 """
-        result, logs, final_answer = self.executor(code_action, {})
+        result, logs, final_answer = self.executor(code_action)
 
         self.assertIsInstance(result, Image.Image, "Result should be a PIL Image")
 
@@ -49,7 +51,7 @@ print("IMAGE_BASE64:" + encoded)
         """Test handling of syntax errors"""
         code_action = 'print("Missing Parenthesis'  # Syntax error
         with self.assertRaises(ValueError) as context:
-            self.executor(code_action, {})
+            self.executor(code_action)
 
         self.assertIn("SyntaxError", str(context.exception), "Should raise a syntax error")
 

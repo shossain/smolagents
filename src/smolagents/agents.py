@@ -662,7 +662,6 @@ You have been provided with these additional arguments, that you can access usin
 
     def __call__(self, task: str, **kwargs):
         """Adds additional prompting for the managed agent, runs it, and wraps the output.
-
         This method is called only by a managed agent.
         """
         full_task = populate_template(
@@ -1183,19 +1182,26 @@ class CodeAgent(MultiStepAgent):
                 self.additional_authorized_imports,
                 list(all_tools.values()),
                 self.logger,
+                initial_state=self.state
             )
         elif use_docker_executor:
             self.python_executor = DockerExecutor(
                 self.additional_authorized_imports,
                 list(all_tools.values()),
                 self.logger,
+                initial_state=self.state
             )
         else:
             self.python_executor = LocalPythonInterpreter(
                 self.additional_authorized_imports,
                 all_tools,
+                initial_state=self.state,
                 max_print_outputs_length=max_print_outputs_length,
             )
+
+    @property
+    def state(self):
+        return self.python_executor.state
 
     def initialize_system_prompt(self) -> str:
         system_prompt = populate_template(
@@ -1261,10 +1267,7 @@ class CodeAgent(MultiStepAgent):
         self.logger.log_code(title="Executing parsed code:", content=code_action, level=LogLevel.INFO)
         is_final_answer = False
         try:
-            output, execution_logs, is_final_answer = self.python_executor(
-                code_action,
-                self.state,
-            )
+            output, execution_logs, is_final_answer = self.python_executor(code_action)
             execution_outputs_console = []
             if len(execution_logs) > 0:
                 execution_outputs_console += [
