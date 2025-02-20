@@ -12,22 +12,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+import tempfile
 import unittest
 from pathlib import Path
-from typing import Dict, Optional, Union
+from textwrap import dedent
+from typing import Any, Dict, List, Optional, Tuple, Union
+from unittest.mock import MagicMock, patch
 
+import mcp
 import numpy as np
 import pytest
+import torch
 from transformers import is_torch_available, is_vision_available
 from transformers.testing_utils import get_tests_dir
 
-from smolagents.tools import AUTHORIZED_TYPES, Tool, tool
-from smolagents.types import (
-    AGENT_TYPE_MAPPING,
-    AgentAudio,
-    AgentImage,
-    AgentText,
-)
+from smolagents.agent_types import _AGENT_TYPE_MAPPING, AgentAudio, AgentImage, AgentText
+from smolagents.tools import AUTHORIZED_TYPES, Tool, ToolCollection, tool
+
 
 if is_torch_available():
     import torch
@@ -45,9 +47,7 @@ def create_inputs(tool_inputs: Dict[str, Dict[Union[str, type], str]]):
         if input_type == "string":
             inputs[input_name] = "Text input"
         elif input_type == "image":
-            inputs[input_name] = Image.open(
-                Path(get_tests_dir("fixtures")) / "000000039769.png"
-            ).resize((512, 512))
+            inputs[input_name] = Image.open(Path(get_tests_dir("fixtures")) / "000000039769.png").resize((512, 512))
         elif input_type == "audio":
             inputs[input_name] = np.ones(3000)
         else:
@@ -94,7 +94,7 @@ class ToolTesterMixin:
         inputs = create_inputs(self.tool.inputs)
         output = self.tool(**inputs, sanitize_inputs_outputs=True)
         if self.tool.output_type != "any":
-            agent_type = AGENT_TYPE_MAPPING[self.tool.output_type]
+            agent_type = _AGENT_TYPE_MAPPING[self.tool.output_type]
             self.assertTrue(isinstance(output, agent_type))
 
 
@@ -216,27 +216,42 @@ class ToolTests(unittest.TestCase):
 
                 return str(datetime.now())
 
-    def test_saving_tool_allows_no_arg_in_init(self):
-        # Test one cannot save tool with additional args in init
+    def test_tool_to_dict_allows_no_arg_in_init(self):
+        """Test that a tool cannot be saved with required args in init"""
+
         class FailTool(Tool):
             name = "specific"
             description = "test description"
-            inputs = {
-                "string_input": {"type": "string", "description": "input description"}
-            }
+            inputs = {"string_input": {"type": "string", "description": "input description"}}
             output_type = "string"
 
             def __init__(self, url):
                 super().__init__(self)
-                self.url = "none"
+                self.url = url
 
             def forward(self, string_input: str) -> str:
                 return self.url + string_input
 
         fail_tool = FailTool("dummy_url")
         with pytest.raises(Exception) as e:
-            fail_tool.save("output")
-        assert "__init__" in str(e)
+            fail_tool.to_dict()
+        assert "Parameters in __init__ must have default values, found required parameters" in str(e)
+
+        class PassTool(Tool):
+            name = "specific"
+            description = "test description"
+            inputs = {"string_input": {"type": "string", "description": "input description"}}
+            output_type = "string"
+
+            def __init__(self, url: Optional[str] = "none"):
+                super().__init__(self)
+                self.url = url
+
+            def forward(self, string_input: str) -> str:
+                return self.url + string_input
+
+        fail_tool = PassTool()
+        fail_tool.to_dict()
 
     def test_saving_tool_allows_no_imports_from_outside_methods(self):
         # Test that using imports from outside functions fails
@@ -245,9 +260,7 @@ class ToolTests(unittest.TestCase):
         class FailTool(Tool):
             name = "specific"
             description = "test description"
-            inputs = {
-                "string_input": {"type": "string", "description": "input description"}
-            }
+            inputs = {"string_input": {"type": "string", "description": "input description"}}
             output_type = "string"
 
             def useless_method(self):
@@ -266,9 +279,7 @@ class ToolTests(unittest.TestCase):
         class SuccessTool(Tool):
             name = "specific"
             description = "test description"
-            inputs = {
-                "string_input": {"type": "string", "description": "input description"}
-            }
+            inputs = {"string_input": {"type": "string", "description": "input description"}}
             output_type = "string"
 
             def useless_method(self):
@@ -297,9 +308,7 @@ class ToolTests(unittest.TestCase):
                     },
                 }
 
-                def forward(
-                    self, location: str, celsius: Optional[bool] = False
-                ) -> str:
+                def forward(self, location: str, celsius: Optional[bool] = False) -> str:
                     return "The weather is UNGODLY with torrential rains and temperatures below -10°C"
 
             GetWeatherTool()
@@ -337,9 +346,7 @@ class ToolTests(unittest.TestCase):
                 }
                 output_type = "string"
 
-                def forward(
-                    self, location: str, celsius: Optional[bool] = False
-                ) -> str:
+                def forward(self, location: str, celsius: Optional[bool] = False) -> str:
                     return "The weather is UNGODLY with torrential rains and temperatures below -10°C"
 
             GetWeatherTool()
@@ -385,3 +392,140 @@ class ToolTests(unittest.TestCase):
 
             GetWeatherTool3()
         assert "Nullable" in str(e)
+
+    def test_tool_default_parameters_is_nullable(self):
+        @tool
+        def get_weather(location: str, celsius: bool = False) -> str:
+            """
+            Get weather in the next days at given location.
+
+            Args:
+                location: The location to get the weather for.
+                celsius: is the temperature given in celsius?
+            """
+            return "The weather is UNGODLY with torrential rains and temperatures below -10°C"
+
+        assert get_weather.inputs["celsius"]["nullable"]
+
+    def test_tool_supports_any_none(self):
+        @tool
+        def get_weather(location: Any) -> None:
+            """
+            Get weather in the next days at given location.
+
+            Args:
+                location: The location to get the weather for.
+            """
+            return
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            get_weather.save(tmp_dir)
+        assert get_weather.inputs["location"]["type"] == "any"
+        assert get_weather.output_type == "null"
+
+    def test_tool_supports_array(self):
+        @tool
+        def get_weather(locations: List[str], months: Optional[Tuple[str, str]] = None) -> Dict[str, float]:
+            """
+            Get weather in the next days at given locations.
+
+            Args:
+                locations: The locations to get the weather for.
+                months: The months to get the weather for
+            """
+            return
+
+        assert get_weather.inputs["locations"]["type"] == "array"
+        assert get_weather.inputs["months"]["type"] == "array"
+
+    def test_saving_tool_produces_valid_pyhon_code_with_multiline_description(self):
+        @tool
+        def get_weather(location: Any) -> None:
+            """
+            Get weather in the next days at given location.
+            And works pretty well.
+
+            Args:
+                location: The location to get the weather for.
+            """
+            return
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            get_weather.save(tmp_dir)
+            with open(os.path.join(tmp_dir, "tool.py"), "r", encoding="utf-8") as f:
+                source_code = f.read()
+                compile(source_code, f.name, "exec")
+
+    def test_saving_tool_produces_valid_python_code_with_complex_name(self):
+        # Test one cannot save tool with additional args in init
+        class FailTool(Tool):
+            name = 'spe"\rcific'
+            description = """test \n\r
+            description"""
+            inputs = {"string_input": {"type": "string", "description": "input description"}}
+            output_type = "string"
+
+            def __init__(self):
+                super().__init__(self)
+
+            def forward(self, string_input):
+                return "foo"
+
+        fail_tool = FailTool()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            fail_tool.save(tmp_dir)
+            with open(os.path.join(tmp_dir, "tool.py"), "r", encoding="utf-8") as f:
+                source_code = f.read()
+                compile(source_code, f.name, "exec")
+
+
+@pytest.fixture
+def mock_server_parameters():
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_mcp_adapt():
+    with patch("mcpadapt.core.MCPAdapt") as mock:
+        mock.return_value.__enter__.return_value = ["tool1", "tool2"]
+        mock.return_value.__exit__.return_value = None
+        yield mock
+
+
+@pytest.fixture
+def mock_smolagents_adapter():
+    with patch("mcpadapt.smolagents_adapter.SmolAgentsAdapter") as mock:
+        yield mock
+
+
+class TestToolCollection:
+    def test_from_mcp(self, mock_server_parameters, mock_mcp_adapt, mock_smolagents_adapter):
+        with ToolCollection.from_mcp(mock_server_parameters) as tool_collection:
+            assert isinstance(tool_collection, ToolCollection)
+            assert len(tool_collection.tools) == 2
+            assert "tool1" in tool_collection.tools
+            assert "tool2" in tool_collection.tools
+
+    def test_integration_from_mcp(self):
+        # define the most simple mcp server with one tool that echoes the input text
+        mcp_server_script = dedent("""\
+            from mcp.server.fastmcp import FastMCP
+
+            mcp = FastMCP("Echo Server")
+
+            @mcp.tool()
+            def echo_tool(text: str) -> str:
+                return text
+
+            mcp.run()
+        """).strip()
+
+        mcp_server_params = mcp.StdioServerParameters(
+            command="python",
+            args=["-c", mcp_server_script],
+        )
+
+        with ToolCollection.from_mcp(mcp_server_params) as tool_collection:
+            assert len(tool_collection.tools) == 1, "Expected 1 tool"
+            assert tool_collection.tools[0].name == "echo_tool", "Expected tool name to be 'echo_tool'"
+            assert tool_collection.tools[0](text="Hello") == "Hello", "Expected tool to echo the input text"
