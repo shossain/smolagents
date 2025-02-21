@@ -24,12 +24,12 @@ rendered properly in your Markdown viewer.
 
 [Multiple](https://huggingface.co/papers/2402.01030) [research](https://huggingface.co/papers/2411.01747) [papers](https://huggingface.co/papers/2401.00812) have shown that having the LLM write its actions (the tool calls) in code is much better than the current standard format for tool calling, which is across the industry different shades of "writing actions as a JSON of tools names and arguments to use".
 
-Why is code better? Well, because we crafted our code languages specifically to be great at expressing actions performed by a computer. If JSON snippets was a better way, this package would have been written in JSON snippets and the devil would be laughing at us.
+Why is code better? Well, because we crafted our code languages specifically to be great at expressing actions performed by a computer. If JSON snippets were a better way, this package would have been written in JSON snippets and the devil would be laughing at us.
 
 Code is just a better way to express actions on a computer. It has better:
 - **Composability:** could you nest JSON actions within each other, or define a set of JSON actions to re-use later, the same way you could just define a python function?
 - **Object management:** how do you store the output of an action like `generate_image` in JSON?
-- **Generality:** code is built to express simply anything you can do have a computer do.
+- **Generality:** code is built to express simply anything you can have a computer do.
 - **Representation in LLM training corpus:** why not leverage this benediction of the sky that plenty of quality actions have already been included in LLM training corpus?
 
 This is illustrated on the figure below, taken from [Executable Code Actions Elicit Better LLM Agents](https://huggingface.co/papers/2402.01030).
@@ -52,7 +52,7 @@ We have re-built a more secure `LocalPythonInterpreter` from the ground up.
 
 To be precise, this interpreter works by loading the Abstract Syntax Tree (AST) from your Code and executes it operation by operation, making sure to always follow certain rules:
 - By default, imports are disallowed unless they have been explicitly added to an authorization list by the user
-   - Even then because some innocuous packages like `re` can give access to potentiall harmful packages as in `re.subprocess`, subpackages that match a list of dangerous patterns are not imported.
+   - Even then because some innocuous packages like `re` can give access to potentially harmful packages as in `re.subprocess`, subpackages that match a list of dangerous patterns are not imported.
  - The total count of elementary operations processed is capped to prevent infinite loops and resource bloating.
  - Any operation that has not been explicitly defined in our custom interpreter will raise an error.
 
@@ -61,22 +61,24 @@ As a result, this interpreter is safer. We have used it on a diversity of use ca
 However this solution is certainly not watertight, since no local python sandbox can really be: one could imagine occasions where LLMs fine-tuned for malignant actions could still hurt your environment.
 
 For instance if you've allowed an innocuous package like `Pillow` to process images, the LLM could generate thousands of saves of images to bloat your hard drive.
-Other exampels of attacks are shown [here](https://gynvael.coldwind.pl/n/python_sandbox_escape).
+Other examples of attacks can be found [here](https://gynvael.coldwind.pl/n/python_sandbox_escape).
 
 Running these targeted malicious code snippet require a supply chain attack, meaning the LLM you use has been intoxicated.
 
-The chance for it to happen is low when using well-known LLMs from trusted inference providers, but it is still non-zero.
+The likelihood of this happening is low when using well-known LLMs from trusted inference providers, but it is still non-zero.
 
 > [!WARNING]
-> The only secure way to run arbitrary code is to isolate the execution from your local enviroment.
+> The only way to run LLM-generated code securely is to isolate the execution from your local environment.
 
-So if you want to be on the side of caution, you can use the remote code execution option described below.
+So if you want to exercise caution, you should use a remote execution sandbox.
 
-## Sandbox Setup for Secure Code Execution
+Here are examples of how to do it.
+
+## Sandbox setup for secure code execution
 
 When working with AI agents that execute code, security is paramount. This guide describes how to set up and use secure sandboxes for your agent applications using either E2B cloud sandboxes or local Docker containers.
 
-### E2B Setup
+### E2B setup
 
 #### Installation
 
@@ -86,7 +88,7 @@ When working with AI agents that execute code, security is paramount. This guide
 pip install e2b_code_interpreter smolagents
 ```
 
-#### Running Your Agent in E2B
+#### Running your agent in E2B
 
 Here's a complete example of running an agent in an E2B sandbox:
 
@@ -133,7 +135,7 @@ execution_logs = run_code_raise_errors(sandbox, agent_code)
 print(execution_logs)
 ```
 
-### Docker Setup
+### Docker setup
 
 #### Installation
 
@@ -143,7 +145,7 @@ print(execution_logs)
 pip install docker
 ```
 
-#### Setting Up the Docker Sandbox
+#### Setting up the docker sandbox
 
 Create a Dockerfile for your agent environment:
 
@@ -269,11 +271,11 @@ finally:
     sandbox.cleanup()
 ```
 
-### Best Practices for Sandboxes
+### Best practices for sandboxes
 
 These key practices apply to both E2B and Docker sandboxes:
 
-#### Resource Management
+#### Resource management
 - Set memory and CPU limits
 - Implement execution timeouts
 - Monitor resource usage
@@ -292,4 +294,4 @@ These key practices apply to both E2B and Docker sandboxes:
 
 Always ensure proper cleanup of resources, especially for Docker containers, to avoid having dangling containers eating up resources.
 
-By following these practices and implementing proper cleanup procedures, you can ensure your agent runs safely and efficiently in a sandboxed environment.
+✨ By following these practices and implementing proper cleanup procedures, you can ensure your agent runs safely and efficiently in a sandboxed environment.
