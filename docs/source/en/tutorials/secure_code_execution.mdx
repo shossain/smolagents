@@ -174,10 +174,6 @@ class DockerSandbox:
                 buildargs={},
                 # decode=True
             )
-            # Print build logs to see what's happening
-            # for chunk in build_logs:
-            #     if 'stream' in chunk:
-            #         print(chunk['stream'].strip())
         except docker.errors.BuildError as e:
             print("Build error logs:")
             for log in e.build_log:
@@ -272,7 +268,7 @@ These key practices apply to both E2B and Docker sandboxes:
 #### Environment
 - Keep dependencies minimal
 - Use fixed package versions
-- Update base images regularly
+- If you use base images, update them regularly
 
 #### Cleanup
 
