@@ -1179,17 +1179,11 @@ class CodeAgent(MultiStepAgent):
         # Initialize the appropriate executor
         if use_e2b_executor:
             self.python_executor = E2BExecutor(
-                self.additional_authorized_imports,
-                list(all_tools.values()),
-                self.logger,
-                initial_state=self.state
+                self.additional_authorized_imports, list(all_tools.values()), self.logger, initial_state=self.state
             )
         elif use_docker_executor:
             self.python_executor = DockerExecutor(
-                self.additional_authorized_imports,
-                list(all_tools.values()),
-                self.logger,
-                initial_state=self.state
+                self.additional_authorized_imports, list(all_tools.values()), self.logger, initial_state=self.state
             )
         else:
             self.python_executor = LocalPythonInterpreter(

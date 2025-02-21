@@ -11,10 +11,7 @@ class TestDockerExecutor(TestCase):
     def setUp(self):
         self.logger = logging.getLogger("DockerExecutorTest")
         self.executor = DockerExecutor(
-            additional_imports=["pillow", "numpy"],
-            tools=[],
-            logger=self.logger,
-            initial_state={}
+            additional_imports=["pillow", "numpy"], tools=[], logger=self.logger, initial_state={}
         )
 
     def test_initialization(self):
@@ -23,12 +20,12 @@ class TestDockerExecutor(TestCase):
 
     def test_state_persistence(self):
         """Test that variables and imports form one snippet persist in the next"""
-        code_action = 'import numpy as np; a = 2'
+        code_action = "import numpy as np; a = 2"
         self.executor(code_action)
 
-        code_action = 'print(np.float(a))'
+        code_action = "print(np.sqrt(a))"
         result, logs, final_answer = self.executor(code_action)
-        assert "2.0" in logs
+        assert "1.41421" in logs
 
     def test_execute_image_output(self):
         """Test execution that returns a base64 image"""
@@ -37,11 +34,8 @@ import base64
 from PIL import Image
 from io import BytesIO
 
-img = Image.new("RGB", (10, 10), (255, 0, 0))
-buffer = BytesIO()
-img.save(buffer, format="PNG")
-encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-print("IMAGE_BASE64:" + encoded)
+image = Image.new("RGB", (10, 10), (255, 0, 0))
+final_answer(image)
 """
         result, logs, final_answer = self.executor(code_action)
 
