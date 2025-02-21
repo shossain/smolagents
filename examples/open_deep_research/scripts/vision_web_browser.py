@@ -27,7 +27,9 @@ Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence 
 """
 
 
-yolo_model = get_yolo_model(model_path='weights/icon_detect/model.pt')
+yolo_model = get_yolo_model(model_path='/Users/aymeric/Documents/Code/smolagents/examples/open_deep_research/weights/icon_detect/model.pt')
+
+from copy import deepcopy
 
 def omniparse(
     image_input,
@@ -37,6 +39,7 @@ def omniparse(
     imgsz = 640,
 ):
     image_save_path = 'imgs/saved_image_demo.png'
+    os.makedirs("imgs", exist_ok=True)
     image_input.save(image_save_path)
     image = Image.open(image_save_path)
     box_overlay_ratio = image.size[0] / 3200
@@ -62,12 +65,13 @@ class ScreenClicker(Tool):
 
     def __init__(self):
         self.coordinates = None
-        self.driver = helium.get_driver()
+        # self.driver = helium.get_driver()
 
     def save_screenshot(self, memory_step: ActionStep, agent: CodeAgent) -> None:
         sleep(1.0)  # Let JavaScript animations happen before taking the screenshot
-
+        print("TRIGGERED SCREENSHOT")
         current_step = memory_step.step_number
+        self.driver = helium.get_driver()
         if self.driver is not None:
             for previous_memory_step in agent.memory.steps:  # Remove previous screenshots from logs for lean processing
                 if isinstance(previous_memory_step, ActionStep) and previous_memory_step.step_number <= current_step - 2:
@@ -77,12 +81,12 @@ class ScreenClicker(Tool):
             annotated_screenshot, self.coordinates = omniparse(screenshot)
             print(f"Captured a browser screenshot: {annotated_screenshot.size} pixels")
             memory_step.observations_images = [annotated_screenshot.copy()]  # Create a copy to ensure it persists, important!
-
-        # Update observations with current URL
-        url_info = f"Current url: {self.driver.current_url}"
-        memory_step.observations = (
-            url_info if memory_step.observations is None else memory_step.observations + "\n" + url_info
-        )
+            annotated_screenshot.show()
+            # Update observations with current URL
+            url_info = f"Current url: {self.driver.current_url}"
+            memory_step.observations = (
+                url_info if memory_step.observations is None else memory_step.observations + "\n" + url_info
+            )
         return
 
     def forward(self, box_number: int) -> None:
