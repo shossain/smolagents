@@ -56,14 +56,19 @@ To be precise, this interpreter works by loading the Abstract Syntax Tree (AST) 
  - The total count of elementary operations processed is capped to prevent infinite loops and resource bloating.
  - Any operation that has not been explicitly defined in our custom interpreter will raise an error.
 
-As a result, this interpreter is quite safe.
+As a result, this interpreter is safer. We have used it on a diversity of use cases, without ever observing any damage to the environment. 
 
-We have used it on a vast diversity of use cases, without ever observing any damage to the environment. 
-
-However this solution is not watertight, since no local python sandbox can really be: one could imagine occasions where LLMs fine-tuned for malignant actions could still hurt your environment.
+However this solution is certainly not watertight, since no local python sandbox can really be: one could imagine occasions where LLMs fine-tuned for malignant actions could still hurt your environment.
 
 For instance if you've allowed an innocuous package like `Pillow` to process images, the LLM could generate thousands of saves of images to bloat your hard drive.
-This requires a supply chain attack, which will not happen with well-known LLMs, but it could happen.
+Other exampels of attacks are shown [here](https://gynvael.coldwind.pl/n/python_sandbox_escape).
+
+Running these targeted malicious code snippet require a supply chain attack, meaning the LLM you use has been intoxicated.
+
+The chance for it to happen is low when using well-known LLMs from trusted inference providers, but it is still non-zero.
+
+> [!WARNING]
+> The only secure way to run arbitrary code is to isolate the execution from your local enviroment.
 
 So if you want to be on the side of caution, you can use the remote code execution option described below.
 
