@@ -52,31 +52,261 @@ We've used this on many use cases, without ever observing any damage to the envi
 However this solution is not watertight: one could imagine occasions where LLMs fine-tuned for malignant actions could still hurt your environment. For instance if you've allowed an innocuous package like `Pillow` to process images, the LLM could generate thousands of saves of images to bloat your hard drive.
 It's certainly not likely if you've chosen the LLM engine yourself, but it could happen.
 
-So if you want to be extra cautious, you can use the remote code execution option described below.
+So if you want to be on the side of caution, you can use the remote code execution option described below.
 
-### E2B code executor
+# Sandbox Setup for Secure Code Execution
 
-For maximum security, you can use our integration with E2B to run code in a sandboxed environment. This is a remote execution service that runs your code in an isolated container, making it impossible for the code to affect your local environment.
+When working with AI agents that execute code, security is paramount. This guide describes how to set up and use secure sandboxes for your agent applications using either E2B cloud sandboxes or local Docker containers.
 
-For this, you will need to setup your E2B account and set your `E2B_API_KEY` in your environment variables. Head to [E2B's quickstart documentation](https://e2b.dev/docs/quickstart) for more information.
+## E2B Setup
 
-Then you can install it with `pip install "smolagents[e2b]"`.
+### Installation
 
-Now you're set!
-
-To set the code executor to E2B, simply pass the flag `use_e2b_executor=True` when initializing your `CodeAgent`.
-Note that you should add all the tool's dependencies in `additional_authorized_imports`, so that the executor installs them.
-
-```py
-from smolagents import CodeAgent, VisitWebpageTool, HfApiModel
-agent = CodeAgent(
-    tools = [VisitWebpageTool()],
-    model=HfApiModel(),
-    additional_authorized_imports=["requests", "markdownify"],
-    use_e2b_executor=True
-)
-
-agent.run("What was Abraham Lincoln's preferred pet?")
+1. Create an E2B account at [e2b.dev](https://e2b.dev)
+2. Install the required packages:
+```bash
+pip install e2b_code_interpreter smolagents
 ```
 
-E2B code execution is not compatible with multi-agents at the moment - because having an agent call in a code blob that should be executed remotely is a mess. But we're working on adding it!
+### Running Your Agent in E2B
+
+Here's a complete example of running an agent in an E2B sandbox:
+
+```python
+from e2b_code_interpreter import Sandbox
+import os
+
+# Create the sandbox
+sandbox = Sandbox()
+
+# Install required packages
+sandbox.commands.run("pip install smolagents")
+
+def run_code_raise_errors(sandbox, code: str, verbose: bool = False) -> str:
+    execution = sandbox.run_code(
+        code,
+        envs={'HF_TOKEN': os.getenv('HF_TOKEN')}
+    )
+    if execution.error:
+        execution_logs = "\n".join([str(log) for log in execution.logs.stdout])
+        logs = execution_logs
+        logs += execution.error.traceback
+        raise ValueError(logs)
+    return "\n".join([str(log) for log in execution.logs.stdout])
+
+# Define your agent application
+agent_code = """
+import os
+from smolagents import CodeAgent, HfApiModel
+
+# Initialize the agent
+agent = CodeAgent(
+    model=HfApiModel(token=os.getenv("HF_TOKEN"), provider="together"),
+    tools=[]
+)
+
+# Run the agent
+response = agent.run("What's the 20th Fibonacci number?")
+print(response)
+"""
+
+# Run the agent code in the sandbox
+execution_logs = run_code_raise_errors(sandbox, agent_code)
+print(execution_logs)
+```
+
+## Docker Setup
+
+### Installation
+
+1. Install Docker on your system:
+   - [Docker Desktop for Windows/Mac](https://www.docker.com/products/docker-desktop)
+   - For Linux:
+     ```bash
+     curl -fsSL https://get.docker.com -o get-docker.sh
+     sudo sh get-docker.sh
+     ```
+
+2. Install the Python Docker package:
+```bash
+pip install docker smolagents
+```
+
+### Setting Up the Docker Sandbox
+
+Create a Dockerfile for your agent environment:
+
+```dockerfile
+FROM python:3.10-bullseye
+
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        python3-dev && \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir smolagents && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Run with limited privileges
+USER nobody
+
+# Default command
+CMD ["python", "-c", "print('Container ready')"]
+```
+
+Create a sandbox manager to run code:
+
+```python
+import docker
+import os
+from typing import Optional
+
+class DockerSandbox:
+    def __init__(self):
+        self.client = docker.from_env()
+        self.container = None
+
+    def create_container(self):
+        try:
+            image, build_logs = self.client.images.build(
+                path=".",
+                tag="agent-sandbox",
+                rm=True,
+                forcerm=True,
+                buildargs={},
+                # decode=True
+            )
+            # Print build logs to see what's happening
+            # for chunk in build_logs:
+            #     if 'stream' in chunk:
+            #         print(chunk['stream'].strip())
+        except docker.errors.BuildError as e:
+            print("Build error logs:")
+            for log in e.build_log:
+                if 'stream' in log:
+                    print(log['stream'].strip())
+            raise
+
+        # Create container with security constraints and proper logging
+        self.container = self.client.containers.run(
+            "agent-sandbox",
+            command="tail -f /dev/null",  # Keep container running
+            detach=True,
+            tty=True,
+            mem_limit="512m",
+            cpu_quota=50000,
+            pids_limit=100,
+            security_opt=["no-new-privileges"],
+            cap_drop=["ALL"],
+            environment={
+                "HF_TOKEN": os.getenv("HF_TOKEN")
+            },
+        )
+
+    def run_code(self, code: str) -> Optional[str]:
+        if not self.container:
+            self.create_container()
+
+        # Execute code in container
+        exec_result = self.container.exec_run(
+            cmd=["python", "-c", code],
+            user="nobody"
+        )
+
+        # Collect all output
+        return exec_result.output.decode() if exec_result.output else None
+
+
+    def cleanup(self):
+        if self.container:
+            try:
+                self.container.stop()
+            except docker.errors.NotFound:
+                # Container already removed, this is expected
+                pass
+            except Exception as e:
+                print(f"Error during cleanup: {e}")
+            finally:
+                self.container = None  # Clear the reference
+
+# Example usage:
+sandbox = DockerSandbox()
+
+try:
+    # Define your agent code
+    agent_code = """
+import os
+from smolagents import CodeAgent, HfApiModel
+
+# Initialize the agent
+agent = CodeAgent(
+    model=HfApiModel(token=os.getenv("HF_TOKEN"), provider="together"),
+    tools=[]
+)
+
+# Run the agent
+response = agent.run("What's the 20th Fibonacci number?")
+print(response)
+"""
+
+    # Run the code in the sandbox
+    output = sandbox.run_code(agent_code)
+    print(output)
+
+finally:
+    sandbox.cleanup()
+```
+
+## Best Practices for Sandboxes
+
+These key practices apply to both E2B and Docker sandboxes:
+
+### Resource Management
+- Set memory and CPU limits
+- Implement execution timeouts
+- Monitor resource usage
+
+### Security
+- Run with minimal privileges
+- Disable unnecessary network access
+- Use environment variables for secrets
+
+### Environment
+- Keep dependencies minimal
+- Use fixed package versions
+- Update base images regularly
+
+### Cleanup
+
+Always ensure proper cleanup of resources, especially for Docker containers. Here's an example:
+
+```python
+def cleanup_docker_containers():
+    client = docker.from_env()
+    try:
+        # Find all containers with our tag
+        containers = client.containers.list(
+            filters={"label": "agent-sandbox"}
+        )
+        
+        # Stop and remove each container
+        for container in containers:
+            container.stop()
+            container.remove(force=True)
+    except Exception as e:
+        print(f"Error during cleanup: {e}")
+
+# Use in a try-finally block
+try:
+    container = create_secure_sandbox()
+    # ... run your code ...
+finally:
+    cleanup_docker_containers()
+```
+
+By following these practices and implementing proper cleanup procedures, you can ensure your agent runs safely and efficiently in a sandboxed environment.
