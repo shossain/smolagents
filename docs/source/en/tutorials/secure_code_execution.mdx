@@ -54,13 +54,13 @@ It's certainly not likely if you've chosen the LLM engine yourself, but it could
 
 So if you want to be on the side of caution, you can use the remote code execution option described below.
 
-# Sandbox Setup for Secure Code Execution
+## Sandbox Setup for Secure Code Execution
 
 When working with AI agents that execute code, security is paramount. This guide describes how to set up and use secure sandboxes for your agent applications using either E2B cloud sandboxes or local Docker containers.
 
-## E2B Setup
+### E2B Setup
 
-### Installation
+#### Installation
 
 1. Create an E2B account at [e2b.dev](https://e2b.dev)
 2. Install the required packages:
@@ -68,7 +68,7 @@ When working with AI agents that execute code, security is paramount. This guide
 pip install e2b_code_interpreter smolagents
 ```
 
-### Running Your Agent in E2B
+#### Running Your Agent in E2B
 
 Here's a complete example of running an agent in an E2B sandbox:
 
@@ -115,24 +115,17 @@ execution_logs = run_code_raise_errors(sandbox, agent_code)
 print(execution_logs)
 ```
 
-## Docker Setup
+### Docker Setup
 
-### Installation
+#### Installation
 
-1. Install Docker on your system:
-   - [Docker Desktop for Windows/Mac](https://www.docker.com/products/docker-desktop)
-   - For Linux:
-     ```bash
-     curl -fsSL https://get.docker.com -o get-docker.sh
-     sudo sh get-docker.sh
-     ```
-
+1. [Install Docker on your system](https://docs.docker.com/get-started/get-docker/)
 2. Install the Python Docker package:
 ```bash
-pip install docker smolagents
+pip install docker
 ```
 
-### Setting Up the Docker Sandbox
+#### Setting Up the Docker Sandbox
 
 Create a Dockerfile for your agent environment:
 
@@ -262,51 +255,27 @@ finally:
     sandbox.cleanup()
 ```
 
-## Best Practices for Sandboxes
+### Best Practices for Sandboxes
 
 These key practices apply to both E2B and Docker sandboxes:
 
-### Resource Management
+#### Resource Management
 - Set memory and CPU limits
 - Implement execution timeouts
 - Monitor resource usage
 
-### Security
+#### Security
 - Run with minimal privileges
 - Disable unnecessary network access
 - Use environment variables for secrets
 
-### Environment
+#### Environment
 - Keep dependencies minimal
 - Use fixed package versions
 - Update base images regularly
 
-### Cleanup
+#### Cleanup
 
-Always ensure proper cleanup of resources, especially for Docker containers. Here's an example:
-
-```python
-def cleanup_docker_containers():
-    client = docker.from_env()
-    try:
-        # Find all containers with our tag
-        containers = client.containers.list(
-            filters={"label": "agent-sandbox"}
-        )
-        
-        # Stop and remove each container
-        for container in containers:
-            container.stop()
-            container.remove(force=True)
-    except Exception as e:
-        print(f"Error during cleanup: {e}")
-
-# Use in a try-finally block
-try:
-    container = create_secure_sandbox()
-    # ... run your code ...
-finally:
-    cleanup_docker_containers()
-```
+Always ensure proper cleanup of resources, especially for Docker containers, to avoid having dangling containers eating up resources.
 
 By following these practices and implementing proper cleanup procedures, you can ensure your agent runs safely and efficiently in a sandboxed environment.
