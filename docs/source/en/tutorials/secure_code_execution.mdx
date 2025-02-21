@@ -38,19 +38,32 @@ This is illustrated on the figure below, taken from [Executable Code Actions Eli
 
 This is why we put emphasis on proposing code agents, in this case python agents, which meant putting higher effort on building secure python interpreters.
 
-### Local python interpreter
+### Local code execution??
 
 By default, the `CodeAgent` runs LLM-generated code in your environment.
-This execution is not done by the vanilla Python interpreter: we've re-built a more secure `LocalPythonInterpreter` from the ground up.
-This interpreter is designed for security by:
- - Restricting the imports to a list explicitly passed by the user
- - Capping the number of operations to prevent infinite loops and resource bloating.
- - Will not perform any operation that's not pre-defined.
 
-We've used this on many use cases, without ever observing any damage to the environment. 
+This is inherently risky, LLM-generated code could be harmful to your environment.
+One could argue that on the [spectrum of agency](../conceptual_guides/intro_agents), code agents give much higher agency to the LLM on your system than other less agentic setups: this goes hand-in-hand with higher risk.
 
-However this solution is not watertight: one could imagine occasions where LLMs fine-tuned for malignant actions could still hurt your environment. For instance if you've allowed an innocuous package like `Pillow` to process images, the LLM could generate thousands of saves of images to bloat your hard drive.
-It's certainly not likely if you've chosen the LLM engine yourself, but it could happen.
+So you need to be mindful of security.
+
+To add a first layer of security, code execution in `smolagents` is not performed by the vanilla Python interpreter.
+We have re-built a more secure `LocalPythonInterpreter` from the ground up.
+
+To be precise, this interpreter works by loading the Abstract Syntax Tree (AST) from your Code and executes it operation by operation, making sure to always follow certain rules:
+- By default, imports are disallowed unless they have been explicitly added to an authorization list by the user
+   - Even then because some innocuous packages like `re` can give access to potentiall harmful packages as in `re.subprocess`, subpackages that match a list of dangerous patterns are not imported.
+ - The total count of elementary operations processed is capped to prevent infinite loops and resource bloating.
+ - Any operation that has not been explicitly defined in our custom interpreter will raise an error.
+
+As a result, this interpreter is quite safe.
+
+We have used it on a vast diversity of use cases, without ever observing any damage to the environment. 
+
+However this solution is not watertight, since no local python sandbox can really be: one could imagine occasions where LLMs fine-tuned for malignant actions could still hurt your environment.
+
+For instance if you've allowed an innocuous package like `Pillow` to process images, the LLM could generate thousands of saves of images to bloat your hard drive.
+This requires a supply chain attack, which will not happen with well-known LLMs, but it could happen.
 
 So if you want to be on the side of caution, you can use the remote code execution option described below.
 
