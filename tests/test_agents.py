@@ -780,6 +780,16 @@ class TestCodeAgent:
             )
         assert result == expected_summary
 
+    def test_errors_logging(self):
+        def fake_code_model(messages, stop_sequences=None, grammar=None) -> str:
+            return ChatMessage(role="assistant", content="Code:\n```py\nsecret=3;['1', '2'][secret]\n```")
+
+        agent = CodeAgent(tools=[], model=fake_code_model, verbosity_level=1)
+
+        with agent.logger.console.capture() as capture:
+            agent.run("Test request")
+        assert "secret\\\\" in repr(capture.get())
+
 
 class MultiAgentsTests(unittest.TestCase):
     def test_multiagents_save(self):
