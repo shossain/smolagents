@@ -39,7 +39,7 @@ from smolagents import (
 # model = HfApiModel()
 model = LiteLLMModel(
     "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0",
-    custom_role_conversions = {"tool-call": "assistant", "tool-response": "user"}
+    # custom_role_conversions = {"tool-call": "assistant", "tool-response": "user"}
     # 'bedrock/us.meta.llama3-3-70b-instruct-v1:0',
     # custom_role_conversions = {"tool-response": "tool"}
 )
