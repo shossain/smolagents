@@ -98,7 +98,7 @@ def main():
     browser = SimpleTextBrowser(**BROWSER_CONFIG)
 
     WEB_TOOLS = [
-        GoogleSearchTool(provider="serper"),
+        GoogleSearchTool(),
         VisitTool(browser),
         PageUpTool(browser),
         PageDownTool(browser),
@@ -129,7 +129,7 @@ def main():
 
     manager_agent = CodeAgent(
         model=model,
-        tools=[visualizer, document_inspection_tool],
+        tools=[visualizer],
         max_steps=12,
         verbosity_level=2,
         additional_authorized_imports=AUTHORIZED_IMPORTS,
