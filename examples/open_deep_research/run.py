@@ -52,7 +52,7 @@ AUTHORIZED_IMPORTS = [
     "csv",
 ]
 load_dotenv(override=True)
-login(os.getenv("HF_TOKEN"))
+# login(os.getenv("HF_TOKEN"))
 
 append_answer_lock = threading.Lock()
 
@@ -94,6 +94,15 @@ def create_agent(model_id="o1"):
     model = LiteLLMModel(**model_params)
 
     text_limit = 100000
+
+    # model = LiteLLMModel(
+    #     args.model_id,
+    #     custom_role_conversions=custom_role_conversions,
+    #     max_completion_tokens=8192,
+    #     # reasoning_effort="high",
+    # )
+    # document_inspection_tool = TextInspectorTool(model, text_limit)
+
     browser = SimpleTextBrowser(**BROWSER_CONFIG)
     WEB_TOOLS = [
         GoogleSearchTool(provider="serper"),

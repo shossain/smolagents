@@ -1,3 +1,4 @@
+boto3
 anthropic>=0.37.1
 audioop-lts<1.0; python_version >= "3.13" # required to use pydub in Python >=3.13; LTS port of the removed Python builtin module audioop
 beautifulsoup4>=4.12.3
