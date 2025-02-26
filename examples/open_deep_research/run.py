@@ -105,7 +105,7 @@ def create_agent(model_id="o1"):
 
     browser = SimpleTextBrowser(**BROWSER_CONFIG)
     WEB_TOOLS = [
-        GoogleSearchTool(provider="serper"),
+        GoogleSearchTool(),
         VisitTool(browser),
         PageUpTool(browser),
         PageDownTool(browser),
@@ -136,6 +136,7 @@ def create_agent(model_id="o1"):
     manager_agent = CodeAgent(
         model=model,
         tools=[visualizer, TextInspectorTool(model, text_limit)],
+        # tools=[visualizer],
         max_steps=12,
         verbosity_level=2,
         additional_authorized_imports=AUTHORIZED_IMPORTS,
